@@ -15,6 +15,7 @@ export const PlaybackProvider = ({ children }) => {
     const [artists, setArtists] = useState([]);
     const [selectedAlbum, setSelectedAlbum] = useState(null);
     const [searchResults, setSearchResults] = useState([]);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const audioRef = useRef(new Audio());
 
@@ -31,7 +32,7 @@ export const PlaybackProvider = ({ children }) => {
                 // All Jamendo tracks have full audio (not just preview)
                 setTracks(tracksResponse.data);
                 setAlbums(albumsResponse.data);
-                setArtists(artistsResponse.data.slice(0, 6));
+                setArtists(artistsResponse.data);
 
                 if (tracksResponse.data.length > 0) {
                     setCurrentTrack(tracksResponse.data[0]);
@@ -115,7 +116,7 @@ export const PlaybackProvider = ({ children }) => {
             return;
         }
 
-        // Update the global tracks list if a new one is provided (e.g., from search or artist page)
+        // Update the global tracks list if a new one is provided
         if (newPlaylist && Array.isArray(newPlaylist) && newPlaylist.length > 0) {
             setTracks(newPlaylist);
         }
@@ -134,9 +135,22 @@ export const PlaybackProvider = ({ children }) => {
             // Explicitly call play() after setting src
             audioRef.current.play().catch(e => {
                 console.warn("Autoplay blocked or stream interrupted:", e.message);
-                // If it fails immediately, it might be the HQ resolver taking time
-                // The browser will retry as data comes in
             });
+        }
+    };
+
+    const playArtistTracks = async (artistId) => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`http://localhost:5000/api/artist/${artistId}/tracks`);
+            const playableTracks = response.data.tracks.filter(t => t.preview_url);
+            if (playableTracks.length > 0) {
+                playTrack(playableTracks[0], playableTracks);
+            }
+        } catch (error) {
+            console.error("Failed to play artist tracks:", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -179,10 +193,12 @@ export const PlaybackProvider = ({ children }) => {
         }
     };
 
+    const toggleExpand = () => setIsExpanded(!isExpanded);
+
     return (
         <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, volume, currentTime, duration, isLoading,
-            playTrack, togglePlay, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks,
+            tracks, currentTrack, isPlaying, volume, currentTime, duration, isLoading, isExpanded,
+            playTrack, playArtistTracks, togglePlay, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand,
             albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults
         }}>
             {children}

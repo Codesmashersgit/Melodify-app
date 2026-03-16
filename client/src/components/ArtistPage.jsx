@@ -57,34 +57,25 @@ const ArtistPage = () => {
     return (
         <div className="fade-in">
             {/* Artist Banner */}
-            <div style={{
-                padding: '48px 32px 32px',
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: '24px',
-                background: 'linear-gradient(180deg, rgba(29,185,84,0.3) 0%, rgba(18,18,18,1) 100%)',
-            }}>
+            <div className="artist-banner">
                 <img
                     src={artist.image}
                     alt={artist.name}
-                    style={{
-                        width: '200px', height: '200px', borderRadius: '50%',
-                        objectFit: 'cover', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                    }}
+                    className="artist-banner-img"
                 />
-                <div>
-                    <p style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Artist</p>
-                    <h1 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '8px' }}>{artist.name}</h1>
-                    <p style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem' }}>{tracks.length} songs</p>
+                <div className="artist-banner-info">
+                    <p style={{ fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>Artist</p>
+                    <h1 className="artist-banner-name">{artist.name}</h1>
+                    <p style={{ color: 'var(--melodify-dim-white)', fontSize: '0.85rem' }}>{tracks.length} songs</p>
                 </div>
             </div>
 
             {/* Play All Button */}
-            <div style={{ padding: '24px 32px 8px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="artist-play-section">
                 <button
                     onClick={() => tracks.length > 0 && playTrack(tracks[0], tracks)}
                     style={{
-                        width: '56px', height: '56px', borderRadius: '50%',
+                        width: '48px', height: '48px', borderRadius: '50%',
                         backgroundColor: 'var(--melodify-green)', border: 'none',
                         cursor: 'pointer', display: 'flex', alignItems: 'center',
                         justifyContent: 'center', transition: 'transform 0.2s',
@@ -95,27 +86,17 @@ const ArtistPage = () => {
                 >
                     <div style={{
                         width: 0, height: 0,
-                        borderTop: '10px solid transparent',
-                        borderBottom: '10px solid transparent',
-                        borderLeft: '16px solid black',
+                        borderTop: '8px solid transparent',
+                        borderBottom: '8px solid transparent',
+                        borderLeft: '14px solid black',
                         marginLeft: '3px',
                     }} />
                 </button>
             </div>
 
             {/* Track List Header */}
-            <div style={{ padding: '16px 32px 0' }}>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '40px 1fr 100px',
-                    padding: '0 16px 8px',
-                    borderBottom: '1px solid var(--glass-border)',
-                    color: 'var(--melodify-dim-white)',
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase',
-                }}>
+            <div className="artist-track-header-wrap">
+                <div className="artist-track-header">
                     <span>#</span>
                     <span>Title</span>
                     <span style={{ textAlign: 'right' }}>Duration</span>
@@ -123,43 +104,34 @@ const ArtistPage = () => {
             </div>
 
             {/* Track List */}
-            <div style={{ padding: '8px 32px 100px' }}>
+            <div className="artist-track-list">
                 {tracks.map((track, index) => {
                     const isCurrentTrack = currentTrack?.id === track.id;
                     return (
                         <div
                             key={track.id}
                             onClick={() => playTrack(track, tracks)}
-                            className="song-item"
+                            className="artist-track-item"
                             style={{
-                                display: 'grid',
-                                gridTemplateColumns: '40px 1fr 100px',
-                                padding: '10px 16px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
                                 color: isCurrentTrack ? 'var(--melodify-green)' : 'var(--melodify-dim-white)',
-                                transition: 'background-color 0.2s',
                             }}
                         >
-                            <span style={{ fontSize: '0.95rem' }}>
+                            <span style={{ fontSize: '0.9rem', flexShrink: 0, width: '24px' }}>
                                 {isCurrentTrack && isPlaying ? (
                                     <span style={{ color: 'var(--melodify-green)', fontSize: '1rem' }}>♫</span>
                                 ) : (
                                     index + 1
                                 )}
                             </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                                 <img
                                     src={track.image}
                                     alt={track.name}
-                                    style={{
-                                        width: '40px', height: '40px', borderRadius: '4px',
-                                        objectFit: 'cover', flexShrink: 0,
-                                    }}
+                                    className="artist-track-img"
                                 />
-                                <div style={{ overflow: 'hidden' }}>
+                                <div style={{ overflow: 'hidden', minWidth: 0 }}>
                                     <p style={{
-                                        fontSize: '0.95rem',
+                                        fontSize: '0.88rem',
                                         fontWeight: '500',
                                         color: isCurrentTrack ? 'var(--melodify-green)' : 'var(--melodify-white)',
                                         whiteSpace: 'nowrap',
@@ -167,7 +139,7 @@ const ArtistPage = () => {
                                         textOverflow: 'ellipsis',
                                     }}>{track.name}</p>
                                     <p style={{
-                                        fontSize: '0.8rem',
+                                        fontSize: '0.75rem',
                                         color: 'var(--melodify-dim-white)',
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
@@ -175,7 +147,7 @@ const ArtistPage = () => {
                                     }}>{track.artist}</p>
                                 </div>
                             </div>
-                            <span style={{ textAlign: 'right', fontSize: '0.85rem' }}>
+                            <span style={{ textAlign: 'right', fontSize: '0.8rem', flexShrink: 0 }}>
                                 {formatDuration(track.duration_ms)}
                             </span>
                         </div>

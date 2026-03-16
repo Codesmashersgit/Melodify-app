@@ -8,10 +8,10 @@ import Login from './components/Login';
 import Album from './components/Album';
 import Search from './components/Search';
 import ArtistPage from './components/ArtistPage';
+import FullPlayer from './components/FullPlayer';
 
 import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import { HistoryProvider } from './context/HistoryContext';
-
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Body />} />
             <Route path="search" element={<Search />} />
-            <Route path="album" element={<Album />} />
+            <Route path="album/:id" element={<Album />} />
             <Route path="artist/:id" element={<ArtistPage />} />
           </Route>
           <Route path="/login" element={<Login />} />
@@ -35,6 +35,7 @@ function App() {
 function Layout() {
   return (
     <div className='app-container'>
+      <FullPlayer />
       <div className='sidebar-container'>
         <Sidebar />
       </div>

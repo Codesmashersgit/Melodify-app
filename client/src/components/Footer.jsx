@@ -1,24 +1,12 @@
 import React from 'react'
-import { FaPlay, FaPause, FaStepForward, FaStepBackward, FaRandom, FaUndoAlt, FaVolumeUp, FaVolumeMute, FaListUl } from "react-icons/fa";
+import { FaPlay, FaPause, FaStepForward, FaStepBackward, FaRandom, FaUndoAlt, FaVolumeUp, FaVolumeMute, FaListUl, FaHeart } from "react-icons/fa";
 import { usePlayback } from '../context/PlaybackContext';
 
 const Footer = () => {
   const {
     currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-    currentTime, duration, volume, setVolume, formatTime, seekTo
+    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand
   } = usePlayback();
-
-  const [playbackError, setPlaybackError] = React.useState(false);
-
-  React.useEffect(() => {
-    // Check if there's an error on the audio object
-    // This is a bit of a hack since we don't have a global error state yet
-    const checkError = setInterval(() => {
-      // We can't easily reach the audioRef from here if it's in context only
-      // But we can add it to the context
-    }, 1000);
-    return () => clearInterval(checkError);
-  }, []);
 
   if (!currentTrack) return null;
 
@@ -36,57 +24,93 @@ const Footer = () => {
   };
 
   return (
-    <div className='player-container'>
+    <div 
+      className='player-container' 
+      onClick={toggleExpand}
+      style={{ 
+        background: 'rgba(0,0,0,0.95)', 
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        cursor: 'pointer'
+      }}
+      title="Click to expand"
+    >
       {/* Left: Track Info */}
       <div className='track-info'>
-        <img
-          src={currentTrack.image}
-          alt={currentTrack.name}
-          className='track-img'
-        />
-        <div className='track-details'>
-          <h5>{currentTrack.name} {currentTrack.preview_url === '' && <span style={{ color: 'red', fontSize: '10px' }}>(No Stream)</span>}</h5>
-          <p>{currentTrack.artist}</p>
+        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '4px' }}>
+          <img
+            src={currentTrack.image}
+            alt={currentTrack.name}
+            className='track-img'
+            style={{ transition: 'transform 0.3s ease' }}
+          />
         </div>
+        <div className='track-details' style={{ maxWidth: '200px' }}>
+          <h5 style={{ 
+            fontWeight: '600', 
+            letterSpacing: '-0.2px', 
+            whiteSpace: 'nowrap', 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis' 
+          }} title={currentTrack.name}>
+            {currentTrack.name}
+          </h5>
+          <p style={{ 
+            opacity: 0.7, 
+            whiteSpace: 'nowrap', 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis',
+            fontSize: '11px'
+          }} title={currentTrack.artist}>
+            {currentTrack.artist.split(',').length > 3 
+              ? currentTrack.artist.split(',').slice(0, 3).join(', ') + " & more"
+              : currentTrack.artist}
+          </p>
+        </div>
+        <FaHeart 
+          style={{ marginLeft: '12px', color: '#1DB954', cursor: 'pointer', fontSize: '14px' }} 
+          onClick={(e) => e.stopPropagation()}
+        />
       </div>
 
       {/* Middle: Controls */}
-      <div className='player-controls'>
+      <div className='player-controls' onClick={(e) => e.stopPropagation()}>
         <div className='control-buttons'>
-          <FaRandom className='control-icon' title="Shuffle" />
+          <FaRandom className='control-icon' title="Shuffle" style={{ fontSize: '12px' }} />
           <FaStepBackward className='control-icon main-icon' onClick={handlePrev} title="Previous" />
           <div
             onClick={togglePlay}
             className='play-pause-btn'
             title={isPlaying ? "Pause" : "Play"}
+            style={{ width: '32px', height: '32px' }}
           >
             {isPlaying ? (
-              <FaPause style={{ color: 'black', fontSize: '14px' }} />
+              <FaPause style={{ color: 'black', fontSize: '12px' }} />
             ) : (
-              <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+              <FaPlay style={{ color: 'black', fontSize: '12px', marginLeft: '1px' }} />
             )}
           </div>
           <FaStepForward className='control-icon main-icon' onClick={handleNext} title="Next" />
-          <FaUndoAlt className='control-icon' title="Enable repeat" />
+          <FaUndoAlt className='control-icon' title="Enable repeat" style={{ fontSize: '12px' }} />
         </div>
+        
         <div className='progress-bar-container'>
           <span>{formatTime(currentTime)}</span>
           <div
             className='progress-bar'
             onClick={handleSeek}
-            style={{ '--progress-pos': `${progressPercentage}%` }}
           >
             <div className='progress-fill' style={{ width: `${progressPercentage}%` }}></div>
+            <div className='progress-knob' style={{ left: `${progressPercentage}%` }}></div>
           </div>
           <span>{formatTime(duration)}</span>
         </div>
       </div>
 
       {/* Right: Extra Controls */}
-      <div className='volume-controls'>
-        <FaListUl className='control-icon' />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
-          {volume === 0 ? <FaVolumeMute className='control-icon' /> : <FaVolumeUp className='control-icon' />}
+      <div className='volume-controls' onClick={(e) => e.stopPropagation()}>
+        <FaListUl className='control-icon' style={{ fontSize: '12px', opacity: 0.6 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {volume === 0 ? <FaVolumeMute className='control-icon' style={{ fontSize: '14px' }} /> : <FaVolumeUp className='control-icon' style={{ fontSize: '14px' }} />}
           <input
             type="range"
             min="0"
@@ -95,6 +119,9 @@ const Footer = () => {
             value={volume}
             onChange={handleVolumeChange}
             className='volume-slider'
+            style={{ 
+              '--volume-percent': `${volume * 100}%`
+            }}
           />
         </div>
       </div>
@@ -103,3 +130,4 @@ const Footer = () => {
 }
 
 export default Footer
+

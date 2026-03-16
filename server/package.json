@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node --openssl-legacy-provider index.js",
+    "dev": "node --openssl-legacy-provider index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

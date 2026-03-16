@@ -1,31 +1,47 @@
 const crypto = require('crypto');
 
-// The JioSaavn decryption key
-const JIOSAAVN_KEY = '3834663638363632';
-
-// Decryption logic for JioSaavn encrypted URLs
-function decryptUrl(encryptedUrl) {
+function decrypt(url) {
     try {
-        // We use des-ede3 (Triple DES) which is often used as a fallback for 16-byte keys in Node
-        // for regular DES-ECB. Actually, we'll try to use a more robust way.
-        // Node 17+ requires --openssl-legacy-provider for 'des-ecb'
-        // But many servers don't have it.
-        // Let's try the direct Node crypto one more time with a trick.
-
-        // If this fails, we will use a fallback or an error message.
-        const decipher = crypto.createDecipheriv('des-ecb', Buffer.from(JIOSAAVN_KEY.substring(0, 8), 'utf8'), '');
-        let decrypted = decipher.update(encryptedUrl, 'base64', 'utf8');
+        const key = Buffer.from('38346591');
+        const decipher = crypto.createDecipheriv('des-ecb', key, Buffer.alloc(0));
+        decipher.setAutoPadding(true);
+        let decrypted = decipher.update(url, 'base64', 'utf8');
         decrypted += decipher.final('utf8');
-
-        // Pattern for JioSaavn full links
-        // The decrypted path often looks like 'path/to/song'
-        return `https://aac.saavncdn.com/${decrypted}_320.mp4`;
+        return decrypted;
     } catch (e) {
-        console.error('Decryption failed:', e.message);
-        return null;
+        return "Fail: " + e.message;
     }
 }
 
-// Test with Soulmate
-const encrypted = 'ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDy/tWfK+bl5vTcbVsl/KiLemjCW8W1iitP5bxYiSsL1vg0kAxBaw52ghw7tS9a8Gtq';
-console.log('Result:', decryptUrl(encrypted));
+function decrypt2(url) {
+    try {
+        const key = Buffer.from('38346591');
+        const decipher = crypto.createDecipher('des-ecb', key); // deprecated but let's test
+        let decrypted = decipher.update(url, 'base64', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch (e) {
+        return "Fail2: " + e.message;
+    }
+}
+
+function decrypt3(url) {
+    try {
+        const crypto = require('crypto');
+        const desKey = Buffer.from('38346591', 'utf-8');
+        const iv = Buffer.alloc(0);
+        const decipher = crypto.createDecipheriv('des-ecb', desKey, iv);
+        decipher.setAutoPadding(false); // maybe false?
+        const encryptedBuffer = Buffer.from(url, 'base64');
+        let decrypted = decipher.update(encryptedBuffer, 'binary', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch(e) {
+        return "Fail3 " + e.message;
+    }
+}
+
+const url = "ID2ieOjCrwZ9aP+9Vws6KBJswtBw7tS9a8GtqP2L2N+2wYy371xXwJ2f4mS1J61+Xn05S1Q4fWz1x1PqT/4D0L+wO7eL5sXf";
+console.log(decrypt(url));
+console.log(decrypt2(url));
+console.log(decrypt3(url));

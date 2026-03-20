@@ -9,6 +9,8 @@ import Album from './components/Album';
 import Search from './components/Search';
 import ArtistPage from './components/ArtistPage';
 import FullPlayer from './components/FullPlayer';
+import { usePlayback } from './context/PlaybackContext';
+
 
 import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import { HistoryProvider } from './context/HistoryContext';
@@ -33,6 +35,8 @@ function App() {
 }
 
 function Layout() {
+  const { isExpanded } = usePlayback();
+
   return (
     <div className='app-container'>
       <FullPlayer />
@@ -45,11 +49,14 @@ function Layout() {
         <Outlet />
       </main>
 
-      <div className='player-bar'>
-        <Footer />
-      </div>
+      {!isExpanded && (
+        <div className='player-bar'>
+          <Footer />
+        </div>
+      )}
     </div>
   )
 }
+
 
 export default App

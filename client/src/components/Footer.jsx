@@ -5,10 +5,12 @@ import { usePlayback } from '../context/PlaybackContext';
 const Footer = () => {
   const {
     currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand
+    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded
   } = usePlayback();
 
-  if (!currentTrack) return null;
+
+  if (!currentTrack || isExpanded) return null;
+
 
   const handleVolumeChange = (e) => {
     setVolume(parseFloat(e.target.value));

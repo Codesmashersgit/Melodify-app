@@ -3,6 +3,8 @@ import { FaPlay, FaClock, FaEllipsisH } from "react-icons/fa";
 import { useParams } from 'react-router-dom';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
+import API_BASE_URL from '../config';
+
 
 const Album = () => {
   const { id } = useParams();
@@ -16,7 +18,8 @@ const Album = () => {
       setLoading(true);
       try {
         if (id) {
-          const response = await axios.get(`http://localhost:5000/api/album/${id}`);
+          const response = await axios.get(`${API_BASE_URL}/api/album/${id}`);
+
           setAlbumData(response.data.album);
           setAlbumTracks(response.data.tracks || []);
         } else {

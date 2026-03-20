@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useRef, useEffect } from 'r
 import axios from 'axios';
 
 const PlaybackContext = createContext();
+import API_BASE_URL from '../config';
+
 
 export const PlaybackProvider = ({ children }) => {
     const [tracks, setTracks] = useState([]);
@@ -24,10 +26,11 @@ export const PlaybackProvider = ({ children }) => {
         const fetchInitialData = async () => {
             try {
                 const [tracksResponse, albumsResponse, artistsResponse] = await Promise.all([
-                    axios.get('http://localhost:5000/api/top-tracks'),
-                    axios.get('http://localhost:5000/api/recommendations'),
-                    axios.get('http://localhost:5000/api/artists')
+                    axios.get(`${API_BASE_URL}/api/top-tracks`),
+                    axios.get(`${API_BASE_URL}/api/recommendations`),
+                    axios.get(`${API_BASE_URL}/api/artists`)
                 ]);
+
 
                 // All Jamendo tracks have full audio (not just preview)
                 setTracks(tracksResponse.data);
@@ -142,7 +145,8 @@ export const PlaybackProvider = ({ children }) => {
     const playArtistTracks = async (artistId) => {
         setIsLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/artist/${artistId}/tracks`);
+            const response = await axios.get(`${API_BASE_URL}/api/artist/${artistId}/tracks`);
+
             const playableTracks = response.data.tracks.filter(t => t.preview_url);
             if (playableTracks.length > 0) {
                 playTrack(playableTracks[0], playableTracks);
@@ -158,7 +162,8 @@ export const PlaybackProvider = ({ children }) => {
         if (!query) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/search?query=${query}`);
+            const response = await axios.get(`${API_BASE_URL}/api/search?query=${query}`);
+
             const playableTracks = response.data.filter(t => t.preview_url);
             setTracks(playableTracks);
             setSearchResults(playableTracks);

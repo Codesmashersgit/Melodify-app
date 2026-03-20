@@ -276,7 +276,11 @@ const formatSong = (song) => {
     // Pass name and artist for better fallback resolution
     const name = song.song || song.title || song.name || 'Unknown Track';
     const artist = song.primary_artists || song.singers || song.subtitle || info.artistMap?.primary_artists?.[0]?.name || 'Unknown Artist';
-    const preview = songId ? `http://localhost:5000/api/stream?id=${songId}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}` : '';
+    
+    // Use environment variable for the base URL, or fallback to localhost if not set
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const preview = songId ? `${baseUrl}/api/stream?id=${songId}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}` : '';
+
 
     return {
         id: songId,

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
+import API_BASE_URL from '../config';
+
 
 const ArtistPage = () => {
     const { id } = useParams();
@@ -15,7 +17,8 @@ const ArtistPage = () => {
         const fetchArtistData = async () => {
             setLoading(true);
             try {
-                const response = await axios.get(`http://localhost:5000/api/artist/${id}/tracks`);
+                const response = await axios.get(`${API_BASE_URL}/api/artist/${id}/tracks`);
+
                 setArtist(response.data.artist);
                 setTracks(response.data.tracks);
             } catch (error) {

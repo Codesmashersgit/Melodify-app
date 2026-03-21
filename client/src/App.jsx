@@ -15,10 +15,15 @@ import { usePlayback } from './context/PlaybackContext';
 import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import { HistoryProvider } from './context/HistoryContext';
 
+import BottomNav from './components/BottomNav';
+
+import SplashScreen from './components/SplashScreen';
+
 function App() {
   return (
     <Router>
       <HistoryProvider>
+        <SplashScreen />
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Body />} />
@@ -52,6 +57,7 @@ function Layout() {
       {!isExpanded && (
         <div className='player-bar'>
           <Footer />
+          <BottomNav />
         </div>
       )}
     </div>

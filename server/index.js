@@ -8,6 +8,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const yts = require('yt-search');
 
 dotenv.config();
 
@@ -685,6 +686,28 @@ app.get('/api/health', async (req, res) => {
         }
     } catch (err) {
         res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
+// YouTube Video Search — returns a YouTube video ID for a given song query
+app.get('/api/video', async (req, res) => {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+
+    try {
+        const result = await yts(q + ' official music video');
+        const video = result.videos?.[0];
+        if (!video) return res.status(404).json({ error: 'No video found' });
+
+        res.json({
+            videoId: video.videoId,
+            title: video.title,
+            thumbnail: video.thumbnail,
+            url: video.url,
+        });
+    } catch (err) {
+        console.error('YouTube search error:', err.message);
+        res.status(500).json({ error: 'Failed to search YouTube' });
     }
 });
 

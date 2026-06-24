@@ -9,15 +9,30 @@ import Album from './components/Album';
 import Search from './components/Search';
 import ArtistPage from './components/ArtistPage';
 import FullPlayer from './components/FullPlayer';
+import LikedSongs from './components/LikedSongs';
+import ShowAll from './components/ShowAll';
+import PlaylistPage from './components/PlaylistPage';
 import { usePlayback } from './context/PlaybackContext';
 
 
-import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Outlet, Navigate } from 'react-router-dom';
 import { HistoryProvider } from './context/HistoryContext';
+import { useAuth } from './context/AuthContext';
 
 import BottomNav from './components/BottomNav';
 
 import SplashScreen from './components/SplashScreen';
+
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   return (
@@ -25,11 +40,14 @@ function App() {
       <HistoryProvider>
         <SplashScreen />
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Body />} />
             <Route path="search" element={<Search />} />
             <Route path="album/:id" element={<Album />} />
             <Route path="artist/:id" element={<ArtistPage />} />
+            <Route path="liked" element={<LikedSongs />} />
+            <Route path="show-all/:category" element={<ShowAll />} />
+            <Route path="playlist/:id" element={<PlaylistPage />} />
           </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

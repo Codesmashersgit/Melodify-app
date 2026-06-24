@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { FaGoogle, FaFacebook, FaApple, FaEye, FaEyeSlash } from 'react-icons/fa';
 import logo from '../assets/melodify.png';
 
@@ -10,9 +11,19 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState('');
 
-  const handleSubmit = (e) => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic
+    setError('');
+    const res = await login(email, password);
+    if (res.success) {
+      navigate('/');
+    } else {
+      setError(res.message);
+    }
   };
 
   return (
@@ -44,6 +55,8 @@ const Login = () => {
           </div>
 
           <div className='auth-divider'>or</div>
+
+          {error && <div className="auth-error" style={{color: '#ff4444', textAlign: 'center', marginBottom: '1rem'}}>{error}</div>}
 
           <form className='auth-form' onSubmit={handleSubmit}>
             <div className={`input-group-premium ${focusedField === 'email' || email ? 'focused' : ''}`}>

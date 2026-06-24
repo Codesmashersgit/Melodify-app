@@ -220,6 +220,12 @@ body {
   transform: translateY(0);
 }
 
+/* Search row play button hover */
+.play-on-hover {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
 .play-icon {
   width: 0;
   height: 0;

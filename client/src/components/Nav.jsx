@@ -1,12 +1,20 @@
 import React from 'react'
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppHistory } from '../context/HistoryContext';
+import { useAuth } from '../context/AuthContext';
 
 import logo from '../assets/melodify.png';
 
 const Nav = () => {
   const { goBack, goForward, canGoBack, canGoForward } = useAppHistory();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <nav className='nav-header'>
@@ -43,12 +51,21 @@ const Nav = () => {
       </div>
 
       <div className='nav-auth'>
-        <Link to='/signup' style={{ textDecoration: 'none' }} className='signup-link'>
-          <button className='btn-ghost'>Sign up</button>
-        </Link>
-        <Link to='/login' style={{ textDecoration: 'none' }}>
-          <button className='btn-premium'>Log in</button>
-        </Link>
+        {user ? (
+          <>
+            <span style={{ color: 'white', marginRight: '15px', fontWeight: 'bold', fontSize: '0.9rem' }}>Hi, {user.name}</span>
+            <button className='btn-ghost' onClick={handleLogout}>Log out</button>
+          </>
+        ) : (
+          <>
+            <Link to='/signup' style={{ textDecoration: 'none' }} className='signup-link'>
+              <button className='btn-ghost'>Sign up</button>
+            </Link>
+            <Link to='/login' style={{ textDecoration: 'none' }}>
+              <button className='btn-premium'>Log in</button>
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   )

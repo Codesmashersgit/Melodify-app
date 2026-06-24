@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { FaGoogle, FaFacebook, FaApple, FaEye, FaEyeSlash, FaCheck } from 'react-icons/fa';
 import logo from '../assets/melodify.png';
 
@@ -33,9 +34,20 @@ const Signup = () => {
 
   const passwordsMatch = confirmPassword && password === confirmPassword;
 
-  const handleSubmit = (e) => {
+  const navigate = useNavigate();
+  const { signup } = useAuth();
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle signup logic
+    if (!passwordsMatch) return setError("Passwords do not match");
+    setError('');
+    const res = await signup(username, email, password);
+    if (res.success) {
+      navigate('/');
+    } else {
+      setError(res.message);
+    }
   };
 
   return (
@@ -67,6 +79,8 @@ const Signup = () => {
           </div>
 
           <div className='auth-divider'>or</div>
+
+          {error && <div className="auth-error" style={{color: '#ff4444', textAlign: 'center', marginBottom: '1rem'}}>{error}</div>}
 
           <form className='auth-form' onSubmit={handleSubmit}>
             {/* Email */}

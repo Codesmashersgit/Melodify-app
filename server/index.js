@@ -1,15 +1,23 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const userRoutes = require('./routes');
 const dotenv = require('dotenv');
 const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
+
+// Mount User & DB routes
+app.use('/api/user', userRoutes);
 
 // Prevent silent crashes
 process.on('uncaughtException', (err) => {
@@ -129,8 +137,25 @@ const hdImage = (url) => url ? url.replace(/150x150|50x50/, '500x500') : '';
 // =================== RESOLVE FULL SONG URL ===================
 // This is the core function that resolves a full-length HQ URL from a song ID
 
+const cacheFile = path.join(__dirname, 'hq_url_cache.json');
 // In-memory cache for resolved HQ URLs (songId -> url)
-const hqUrlCache = new Map();
+let hqUrlCache = new Map();
+try {
+    if (fs.existsSync(cacheFile)) {
+        const data = fs.readFileSync(cacheFile, 'utf8');
+        hqUrlCache = new Map(Object.entries(JSON.parse(data)));
+    }
+} catch (err) {
+    console.error('Error loading cache file:', err);
+}
+
+function saveCache() {
+    try {
+        fs.writeFileSync(cacheFile, JSON.stringify(Object.fromEntries(hqUrlCache)));
+    } catch (err) {
+        console.error('Error saving cache file:', err);
+    }
+}
 
 async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
     // Check cache first
@@ -173,6 +198,7 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
                     console.log(`✅ Strategy 1 (DES decrypt) SUCCESS for ${songId}`);
                     console.log(`🔗 Decrypted URL: ${decrypted.substring(0, 80)}...`);
                     hqUrlCache.set(songId, decrypted);
+                    saveCache();
                     return decrypted;
                 }
             } else {
@@ -185,7 +211,7 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
         console.warn(`⚠️ Strategy 1 failed for ${songId}:`, e.message);
     }
 
-    // STRATEGY 2: Use third-party JioSaavn API instances
+    // STRATEGY 2: Use third-party JioSaavn API instances in parallel
     const thirdPartyApis = [
         `https://saavn.dev/api/songs/${songId}`,
         `https://jiosaavn-api-privatecvc2.vercel.app/api/songs/${songId}`,
@@ -193,45 +219,42 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
         `https://jiosaavn-api-liard.vercel.app/api/songs?id=${songId}`,
     ];
 
-    for (const api of thirdPartyApis) {
-        try {
-            const hqData = await fetchJson(api, 5000);
+    try {
+        console.log(`🚀 Strategy 2: Fetching from ${thirdPartyApis.length} third-party APIs in parallel...`);
+        const link = await Promise.any(thirdPartyApis.map(api => new Promise(async (resolve, reject) => {
+            try {
+                const hqData = await fetchJson(api, 6000);
+                
+                let song = null;
+                if (hqData.data && Array.isArray(hqData.data)) song = hqData.data[0];
+                else if (hqData.data && hqData.data.id) song = hqData.data;
+                else if (Array.isArray(hqData)) song = hqData[0];
 
-            // Handle different response structures
-            let song = null;
-            if (hqData.data && Array.isArray(hqData.data)) {
-                song = hqData.data[0];
-            } else if (hqData.data && hqData.data.id) {
-                song = hqData.data;
-            } else if (Array.isArray(hqData)) {
-                song = hqData[0];
-            }
-
-            if (song) {
-                // Try downloadUrl array (most common)
-                let downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
-                if (downloadUrls && Array.isArray(downloadUrls)) {
-                    // Get highest quality (last item or look for 320kbps)
-                    const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') 
-                            || downloadUrls[downloadUrls.length - 1];
-                    const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
-                    if (link) {
-                        console.log(`✅ Strategy 2 (${api}) SUCCESS for ${songId}`);
-                        hqUrlCache.set(songId, link);
-                        return link;
+                if (song) {
+                    let downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
+                    if (downloadUrls && Array.isArray(downloadUrls)) {
+                        const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') || downloadUrls[downloadUrls.length - 1];
+                        const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
+                        if (link) return resolve({link, api});
+                    }
+                    if (song.url && typeof song.url === 'string' && song.url.includes('saavncdn')) {
+                        return resolve({link: song.url, api});
                     }
                 }
-
-                // Try direct URL field
-                if (song.url && typeof song.url === 'string' && song.url.includes('saavncdn')) {
-                    console.log(`✅ Strategy 2 (${api}) SUCCESS via direct URL for ${songId}`);
-                    hqUrlCache.set(songId, song.url);
-                    return song.url;
-                }
+                reject(new Error("No valid URL found"));
+            } catch (err) {
+                reject(err);
             }
-        } catch (e) {
-            // Try next API
+        })));
+
+        if (link && link.link) {
+            console.log(`✅ Strategy 2 (${link.api}) SUCCESS for ${songId}`);
+            hqUrlCache.set(songId, link.link);
+            saveCache();
+            return link.link;
         }
+    } catch (e) {
+        console.warn(`⚠️ Strategy 2 (Parallel API Fetch) failed for ${songId}`);
     }
 
     // STRATEGY 4: Search fallback (if we have name/artist)
@@ -252,6 +275,7 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
                     if (decrypted) {
                         console.log(`✅ Strategy 4 SUCCESS for ${songName}`);
                         hqUrlCache.set(songId, decrypted);
+                        saveCache();
                         return decrypted;
                     }
                 }

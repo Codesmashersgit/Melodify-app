@@ -12,7 +12,23 @@ const path = require('path');
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+const allowedOrigins = [
+    'http://localhost:5173', 
+    process.env.CLIENT_URL,
+    'https://melodify-app.vercel.app', // Add common ones just in case
+    'https://melodify.vercel.app'
+].filter(Boolean);
+
+app.use(cors({ 
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }, 
+    credentials: true 
+}));
 app.use(cookieParser());
 app.use(express.json());
 

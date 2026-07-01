@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Melodify",
+    "slug": "melodify",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.melodify.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./withRemoveBundleCompression",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "553e7e53-7d2e-443b-87f9-0d737f7f4d7c"
+      }
+    },
+    "owner": "sudhanshu_raj1802"
+  }
+}

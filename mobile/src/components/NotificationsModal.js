@@ -6,11 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const NotificationsModal = ({ visible, onClose }) => {
+  const insets = useSafeAreaInsets();
   const notifications = [
     {
       id: 1,
@@ -51,29 +52,38 @@ const NotificationsModal = ({ visible, onClose }) => {
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Ionicons name="notifications" size={28} color="#1DB954" />
-            <Text style={styles.headerTitle}>Notifications</Text>
-          </View>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="close" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.backdrop}>
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.grabber} />
 
-        {/* Notifications List */}
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <Ionicons name="notifications" size={24} color="#1DB954" />
+              <Text style={styles.headerTitle}>Notifications</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Notifications List */}
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+          >
           {notifications.map((notif) => (
             <TouchableOpacity
               key={notif.id}
@@ -108,25 +118,47 @@ const NotificationsModal = ({ visible, onClose }) => {
               />
             </TouchableOpacity>
           ))}
-        </ScrollView>
+          </ScrollView>
 
-        {/* Clear All Button */}
-        <TouchableOpacity
-          style={styles.clearButton}
-          activeOpacity={0.7}
-          onPress={onClose}
-        >
-          <Text style={styles.clearButtonText}>Clear All Notifications</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+          {/* Clear All Button */}
+          <TouchableOpacity
+            style={styles.clearButton}
+            activeOpacity={0.7}
+            onPress={onClose}
+          >
+            <Text style={styles.clearButtonText}>Clear All Notifications</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
-    backgroundColor: '#0a0a0f',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  backdropTouch: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheet: {
+    maxHeight: '82%',
+    backgroundColor: '#12121a',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',

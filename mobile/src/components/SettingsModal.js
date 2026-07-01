@@ -6,14 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Switch,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
 const SettingsModal = ({ visible, onClose }) => {
   const { logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [privateMode, setPrivateMode] = useState(false);
 
@@ -96,26 +97,35 @@ const SettingsModal = ({ visible, onClose }) => {
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="close" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.backdrop}>
+        <TouchableOpacity
+          style={styles.backdropTouch}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.grabber} />
 
-        {/* Settings List */}
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Settings</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Settings List */}
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+          >
           {settingsSections.map((section, sectionIndex) => (
             <View key={sectionIndex} style={styles.section}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -172,26 +182,48 @@ const SettingsModal = ({ visible, onClose }) => {
             <Text style={styles.versionText}>Melodify v1.0.0</Text>
             <Text style={styles.versionSubText}>Made with 🎵 by Melodify Team</Text>
           </View>
-        </ScrollView>
+          </ScrollView>
 
-        {/* Logout Button */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          activeOpacity={0.7}
-          onPress={handleLogout}
-        >
-          <Ionicons name="log-out" size={20} color="#FF4444" />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+          {/* Logout Button */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            activeOpacity={0.7}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out" size={20} color="#FF4444" />
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
-    backgroundColor: '#0a0a0f',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  backdropTouch: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheet: {
+    maxHeight: '88%',
+    backgroundColor: '#12121a',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',

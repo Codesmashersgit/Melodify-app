@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { usePlayback } from '../context/PlaybackContext';
@@ -8,6 +9,7 @@ import API_BASE_URL from '../config';
 const AlbumScreen = ({ route, navigation }) => {
     const { albumId } = route.params;
     const { playTrack } = usePlayback();
+    const insets = useSafeAreaInsets();
     const [album, setAlbum] = useState(null);
     const [tracks, setTracks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +55,7 @@ const AlbumScreen = ({ route, navigation }) => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
             
-            <View style={styles.headerBar}>
+            <View style={[styles.headerBar, { top: insets.top + 8 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="white" />
                 </TouchableOpacity>
@@ -85,7 +87,7 @@ const AlbumScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212' },
     loadingContainer: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' },
-    headerBar: { position: 'absolute', top: 50, left: 15, zIndex: 10 },
+    headerBar: { position: 'absolute', left: 15, zIndex: 10 },
     backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
     header: { alignItems: 'center', padding: 20, paddingTop: 60, paddingBottom: 10 },
     albumImage: { width: 220, height: 220, marginBottom: 20, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },

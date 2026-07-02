@@ -20,7 +20,8 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const {
         currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
         currentTime, duration, formatTime, seekTo,
-        mode, videoId, videoLoading, videoError, videoPlaying, setVideoPlaying, switchMode
+        mode, videoId, videoLoading, videoError, videoPlaying, setVideoPlaying, switchMode,
+        tracks
     } = usePlayback();
     const { user } = useAuth();
     const [isLiked, setIsLiked] = useState(false);
@@ -116,7 +117,10 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     // ─────────────────────────────────────────────────────────
     if (mode === 'video') {
         return (
-            <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" statusBarTranslucent>
+            <Modal visible={visible} animationType="fade" statusBarTranslucent
+                presentationStyle="fullScreen"
+                hardwareAccelerated
+            >
                 <View style={styles.fullVideoContainer}>
                     <StatusBar hidden={true} />
 
@@ -283,7 +287,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
 
                     {/* ── Playback Controls ── */}
                     <View style={styles.controlsContainer}>
-                        <TouchableOpacity style={styles.controlBtn} onPress={handlePrev}>
+                        <TouchableOpacity style={styles.controlBtn} onPress={() => handlePrev(tracks, currentTrack)}>
                             <Ionicons name="play-skip-back" size={32} color="white" />
                         </TouchableOpacity>
 
@@ -296,25 +300,11 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.controlBtn} onPress={handleNext}>
+                        <TouchableOpacity style={styles.controlBtn} onPress={() => handleNext(tracks, currentTrack)}>
                             <Ionicons name="play-skip-forward" size={32} color="white" />
                         </TouchableOpacity>
                     </View>
 
-                    {/* ── Volume row ── */}
-                    <View style={styles.volumeRow}>
-                        <Ionicons name="volume-low" size={20} color="#666" />
-                        <Slider
-                            style={{ flex: 1, height: 40 }}
-                            minimumValue={0}
-                            maximumValue={1}
-                            value={0.7} // This should ideally be from context, using 0.7 as fallback
-                            minimumTrackTintColor="rgba(255,255,255,0.4)"
-                            maximumTrackTintColor="rgba(255,255,255,0.1)"
-                            thumbTintColor="transparent"
-                        />
-                        <Ionicons name="volume-high" size={20} color="#666" />
-                    </View>
                 </View>
             </View>
         </Modal>
@@ -540,6 +530,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#000',
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
     },
     videoLoader: {
         flex: 1,

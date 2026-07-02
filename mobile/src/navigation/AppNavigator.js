@@ -16,6 +16,7 @@ import AlbumScreen from '../screens/AlbumScreen';
 import ArtistScreen from '../screens/ArtistScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import PlaylistScreen from '../screens/PlaylistScreen';
+import SeeAllScreen from '../screens/SeeAllScreen';
 import PlayerBar from '../components/PlayerBar';
 
 const Tab = createBottomTabNavigator();
@@ -102,6 +103,13 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Playlist"
               component={PlaylistScreen}
+              options={{
+                animationEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="SeeAll"
+              component={SeeAllScreen}
               options={{
                 animationEnabled: true,
               }}

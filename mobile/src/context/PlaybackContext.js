@@ -27,31 +27,47 @@ export const PlaybackProvider = ({ children }) => {
     const [videoError, setVideoError] = useState(null);
     const [videoPlaying, setVideoPlaying] = useState(false);
 
+    const [fetchError, setFetchError] = useState(null);
+
     const soundRef = useRef(null);
     const appStateRef = useRef(AppState.currentState);
 
+    // Fetch a URL with a timeout, retrying once with a longer timeout in case
+    // the free-tier server is asleep and needs time to wake up (cold start).
+    const fetchWithRetry = async (url, { firstTimeout = 8000, retryTimeout = 30000 } = {}) => {
+        try {
+            return await axios.get(url, { timeout: firstTimeout });
+        } catch (error) {
+            // Retry once — likely a cold start on the server, give it more time
+            return await axios.get(url, { timeout: retryTimeout });
+        }
+    };
+
+    const fetchInitialData = useCallback(async () => {
+        setIsLoading(true);
+        setFetchError(null);
+        try {
+            const [tracksResponse, albumsResponse, artistsResponse] = await Promise.all([
+                fetchWithRetry(`${API_BASE_URL}/api/top-tracks`),
+                fetchWithRetry(`${API_BASE_URL}/api/recommendations`),
+                fetchWithRetry(`${API_BASE_URL}/api/artists`)
+            ]);
+
+            setTracks(tracksResponse.data);
+            setAlbums(albumsResponse.data);
+            setArtists(artistsResponse.data);
+        } catch (error) {
+            console.error("Error fetching initial data:", error);
+            setFetchError('Data load nahi ho paaya. Neeche kheech kar phir try karein.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     // Initial data fetch
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const [tracksResponse, albumsResponse, artistsResponse] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/top-tracks`),
-                    axios.get(`${API_BASE_URL}/api/recommendations`),
-                    axios.get(`${API_BASE_URL}/api/artists`)
-                ]);
-
-                setTracks(tracksResponse.data);
-                setAlbums(albumsResponse.data);
-                setArtists(artistsResponse.data);
-            } catch (error) {
-                console.error("Error fetching initial data:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchInitialData();
-    }, []);
+    }, [fetchInitialData]);
 
     // Cleanup sound on unmount and configure background audio
     useEffect(() => {
@@ -175,16 +191,21 @@ export const PlaybackProvider = ({ children }) => {
 
     const toggleExpand = () => setIsExpanded(prev => !prev);
 
+    const [searchArtists, setSearchArtists] = useState([]);
+
     const searchTracks = async (query) => {
         if (!query) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/search?query=${query}`);
-            const playableTracks = response.data.filter(t => t.preview_url);
+            const response = await fetchWithRetry(`${API_BASE_URL}/api/search/all?query=${encodeURIComponent(query)}`);
+            const playableTracks = (response.data.tracks || []).filter(t => t.preview_url);
             setSearchResults(playableTracks);
+            setSearchArtists(response.data.artists || []);
             setTracks(playableTracks);
         } catch (error) {
             console.error("Search failed:", error);
+            setSearchResults([]);
+            setSearchArtists([]);
         } finally {
             setIsLoading(false);
         }
@@ -237,7 +258,7 @@ export const PlaybackProvider = ({ children }) => {
         <PlaybackContext.Provider value={{
             tracks, currentTrack, isPlaying, volume, currentTime, duration, isLoading, isExpanded,
             playTrack, togglePlay, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand,
-            albums, artists, selectedAlbum, searchResults,
+            albums, artists, selectedAlbum, searchResults, searchArtists, fetchError, refetchHomeData: fetchInitialData,
             // Video states
             mode, videoId, videoLoading, videoError, videoPlaying, setVideoPlaying, switchMode
         }}>

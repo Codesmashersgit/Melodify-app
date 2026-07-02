@@ -6,8 +6,8 @@ import { usePlayback } from '../context/PlaybackContext';
 
 const { width } = Dimensions.get('window');
 
-const SearchScreen = () => {
-    const { playTrack, searchTracks, searchResults, isLoading } = usePlayback();
+const SearchScreen = ({ navigation }) => {
+    const { playTrack, searchTracks, searchResults, searchArtists, isLoading } = usePlayback();
     const [searchQuery, setSearchQuery] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
     const insets = useSafeAreaInsets();
@@ -26,6 +26,17 @@ const SearchScreen = () => {
 
         return () => clearTimeout(handler);
     }, [searchQuery]);
+
+    const renderArtistItem = ({ item }) => (
+        <TouchableOpacity
+            style={styles.artistChip}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
+        >
+            <Image source={{ uri: item.image }} style={styles.artistChipImage} />
+            <Text style={styles.artistChipName} numberOfLines={1}>{item.name}</Text>
+        </TouchableOpacity>
+    );
 
     const renderTrackItem = ({ item }) => (
         <TouchableOpacity style={styles.trackCard} activeOpacity={0.7} onPress={() => playTrack(item)}>
@@ -75,6 +86,22 @@ const SearchScreen = () => {
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderTrackItem}
                     contentContainerStyle={styles.listContainer}
+                    ListHeaderComponent={
+                        searchArtists.length > 0 ? (
+                            <View style={{ marginBottom: 8 }}>
+                                <Text style={styles.sectionLabel}>Artists</Text>
+                                <FlatList
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    data={searchArtists}
+                                    keyExtractor={(item) => `artist-${item.id}`}
+                                    renderItem={renderArtistItem}
+                                    contentContainerStyle={{ paddingBottom: 4 }}
+                                />
+                                {searchResults.length > 0 && <Text style={styles.sectionLabel}>Songs</Text>}
+                            </View>
+                        ) : null
+                    }
                     ListEmptyComponent={
                         <View style={styles.centerContainer}>
                             <Ionicons name="search-outline" size={60} color="#333" />
@@ -199,6 +226,32 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: 8,
         fontWeight: '500',
+    },
+    sectionLabel: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 12,
+        marginTop: 4,
+    },
+    artistChip: {
+        width: 84,
+        marginRight: 14,
+        alignItems: 'center',
+    },
+    artistChipImage: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        borderWidth: 2,
+        borderColor: '#1DB954',
+    },
+    artistChipName: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 8,
+        textAlign: 'center',
     },
 });
 

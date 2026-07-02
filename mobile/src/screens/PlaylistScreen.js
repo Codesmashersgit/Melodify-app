@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +10,7 @@ import API_BASE_URL from '../config';
 const PlaylistScreen = ({ route, navigation }) => {
     const { playlistId, playlistName } = route.params;
     const { playTrack } = usePlayback();
+    const insets = useSafeAreaInsets();
     const [songs, setSongs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -62,7 +64,7 @@ const PlaylistScreen = ({ route, navigation }) => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
             
-            <View style={styles.headerBar}>
+            <View style={[styles.headerBar, { top: insets.top + 8 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="white" />
                 </TouchableOpacity>
@@ -100,7 +102,7 @@ const PlaylistScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212' },
     loadingContainer: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' },
-    headerBar: { position: 'absolute', top: 50, left: 15, zIndex: 10 },
+    headerBar: { position: 'absolute', left: 15, zIndex: 10 },
     backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
     header: { alignItems: 'center', padding: 20, paddingTop: 60, paddingBottom: 10 },
     playlistIconContainer: { width: 220, height: 220, marginBottom: 20, backgroundColor: '#282828', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     View, Text, ScrollView, FlatList, Image, TouchableOpacity,
     StyleSheet, StatusBar, Dimensions,
-    Alert
+    Alert, RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
@@ -10,13 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import NotificationsModal from '../components/NotificationsModal';
 import SettingsModal from '../components/SettingsModal';
+import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');
 const artistCardWidth = (width - 56) / 2;
 
 // ─── HomeScreen ───────────────────────────────────────────────
 const HomeScreen = ({ navigation }) => {
-    const { artists, albums, tracks, playTrack, isLoading } = usePlayback();
+    const { artists, albums, tracks, playTrack, isLoading, refetchHomeData } = usePlayback();
     const { user, logout } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
     const [settingsVisible, setSettingsVisible] = useState(false);
@@ -98,6 +99,14 @@ const HomeScreen = ({ navigation }) => {
             <ScrollView
                 contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 32, paddingBottom: 160 }]}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isLoading}
+                        onRefresh={refetchHomeData}
+                        tintColor="#1DB954"
+                        colors={['#1DB954']}
+                    />
+                }
             >
                 {/* ── Header ── */}
                 <View style={styles.header}>
@@ -140,29 +149,36 @@ const HomeScreen = ({ navigation }) => {
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
                         <Text style={styles.sectionTitle}>Popular Artists</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={styles.seeAllBtn}>
+                        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'artists', title: 'Popular Artists' })} style={styles.seeAllBtn}>
                             <Text style={styles.seeAll}>See all</Text>
                         </TouchableOpacity>
                     </View>
-                    {renderArtistGrid()}
+                    {isLoading ? <ArtistSkeletonRow /> : renderArtistGrid()}
                 </View>
 
                 {/* ── Popular Albums ── */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
                         <Text style={styles.sectionTitle}>Popular Albums</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={styles.seeAllBtn}>
+                        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Popular Albums' })} style={styles.seeAllBtn}>
                             <Text style={styles.seeAll}>See all</Text>
                         </TouchableOpacity>
                     </View>
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={albums || []}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => renderItem({ item, type: 'album' })}
-                        contentContainerStyle={styles.horizontalList}
-                    />
+                    {isLoading ? (
+                        <AlbumSkeletonRow />
+                    ) : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={albums || []}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({ item }) => renderItem({ item, type: 'album' })}
+                            contentContainerStyle={styles.horizontalList}
+                            ListEmptyComponent={
+                                <Text style={styles.emptyText}>Albums load nahi ho paaye. Neeche kheech kar phir try karein.</Text>
+                            }
+                        />
+                    )}
                 </View>
 
                 {/* ── Top Hits ── */}
@@ -174,14 +190,21 @@ const HomeScreen = ({ navigation }) => {
                             <Ionicons name="play" size={12} color="#1DB954" style={{marginLeft: 4}} />
                         </TouchableOpacity>
                     </View>
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={tracks || []}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => renderItem({ item, type: 'track' })}
-                        contentContainerStyle={styles.topHitsList}
-                    />
+                    {isLoading ? (
+                        <TrackSkeletonRow />
+                    ) : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={tracks || []}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({ item }) => renderItem({ item, type: 'track' })}
+                            contentContainerStyle={styles.topHitsList}
+                            ListEmptyComponent={
+                                <Text style={styles.emptyText}>Tracks load nahi ho paaye. Neeche kheech kar phir try karein.</Text>
+                            }
+                        />
+                    )}
                 </View>
             </ScrollView>
 
@@ -411,6 +434,13 @@ const styles = StyleSheet.create({
     },
 
     // Modals (removed - using separate components)
+
+    emptyText: {
+        color: '#8A9A90',
+        fontSize: 12,
+        paddingHorizontal: 16,
+        width: width - 32,
+    },
 });
 
 export default HomeScreen;

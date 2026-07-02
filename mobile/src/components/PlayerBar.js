@@ -7,7 +7,7 @@ import FullPlayerScreen from './FullPlayerScreen';
 const { width } = Dimensions.get('window');
 
 const PlayerBar = () => {
-    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration } = usePlayback();
+    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks } = usePlayback();
     const [isFullPlayerVisible, setIsFullPlayerVisible] = React.useState(false);
 
     if (!currentTrack) return null;

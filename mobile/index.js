@@ -1,15 +1,3 @@
-// import { registerRootComponent } from 'expo';
-
-// import App from './App';
-
-// // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// // It also ensures that whether you load the app in Expo Go or in a native build,
-// // the environment is set up appropriately
-// registerRootComponent(App);
-
-
-
-
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -28,7 +16,8 @@ const app = express();
 const allowedOrigins = [
     'http://localhost:5173', 
     process.env.CLIENT_URL,
-    'https://melodifynew.netlify.app'
+    'https://melodify-app.vercel.app', // Add common ones just in case
+    'https://melodify.vercel.app'
 ].filter(Boolean);
 
 app.use(cors({ 

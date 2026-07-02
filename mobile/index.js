@@ -16,8 +16,7 @@ const app = express();
 const allowedOrigins = [
     'http://localhost:5173', 
     process.env.CLIENT_URL,
-    'https://melodify-app.vercel.app', // Add common ones just in case
-    'https://melodify.vercel.app'
+    'https://melodifynew.netlify.app'
 ].filter(Boolean);
 
 app.use(cors({ 

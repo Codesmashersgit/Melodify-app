@@ -26,7 +26,7 @@
   <img src="./client/src/assets/Screenshot 2026-07-03 132721.png" alt="Pricing Placeholder" width="600"/>
   <br/>
 
-  <h3>Artist Collection</h3>
+  <h3>Playing music</h3>
   <img src="./client/src/assets/Screenshot 2026-07-03 132748.png" alt="Pricing Placeholder" width="600"/>
  
 

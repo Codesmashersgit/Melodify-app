@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayback } from '../context/PlaybackContext';
 import FullPlayerScreen from './FullPlayerScreen';
@@ -7,7 +7,7 @@ import FullPlayerScreen from './FullPlayerScreen';
 const { width } = Dimensions.get('window');
 
 const PlayerBar = () => {
-    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks } = usePlayback();
+    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks, isTrackLoading } = usePlayback();
     const [isFullPlayerVisible, setIsFullPlayerVisible] = React.useState(false);
 
     if (!currentTrack) return null;
@@ -46,17 +46,22 @@ const PlayerBar = () => {
                             style={styles.playButton}
                             activeOpacity={0.8}
                             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                            disabled={isTrackLoading}
                         >
-                            <Ionicons
-                                name={isPlaying ? 'pause' : 'play'}
-                                size={20}
-                                color="black"
-                                style={!isPlaying && { marginLeft: 2 }}
-                            />
+                            {isTrackLoading ? (
+                                <ActivityIndicator size="small" color="black" />
+                            ) : (
+                                <Ionicons
+                                    name={isPlaying ? 'pause' : 'play'}
+                                    size={20}
+                                    color="black"
+                                    style={!isPlaying && { marginLeft: 2 }}
+                                />
+                            )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={handleNext}
+                            onPress={() => handleNext(tracks, currentTrack)}
                             style={styles.nextBtn}
                             activeOpacity={0.7}
                             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}

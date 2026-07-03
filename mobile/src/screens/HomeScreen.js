@@ -1,28 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, ScrollView, FlatList, Image, TouchableOpacity,
-    StyleSheet, StatusBar, Dimensions,
-    Alert, RefreshControl
+    StyleSheet, StatusBar, Dimensions, Animated, ImageBackground,
+    RefreshControl, LinearGradient
 } from 'react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import NotificationsModal from '../components/NotificationsModal';
-import SettingsModal from '../components/SettingsModal';
 import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');
-const artistCardWidth = (width - 56) / 2;
+
+// ─── Mood Selector ──────────────────────────────────────────────
+const MOODS = [
+    { id: 'happy', emoji: '😊', label: 'Happy', color: '#F59E0B' },
+    { id: 'sad', emoji: '😔', label: 'Sad', color: '#3B82F6' },
+    { id: 'energetic', emoji: '🔥', label: 'Energetic', color: '#EF4444' },
+    { id: 'chill', emoji: '😌', label: 'Chill', color: '#8B5CF6' },
+];
 
 // ─── HomeScreen ───────────────────────────────────────────────
 const HomeScreen = ({ navigation }) => {
     const { artists, albums, tracks, playTrack, isLoading, refetchHomeData } = usePlayback();
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
-    const [settingsVisible, setSettingsVisible] = useState(false);
+    const [selectedMood, setSelectedMood] = useState('energetic');
+
+    // Animated equalizer bars
+    const barAnim1 = useRef(new Animated.Value(0.4)).current;
+    const barAnim2 = useRef(new Animated.Value(0.7)).current;
+    const barAnim3 = useRef(new Animated.Value(0.5)).current;
+    const barAnim4 = useRef(new Animated.Value(0.9)).current;
+    const barAnim5 = useRef(new Animated.Value(0.3)).current;
 
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+        const animateBar = (anim, toVal, duration) => {
+            Animated.sequence([
+                Animated.timing(anim, { toValue: toVal, duration, useNativeDriver: false }),
+                Animated.timing(anim, { toValue: 0.2, duration, useNativeDriver: false }),
+            ]).start(() => animateBar(anim, toVal, duration));
+        };
+        animateBar(barAnim1, 0.9, 400);
+        animateBar(barAnim2, 0.5, 300);
+        animateBar(barAnim3, 1.0, 500);
+        animateBar(barAnim4, 0.6, 350);
+        animateBar(barAnim5, 0.8, 250);
+    }, []);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -31,65 +59,63 @@ const HomeScreen = ({ navigation }) => {
         return 'Good evening 🌙';
     };
 
-    const handleLogout = () => {
-        Alert.alert('Log Out', 'Are you sure you want to log out?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Log Out', style: 'destructive', onPress: () => {
-                setSettingsVisible(false);
-                logout();
-            }},
-        ]);
-    };
-
-    const renderItem = ({ item, type }) => {
-        if (type === 'track') {
-            return (
-                <TouchableOpacity
-                    style={styles.topHitCard}
-                    activeOpacity={0.75}
-                    onPress={() => playTrack(item)}
-                >
-                    <Image source={{ uri: item.image }} style={styles.topHitImage} />
-                    <View style={styles.topHitInfo}>
-                        <Text style={styles.topHitTitle} numberOfLines={1}>{item.name}</Text>
-                        <Text style={styles.topHitSubtitle} numberOfLines={1}>{item.artist}</Text>
-                    </View>
-                </TouchableOpacity>
-            );
+    const getMoodTracks = () => {
+        if (!tracks || tracks.length === 0) return [];
+        switch (selectedMood) {
+            case 'happy': return tracks.slice(0, 10);
+            case 'sad': return tracks.slice(2, 12);
+            case 'energetic': return tracks.slice(4, 14);
+            case 'chill': return tracks.slice(6, 16);
+            default: return tracks.slice(0, 10);
         }
-
-        return (
-            <TouchableOpacity
-                style={styles.albumCard}
-                activeOpacity={0.75}
-                onPress={() => navigation.navigate('Album', { albumId: item.id })}
-            >
-                <View style={styles.albumImageContainer}>
-                    <Image source={{ uri: item.image }} style={styles.albumImage} />
-                    <View style={styles.albumImageOverlay}>
-                        <Text style={styles.albumCenterText} numberOfLines={2}>{item.name}</Text>
-                    </View>
-                </View>
-                <Text style={styles.albumTitle} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.albumSubtitle} numberOfLines={1}>{item.artist}</Text>
-            </TouchableOpacity>
-        );
     };
 
-    const renderArtistGrid = () => (
-        <View style={styles.artistRow}>
-            {artists.slice(0, 4).map((item) => (
-                <TouchableOpacity
-                    key={item.id.toString()}
-                    style={styles.artistWrapCard}
-                    activeOpacity={0.8}
-                    onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
-                >
-                    <Image source={{ uri: item.image }} style={styles.artistWrapCardImage} />
-                    <Text style={styles.artistWrapCardTitle} numberOfLines={1}>{item.name}</Text>
-                </TouchableOpacity>
-            ))}
-        </View>
+    // Track card (horizontal)
+    const renderTrackCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.trackCard}
+            activeOpacity={0.75}
+            onPress={() => playTrack(item, tracks)}
+        >
+            <Image source={{ uri: item.image }} style={styles.trackCardImage} />
+            <View style={styles.trackCardOverlay} />
+            <View style={styles.trackCardInfo}>
+                <Text style={styles.trackCardTitle} numberOfLines={2}>{item.name}</Text>
+                <Text style={styles.trackCardArtist} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
+            </View>
+            <View style={styles.trackCardPlayBtn}>
+                <Ionicons name="play" size={14} color="black" />
+            </View>
+        </TouchableOpacity>
+    );
+
+    // Album card
+    const renderAlbumCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.albumCard}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('Album', { albumId: item.id })}
+        >
+            <Image source={{ uri: item.image }} style={styles.albumImage} />
+            <Text style={styles.albumTitle} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.albumSubtitle} numberOfLines={1}>{item.artist}</Text>
+        </TouchableOpacity>
+    );
+
+    // Top hit row card
+    const renderTopHitCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.topHitCard}
+            activeOpacity={0.75}
+            onPress={() => playTrack(item, tracks)}
+        >
+            <Image source={{ uri: item.image }} style={styles.topHitImage} />
+            <View style={styles.topHitInfo}>
+                <Text style={styles.topHitTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.topHitSubtitle} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
+            </View>
+            <Ionicons name="play-circle" size={32} color="#1DB954" />
+        </TouchableOpacity>
     );
 
     return (
@@ -97,7 +123,7 @@ const HomeScreen = ({ navigation }) => {
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
             <ScrollView
-                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 32, paddingBottom: 160 }]}
+                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16, paddingBottom: 170 }]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
@@ -110,73 +136,200 @@ const HomeScreen = ({ navigation }) => {
             >
                 {/* ── Header ── */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>{getGreeting()}</Text>
-                        <Text style={styles.subGreeting}>
-                            {user?.name ? user.name : 'Welcome'}
-                        </Text>
+                    <View style={styles.brandRow}>
+                        <Image source={require('../assets/melodify.png')} style={styles.brandLogo} />
+                        <Text style={styles.brandName}>Melodify</Text>
                     </View>
                     <View style={styles.headerIcons}>
-                        <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => setNotifVisible(true)}
-                            activeOpacity={0.75}
-                        >
-                            <Ionicons name="notifications-outline" size={24} color="white" />
+                        <TouchableOpacity style={styles.iconButton} onPress={() => setNotifVisible(true)} activeOpacity={0.75}>
+                            <Ionicons name="notifications-outline" size={22} color="white" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => setSettingsVisible(true)}
+                            style={styles.avatarBtn}
+                            onPress={() => navigation.navigate('About')}
                             activeOpacity={0.75}
                         >
-                            <Ionicons name="settings-outline" size={24} color="white" />
+                            <Text style={styles.avatarText}>
+                                {(user?.name || user?.email || 'M')[0].toUpperCase()}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* ── Featured Banner ── */}
-                <View style={styles.featuredBanner}>
-                    <View style={styles.featuredIconBox}>
-                        <Ionicons name="headset" size={28} color="#1DB954" />
+                {/* ── Greeting ── */}
+                <View style={styles.greetingBlock}>
+                    <Text style={styles.greetingSmall}>{getGreeting()}</Text>
+                    <Text style={styles.greetingName}>{user?.name?.split(' ')[0] || 'Welcome'}</Text>
+                    <Text style={styles.greetingVibe}>What are we feeling tonight? ✨</Text>
+                </View>
+
+                {/* ── Hero Banner — Girl With Headphones ── */}
+                <TouchableOpacity
+                    activeOpacity={0.92}
+                    style={styles.heroCard}
+                    onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}
+                >
+                    <Image
+                        source={{ uri: 'https://images.pexels.com/photos/3734661/pexels-photo-3734661.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+                        style={styles.heroImage}
+                        resizeMode="cover"
+                    />
+                    <ExpoLinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.85)']}
+                        style={styles.heroGradient}
+                    >
+                        <View style={styles.heroTag}>
+                            <Text style={styles.heroTagText}>🎵 YOUR VIBE</Text>
+                        </View>
+                        <View style={styles.heroBottom}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.heroTitle}>Lost In The Music</Text>
+                                <Text style={styles.heroSub}>Your personal escape awaits</Text>
+                            </View>
+                            <View style={styles.heroPlayBtn}>
+                                <Ionicons name="play" size={20} color="black" style={{ marginLeft: 2 }} />
+                            </View>
+                        </View>
+                    </ExpoLinearGradient>
+                </TouchableOpacity>
+
+                {/* ── Quote Strip with Equalizer ── */}
+                <View style={styles.quoteStrip}>
+                    <View style={styles.equalizerRow}>
+                        {[barAnim1, barAnim2, barAnim3, barAnim4, barAnim5].map((anim, i) => (
+                            <Animated.View
+                                key={i}
+                                style={[styles.eqBar, { transform: [{ scaleY: anim }] }]}
+                            />
+                        ))}
                     </View>
-                    <View style={styles.featuredTextContent}>
-                        <Text style={styles.featuredTitle}>Discover Music</Text>
-                        <Text style={styles.featuredSub}>Stream millions of songs</Text>
+                    <Text style={styles.quoteText}>Music is what feelings sound like... 🎧</Text>
+                </View>
+
+                {/* ── Trending Right Now ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <View>
+                            <Text style={styles.sectionTitle}>🔥 Trending Right Now</Text>
+                            <Text style={styles.sectionSubtitle}>Songs everyone's talking about</Text>
+                        </View>
+                    </View>
+                    {isLoading ? <TrackSkeletonRow /> : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={tracks || []}
+                            keyExtractor={(item) => 'trend-' + item.id}
+                            renderItem={renderTrackCard}
+                            contentContainerStyle={styles.horizontalList}
+                        />
+                    )}
+                </View>
+
+                {/* ── Your Vibe Today (Genre Cards) ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <View>
+                            <Text style={styles.sectionTitle}>💫 Your Vibe Today</Text>
+                            <Text style={styles.sectionSubtitle}>Based on your preferences</Text>
+                        </View>
+                    </View>
+                    <View style={styles.genreRow}>
+                        <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
+                            onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}>
+                            <ExpoLinearGradient colors={['#FF6B35', '#D62828']} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
+                                <Text style={styles.genreEmoji}>🎬</Text>
+                                <Text style={styles.genreLabel}>Bollywood</Text>
+                                <Text style={styles.genreTap}>Tap to explore →</Text>
+                            </ExpoLinearGradient>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
+                            onPress={() => tracks?.length > 5 && playTrack(tracks[5], tracks)}>
+                            <ExpoLinearGradient colors={['#4C1D95', '#1e1b4b']} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
+                                <Text style={styles.genreEmoji}>🎧</Text>
+                                <Text style={styles.genreLabel}>Hip Hop</Text>
+                                <Text style={styles.genreTap}>Tap to explore →</Text>
+                            </ExpoLinearGradient>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* ── Popular Artists ── */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>Popular Artists</Text>
+                        <Text style={styles.sectionTitle}>🧑‍🎤 Artists You'll Love</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'artists', title: 'Popular Artists' })} style={styles.seeAllBtn}>
                             <Text style={styles.seeAll}>See all</Text>
                         </TouchableOpacity>
                     </View>
-                    {isLoading ? <ArtistSkeletonRow /> : renderArtistGrid()}
+                    {isLoading ? <ArtistSkeletonRow /> : (
+                        <View style={styles.artistRow}>
+                            {(artists || []).slice(0, 4).map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={styles.artistCard}
+                                    activeOpacity={0.8}
+                                    onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
+                                >
+                                    <Image source={{ uri: item.image }} style={styles.artistImage} />
+                                    <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
+
+                {/* ── Mood Selector ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <View>
+                            <Text style={styles.sectionTitle}>🎭 How Are You Feeling?</Text>
+                            <Text style={styles.sectionSubtitle}>We'll find perfect songs for you</Text>
+                        </View>
+                    </View>
+                    <View style={styles.moodRow}>
+                        {MOODS.map((mood) => (
+                            <TouchableOpacity
+                                key={mood.id}
+                                style={[
+                                    styles.moodPill,
+                                    selectedMood === mood.id
+                                        ? { backgroundColor: '#1DB954', borderColor: '#1DB954' }
+                                        : { borderColor: mood.color }
+                                ]}
+                                onPress={() => {
+                                    setSelectedMood(mood.id);
+                                    const moodTracks = getMoodTracks();
+                                    if (moodTracks.length > 0) playTrack(moodTracks[0], moodTracks);
+                                }}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+                                <Text style={[
+                                    styles.moodLabel,
+                                    selectedMood === mood.id ? { color: 'black' } : { color: 'white' }
+                                ]}>{mood.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
 
                 {/* ── Popular Albums ── */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>Popular Albums</Text>
+                        <Text style={styles.sectionTitle}>💿 Popular Albums</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Popular Albums' })} style={styles.seeAllBtn}>
                             <Text style={styles.seeAll}>See all</Text>
                         </TouchableOpacity>
                     </View>
-                    {isLoading ? (
-                        <AlbumSkeletonRow />
-                    ) : (
+                    {isLoading ? <AlbumSkeletonRow /> : (
                         <FlatList
                             horizontal
                             showsHorizontalScrollIndicator={false}
                             data={albums || []}
                             keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => renderItem({ item, type: 'album' })}
+                            renderItem={renderAlbumCard}
                             contentContainerStyle={styles.horizontalList}
-                            ListEmptyComponent={
-                                <Text style={styles.emptyText}>Albums load nahi ho paaye. Neeche kheech kar phir try karein.</Text>
-                            }
                         />
                     )}
                 </View>
@@ -184,262 +337,406 @@ const HomeScreen = ({ navigation }) => {
                 {/* ── Top Hits ── */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>Top Hits</Text>
+                        <Text style={styles.sectionTitle}>🎵 Top Hits</Text>
                         <TouchableOpacity onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)} style={styles.seeAllBtn}>
-                            <Text style={styles.seeAll}>Play all</Text>
-                            <Ionicons name="play" size={12} color="#1DB954" style={{marginLeft: 4}} />
+                            <Text style={styles.seeAll}>Play all ▶</Text>
                         </TouchableOpacity>
                     </View>
-                    {isLoading ? (
-                        <TrackSkeletonRow />
-                    ) : (
+                    {isLoading ? <TrackSkeletonRow /> : (
                         <FlatList
                             horizontal
                             showsHorizontalScrollIndicator={false}
                             data={tracks || []}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => renderItem({ item, type: 'track' })}
-                            contentContainerStyle={styles.topHitsList}
-                            ListEmptyComponent={
-                                <Text style={styles.emptyText}>Tracks load nahi ho paaye. Neeche kheech kar phir try karein.</Text>
-                            }
+                            keyExtractor={(item) => 'hit-' + item.id}
+                            renderItem={renderTopHitCard}
+                            contentContainerStyle={styles.horizontalList}
                         />
                     )}
                 </View>
+
+                {/* ── Late Night Listens ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <View>
+                            <Text style={styles.sectionTitle}>🌙 Late Night Listens</Text>
+                            <Text style={styles.sectionSubtitle}>Perfect for the night 🌃</Text>
+                        </View>
+                    </View>
+                    {isLoading ? <TrackSkeletonRow /> : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={[...(tracks || [])].reverse()}
+                            keyExtractor={(item, i) => 'night-' + item.id + i}
+                            renderItem={renderTrackCard}
+                            contentContainerStyle={styles.horizontalList}
+                        />
+                    )}
+                </View>
+
+                {/* ── Concert Banner ── */}
+                <TouchableOpacity
+                    activeOpacity={0.92}
+                    style={styles.concertCard}
+                    onPress={() => tracks?.length > 3 && playTrack(tracks[3], tracks)}
+                >
+                    <Image
+                        source={{ uri: 'https://images.pexels.com/photos/1190297/pexels-photo-1190297.jpeg?auto=compress&cs=tinysrgb&w=900' }}
+                        style={styles.concertImage}
+                        resizeMode="cover"
+                    />
+                    <ExpoLinearGradient
+                        colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.9)']}
+                        style={styles.concertGradient}
+                    >
+                        <View style={styles.concertContent}>
+                            <View>
+                                <Text style={styles.concertLabel}>🎤 LIVE VIBES</Text>
+                                <Text style={styles.concertTitle}>Feel The Energy</Text>
+                                <Text style={styles.concertSub}>Stage lights, crowd, pure music magic</Text>
+                            </View>
+                            <View style={styles.concertPlayBtn}>
+                                <Ionicons name="play" size={22} color="black" style={{ marginLeft: 2 }} />
+                            </View>
+                        </View>
+                    </ExpoLinearGradient>
+                </TouchableOpacity>
+
+                {/* ── Your Daily Mix ── */}
+                <TouchableOpacity
+                    style={styles.dailyMixCard}
+                    activeOpacity={0.88}
+                    onPress={() => tracks?.length > 0 && playTrack(tracks[Math.floor(Math.random() * tracks.length)], tracks)}
+                >
+                    <ExpoLinearGradient
+                        colors={['#0f3d20', '#0a1a10']}
+                        style={styles.dailyMixGradient}
+                        start={{x:0,y:0}} end={{x:1,y:1}}
+                    >
+                        <Ionicons name="disc-outline" size={50} color="#1DB954" style={{ marginRight: 16 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.dailyMixTitle}>🎯 Your Daily Mix</Text>
+                            <Text style={styles.dailyMixSub}>Handpicked just for you today</Text>
+                        </View>
+                        <View style={styles.dailyMixBtn}>
+                            <Ionicons name="shuffle" size={18} color="black" />
+                        </View>
+                    </ExpoLinearGradient>
+                </TouchableOpacity>
+
+                {/* ── Made For You ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <Text style={styles.sectionTitle}>✨ Made For You</Text>
+                        <TouchableOpacity onPress={() => tracks?.length > 0 && playTrack(tracks[tracks.length - 1], tracks)} style={styles.seeAllBtn}>
+                            <Text style={styles.seeAll}>Play all ▶</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {isLoading ? <TrackSkeletonRow /> : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={[...(tracks || [])].sort(() => Math.random() - 0.5).slice(0, 10)}
+                            keyExtractor={(item, i) => 'made-' + item.id + i}
+                            renderItem={renderTopHitCard}
+                            contentContainerStyle={styles.horizontalList}
+                        />
+                    )}
+                </View>
+
+                {/* ── Developer Footer ── */}
+                <View style={styles.devFooter}>
+                    <Text style={styles.devFooterText}>Made with ❤️ by Sudhanshu</Text>
+                    <Text style={styles.devFooterSub}>Melodify Version 3.0</Text>
+                </View>
+
             </ScrollView>
 
-            {/* ── Modals ── */}
             <NotificationsModal visible={notifVisible} onClose={() => setNotifVisible(false)} />
-            <SettingsModal
-                visible={settingsVisible}
-                onClose={() => setSettingsVisible(false)}
-            />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#0b0b12',
-    },
-    scrollContent: {
-        // dynamic padding applied inline
-    },
+    container: { flex: 1, backgroundColor: '#08080f' },
+    scrollContent: {},
 
     // Header
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 22,
-        marginBottom: 24,
+        paddingHorizontal: 20,
+        marginBottom: 20,
     },
-    greeting: {
-        fontSize: 24,
-        fontWeight: '700',
+    brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    brandLogo: { width: 32, height: 32, borderRadius: 8 },
+    brandName: {
         color: 'white',
+        fontSize: 22,
+        fontWeight: '800',
+        fontFamily: 'Montserrat_800ExtraBold',
         letterSpacing: -0.5,
     },
-    subGreeting: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#1DB954', // Exact Green from mockup
-        letterSpacing: -0.5,
-    },
-    headerIcons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
+    headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     iconButton: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center', alignItems: 'center',
     },
+    avatarBtn: {
+        width: 38, height: 38, borderRadius: 19,
+        backgroundColor: '#1DB954',
+        justifyContent: 'center', alignItems: 'center',
+        borderWidth: 2, borderColor: 'rgba(29,185,84,0.4)',
+    },
+    avatarText: { color: 'black', fontWeight: '800', fontSize: 16 },
 
-    // Featured Banner
-    featuredBanner: {
-        marginHorizontal: 16,
-        marginBottom: 32,
-        backgroundColor: '#17221A', // Dark greenish background
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#244530', // Faint green border
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    featuredIconBox: {
-        width: 60,
-        height: 60,
-        borderRadius: 12,
-        backgroundColor: '#203A2B',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    featuredTextContent: {
-        flex: 1,
-    },
-    featuredTitle: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: '700',
-        letterSpacing: -0.3,
+    // Greeting
+    greetingBlock: { paddingHorizontal: 20, marginBottom: 22 },
+    greetingSmall: {
+        color: '#888', fontSize: 12,
+        fontWeight: '500',
+        letterSpacing: 1.5, textTransform: 'uppercase',
         marginBottom: 4,
     },
-    featuredSub: {
-        color: '#8A9A90',
-        fontSize: 13,
-        fontWeight: '500',
+    greetingName: {
+        color: 'white', fontSize: 38,
+        fontWeight: '800',
+        fontFamily: 'Montserrat_800ExtraBold',
+        letterSpacing: -1, marginBottom: 6,
+    },
+    greetingVibe: {
+        color: '#888', fontSize: 15,
+        fontStyle: 'italic',
+        fontWeight: '400',
+    },
+
+    // Hero Card
+    heroCard: {
+        marginHorizontal: 16,
+        borderRadius: 20,
+        overflow: 'hidden',
+        height: 220,
+        marginBottom: 14,
+    },
+    heroImage: { width: '100%', height: '100%', position: 'absolute' },
+    heroGradient: {
+        position: 'absolute',
+        bottom: 0, left: 0, right: 0,
+        height: '70%',
+        padding: 16,
+        justifyContent: 'space-between',
+    },
+    heroTag: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(29,185,84,0.85)',
+        paddingHorizontal: 10, paddingVertical: 4,
+        borderRadius: 20,
+    },
+    heroTagText: { color: 'white', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+    heroBottom: { flexDirection: 'row', alignItems: 'flex-end' },
+    heroTitle: {
+        color: 'white', fontSize: 22, fontWeight: '800',
+        fontFamily: 'Montserrat_800ExtraBold',
+        marginBottom: 4,
+    },
+    heroSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '400' },
+    heroPlayBtn: {
+        width: 46, height: 46, borderRadius: 23,
+        backgroundColor: '#1DB954',
+        justifyContent: 'center', alignItems: 'center',
+        elevation: 6,
+    },
+
+    // Quote Strip
+    quoteStrip: {
+        marginHorizontal: 16,
+        marginBottom: 28,
+        backgroundColor: '#0d0a1e',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(139,92,246,0.25)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        gap: 12,
+    },
+    equalizerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 24 },
+    eqBar: {
+        width: 3, height: 24, borderRadius: 2,
+        backgroundColor: '#1DB954',
+        transformOrigin: 'bottom',
+    },
+    quoteText: {
+        color: 'rgba(255,255,255,0.85)',
+        fontSize: 13, fontStyle: 'italic',
+        fontWeight: '400', flex: 1,
+        lineHeight: 19,
     },
 
     // Sections
-    sectionContainer: {
-        marginBottom: 32,
-    },
+    sectionContainer: { marginBottom: 28 },
     sectionRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         paddingHorizontal: 20,
-        marginBottom: 16,
+        marginBottom: 14,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: 'white',
-        letterSpacing: -0.3,
+        color: 'white', fontSize: 18, fontWeight: '700',
+        fontFamily: 'Montserrat_700Bold',
     },
-    seeAllBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    seeAll: {
-        color: '#1DB954',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    horizontalList: {
-        paddingLeft: 16,
-        paddingRight: 8,
-        paddingBottom: 4,
-    },
-    topHitsList: {
-        paddingLeft: 16,
-        paddingRight: 8,
-        paddingBottom: 4,
-    },
+    sectionSubtitle: { color: '#666', fontSize: 12, fontWeight: '400', marginTop: 2 },
+    seeAllBtn: { flexDirection: 'row', alignItems: 'center' },
+    seeAll: { color: '#1DB954', fontSize: 13, fontWeight: '600' },
+    horizontalList: { paddingLeft: 16, paddingRight: 8 },
 
-    // Album Cards
-    albumCard: {
-        width: 120,
+    // Track Card (large)
+    trackCard: {
+        width: 140, height: 180,
+        borderRadius: 14, overflow: 'hidden',
         marginRight: 12,
     },
-    albumImageContainer: {
-        width: 120,
-        height: 120,
-        borderRadius: 12,
-        overflow: 'hidden',
-        marginBottom: 8,
+    trackCardImage: { width: '100%', height: '100%', position: 'absolute' },
+    trackCardOverlay: {
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%',
+        backgroundColor: 'rgba(0,0,0,0.75)',
     },
-    albumImage: {
-        width: '100%',
-        height: '100%',
+    trackCardInfo: {
+        position: 'absolute', bottom: 36, left: 10, right: 10,
     },
-    albumImageOverlay: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 8,
+    trackCardTitle: { color: 'white', fontSize: 13, fontWeight: '700', marginBottom: 2 },
+    trackCardArtist: { color: '#aaa', fontSize: 11 },
+    trackCardPlayBtn: {
+        position: 'absolute', bottom: 8, right: 8,
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: '#1DB954',
+        justifyContent: 'center', alignItems: 'center',
     },
-    albumCenterText: {
-        color: 'white',
-        fontSize: 14,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    albumTitle: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: '600',
-        marginBottom: 2,
-    },
-    albumSubtitle: {
-        color: '#999',
-        fontSize: 11,
-    },
+
+    // Album Card
+    albumCard: { width: 130, marginRight: 12 },
+    albumImage: { width: 130, height: 130, borderRadius: 12, marginBottom: 8 },
+    albumTitle: { color: 'white', fontSize: 12, fontWeight: '600', marginBottom: 2 },
+    albumSubtitle: { color: '#777', fontSize: 11 },
 
     // Top Hit Card
     topHitCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1E1E1E',
-        borderRadius: 8,
-        padding: 8,
-        width: 240,
-        marginRight: 12,
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#111118',
+        borderRadius: 12, padding: 10,
+        width: 250, marginRight: 12,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     },
-    topHitImage: {
-        width: 50,
-        height: 50,
-        borderRadius: 6,
-    },
-    topHitInfo: {
-        marginLeft: 12,
-        flex: 1,
-    },
-    topHitTitle: {
-        color: 'white',
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    topHitSubtitle: {
-        color: '#999',
-        fontSize: 12,
-    },
+    topHitImage: { width: 50, height: 50, borderRadius: 10 },
+    topHitInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
+    topHitTitle: { color: 'white', fontSize: 14, fontWeight: '600', marginBottom: 3 },
+    topHitSubtitle: { color: '#888', fontSize: 12 },
 
-    // Artist Wrap
-    artistRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-    },
-    artistWrapCard: {
-        alignItems: 'center',
-        width: (width - 64) / 4, // 4 items with total 32px padding and 3 * 10px gaps
-    },
-    artistWrapCardImage: {
+    // Artist Card
+    artistRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16 },
+    artistCard: { alignItems: 'center', width: (width - 64) / 4 },
+    artistImage: {
         width: (width - 80) / 4,
         height: (width - 80) / 4,
-        borderRadius: 100,
-        marginBottom: 8,
-        borderWidth: 2,
-        borderColor: '#1DB954',
+        borderRadius: 100, marginBottom: 8,
+        borderWidth: 2, borderColor: '#1DB954',
     },
-    artistWrapCardTitle: {
+    artistName: { color: 'white', fontSize: 11, fontWeight: '600', textAlign: 'center' },
+
+    // Mood Selector
+    moodRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, flexWrap: 'wrap' },
+    moodPill: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 14, paddingVertical: 8,
+        borderRadius: 20, borderWidth: 1.5,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        gap: 5,
+    },
+    moodEmoji: { fontSize: 16 },
+    moodLabel: { fontSize: 13, fontWeight: '600' },
+
+    // Genre Cards
+    genreRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 12 },
+    genreCard: { flex: 1, borderRadius: 16, overflow: 'hidden', height: 110 },
+    genreGradient: { flex: 1, padding: 16, justifyContent: 'space-between' },
+    genreEmoji: { fontSize: 28 },
+    genreLabel: { color: 'white', fontSize: 17, fontWeight: '800', fontFamily: 'Montserrat_800ExtraBold' },
+    genreTap: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
+
+    // Concert Banner
+    concertCard: {
+        marginHorizontal: 16,
+        borderRadius: 20,
+        overflow: 'hidden',
+        height: 200,
+        marginBottom: 16,
+    },
+    concertImage: { width: '100%', height: '100%', position: 'absolute' },
+    concertGradient: {
+        position: 'absolute',
+        bottom: 0, left: 0, right: 0,
+        height: '80%',
+        padding: 18,
+        justifyContent: 'flex-end',
+    },
+    concertContent: { flexDirection: 'row', alignItems: 'flex-end' },
+    concertLabel: { color: '#1DB954', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 },
+    concertTitle: {
+        color: 'white', fontSize: 24, fontWeight: '800',
+        fontFamily: 'Montserrat_800ExtraBold', marginBottom: 4,
+    },
+    concertSub: { color: 'rgba(255,255,255,0.65)', fontSize: 12 },
+    concertPlayBtn: {
+        width: 52, height: 52, borderRadius: 26,
+        backgroundColor: '#1DB954',
+        justifyContent: 'center', alignItems: 'center',
+        elevation: 8,
+        shadowColor: '#1DB954', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8,
+    },
+
+    // Daily Mix Card
+    dailyMixCard: {
+        marginHorizontal: 16,
+        borderRadius: 18,
+        overflow: 'hidden',
+        marginBottom: 28,
+    },
+    dailyMixGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+    },
+    dailyMixTitle: {
+        color: 'white', fontSize: 17, fontWeight: '700',
+        fontFamily: 'Montserrat_700Bold', marginBottom: 4,
+    },
+    dailyMixSub: { color: '#888', fontSize: 12 },
+    dailyMixBtn: {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: '#1DB954',
+        justifyContent: 'center', alignItems: 'center',
+    },
+
+    // Developer Footer
+    devFooter: {
+        alignItems: 'center',
+        paddingVertical: 20,
+        marginTop: 20,
+        opacity: 0.6,
+    },
+    devFooterText: {
         color: 'white',
         fontSize: 12,
         fontWeight: '600',
-        textAlign: 'center',
     },
-
-    // Modals (removed - using separate components)
-
-    emptyText: {
-        color: '#8A9A90',
-        fontSize: 12,
-        paddingHorizontal: 16,
-        width: width - 32,
+    devFooterSub: {
+        color: '#888',
+        fontSize: 10,
+        marginTop: 4,
     },
 });
 

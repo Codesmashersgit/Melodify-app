@@ -28,7 +28,10 @@ export const AuthProvider = ({ children }) => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            setUser(response.data.user);
+            const prefsStr = await AsyncStorage.getItem('melodify_preferences');
+            const preferences = prefsStr ? JSON.parse(prefsStr) : null;
+
+            setUser({ ...response.data.user, preferences });
             setLoading(false);
         } catch (error) {
             console.log('Session check failed:', error);
@@ -45,7 +48,9 @@ export const AuthProvider = ({ children }) => {
             if (response.data.token) {
                 await AsyncStorage.setItem('melodify_token', response.data.token);
             }
-            setUser(response.data.user);
+            const prefsStr = await AsyncStorage.getItem('melodify_preferences');
+            const preferences = prefsStr ? JSON.parse(prefsStr) : null;
+            setUser({ ...response.data.user, preferences });
             return { success: true };
         } catch (error) {
             return { 
@@ -61,7 +66,8 @@ export const AuthProvider = ({ children }) => {
             if (response.data.token) {
                 await AsyncStorage.setItem('melodify_token', response.data.token);
             }
-            setUser(response.data.user);
+            // New signup has no local preferences yet
+            setUser({ ...response.data.user, preferences: null });
             return { success: true };
         } catch (error) {
             return { 
@@ -82,8 +88,20 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updatePreferences = async (preferences) => {
+        try {
+            // Update local state and async storage
+            const updatedUser = { ...user, preferences };
+            setUser(updatedUser);
+            // In a real app, you would also save to the backend.
+            await AsyncStorage.setItem('melodify_preferences', JSON.stringify(preferences));
+        } catch (error) {
+            console.log('Error updating preferences', error);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, logout, updatePreferences }}>
             {children}
         </AuthContext.Provider>
     );

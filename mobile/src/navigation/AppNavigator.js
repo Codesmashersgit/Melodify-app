@@ -17,6 +17,8 @@ import ArtistScreen from '../screens/ArtistScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import PlaylistScreen from '../screens/PlaylistScreen';
 import SeeAllScreen from '../screens/SeeAllScreen';
+import AboutScreen from '../screens/AboutScreen';
+import PreferencesScreen from '../screens/PreferencesScreen';
 import PlayerBar from '../components/PlayerBar';
 
 const Tab = createBottomTabNavigator();
@@ -60,7 +62,6 @@ function MainTabs() {
         <Tab.Screen name="Search" component={SearchScreen} />
         <Tab.Screen name="Library" component={LibraryScreen} />
       </Tab.Navigator>
-      <PlayerBar />
     </View>
   );
 }
@@ -83,9 +84,10 @@ export default function AppNavigator() {
             }}
           />
         ) : user ? (
-          /* Main App Stack (Logged in) */
-          <Stack.Group>
-            <Stack.Screen name="Main" component={MainTabs} />
+          user.preferences && user.preferences.length > 0 ? (
+            /* Main App Stack (Logged in and preferences set) */
+            <Stack.Group>
+              <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
               name="Album"
               component={AlbumScreen}
@@ -114,7 +116,24 @@ export default function AppNavigator() {
                 animationEnabled: true,
               }}
             />
-          </Stack.Group>
+            <Stack.Screen
+              name="About"
+              component={AboutScreen}
+              options={{
+                animationEnabled: true,
+              }}
+            />
+            </Stack.Group>
+          ) : (
+            /* Preferences Onboarding Stack */
+            <Stack.Group>
+              <Stack.Screen 
+                name="Preferences" 
+                component={PreferencesScreen} 
+                options={{ animationEnabled: true }} 
+              />
+            </Stack.Group>
+          )
         ) : (
           /* Auth Stack (Not logged in) */
           <Stack.Group>
@@ -135,6 +154,8 @@ export default function AppNavigator() {
           </Stack.Group>
         )}
       </Stack.Navigator>
+      {/* Global Player Bar - visible across all screens if user is logged in */}
+      {user && !loading && <PlayerBar />}
     </NavigationContainer>
   );
 }

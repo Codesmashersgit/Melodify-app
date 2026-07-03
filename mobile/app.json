@@ -14,11 +14,13 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
-      "package": "com.melodify.app",
+      "package": "com.melodify.music",
       "permissions": [
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -36,13 +38,14 @@
     },
     "plugins": [
       "./withRemoveBundleCompression",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
+    "owner": "sk_rungta",
     "extra": {
       "eas": {
-        "projectId": "553e7e53-7d2e-443b-87f9-0d737f7f4d7c"
+        "projectId": "5879f652-9255-44af-973f-90c8d1370b42"
       }
-    },
-    "owner": "sudhanshu_raj1802"
+    }
   }
 }

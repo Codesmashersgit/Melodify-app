@@ -1,119 +1,184 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    View, Text, TextInput, FlatList, Image, TouchableOpacity,
+    StyleSheet, ActivityIndicator, StatusBar, SectionList
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
-
-const { width } = Dimensions.get('window');
+import axios from 'axios';
+import API_BASE_URL from '../config';
 
 const SearchScreen = ({ navigation }) => {
-    const { playTrack, searchTracks, searchResults, searchArtists, isLoading } = usePlayback();
+    const { playTrack, artists, albums } = usePlayback();
     const [searchQuery, setSearchQuery] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [songResults, setSongResults] = useState([]);
+    const [artistResults, setArtistResults] = useState([]);
+    const [albumResults, setAlbumResults] = useState([]);
     const insets = useSafeAreaInsets();
+    const debounceRef = useRef(null);
 
-    // Debouncing
     useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+
         if (searchQuery.trim().length === 0) {
             setHasSearched(false);
+            setSongResults([]);
+            setArtistResults([]);
+            setAlbumResults([]);
             return;
         }
 
-        const handler = setTimeout(() => {
-            searchTracks(searchQuery);
-            setHasSearched(true);
-        }, 600);
+        debounceRef.current = setTimeout(() => {
+            doSearch(searchQuery.trim());
+        }, 500);
 
-        return () => clearTimeout(handler);
+        return () => clearTimeout(debounceRef.current);
     }, [searchQuery]);
 
-    const renderArtistItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.artistChip}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
-        >
-            <Image source={{ uri: item.image }} style={styles.artistChipImage} />
-            <Text style={styles.artistChipName} numberOfLines={1}>{item.name}</Text>
-        </TouchableOpacity>
-    );
+    const doSearch = async (query) => {
+        setIsLoading(true);
+        setHasSearched(true);
+        try {
+            const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`);
+            const allResults = response.data || [];
 
-    const renderTrackItem = ({ item }) => (
-        <TouchableOpacity style={styles.trackCard} activeOpacity={0.7} onPress={() => playTrack(item)}>
+            // Categorize results
+            const songs = allResults.filter(r => r.preview_url);
+            setSongResults(songs);
+
+            // Filter artists from context that match query
+            const matchedArtists = (artists || []).filter(a =>
+                a.name.toLowerCase().includes(query.toLowerCase())
+            );
+            setArtistResults(matchedArtists.slice(0, 5));
+
+            // Filter albums from context that match query
+            const matchedAlbums = (albums || []).filter(a =>
+                a.name.toLowerCase().includes(query.toLowerCase()) ||
+                (a.artist && a.artist.toLowerCase().includes(query.toLowerCase()))
+            );
+            setAlbumResults(matchedAlbums.slice(0, 5));
+
+        } catch (error) {
+            console.error('Search failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const renderSong = ({ item }) => (
+        <TouchableOpacity style={styles.trackCard} activeOpacity={0.7} onPress={() => playTrack(item, songResults)}>
             <Image source={{ uri: item.image }} style={styles.trackImage} />
             <View style={styles.trackInfo}>
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
             </View>
             <View style={styles.playIconContainer}>
-                <Ionicons name="play" size={16} color="black" style={{ marginLeft: 3 }} />
+                <Ionicons name="play" size={15} color="black" style={{ marginLeft: 2 }} />
             </View>
         </TouchableOpacity>
     );
 
+    const renderArtist = ({ item }) => (
+        <TouchableOpacity
+            style={styles.artistCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
+        >
+            <Image source={{ uri: item.image }} style={styles.artistImage} />
+            <View style={styles.trackInfo}>
+                <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.trackArtist}>Artist</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+        </TouchableOpacity>
+    );
+
+    const renderAlbum = ({ item }) => (
+        <TouchableOpacity
+            style={styles.trackCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Album', { albumId: item.id })}
+        >
+            <Image source={{ uri: item.image }} style={styles.trackImage} />
+            <View style={styles.trackInfo}>
+                <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.trackArtist} numberOfLines={1}>Album • {item.artist}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555" />
+        </TouchableOpacity>
+    );
+
+    const sections = [];
+    if (artistResults.length > 0) sections.push({ title: 'Artists', data: artistResults, type: 'artist' });
+    if (albumResults.length > 0) sections.push({ title: 'Albums', data: albumResults, type: 'album' });
+    if (songResults.length > 0) sections.push({ title: 'Songs', data: songResults, type: 'song' });
+
+    const totalResults = artistResults.length + albumResults.length + songResults.length;
+
     return (
         <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Search</Text>
-            </View>
 
+            <Text style={styles.headerTitle}>Search</Text>
+
+            {/* Search Bar */}
             <View style={styles.searchBarContainer}>
-                <Ionicons name="search" size={20} color="#000" style={styles.searchIcon} />
+                <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="What do you want to listen to?"
-                    placeholderTextColor="#535353"
+                    placeholder="Songs, artists, albums..."
+                    placeholderTextColor="#555"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
+                    autoCorrect={false}
+                    autoCapitalize="none"
                 />
                 {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Ionicons name="close-circle" size={20} color="#535353" />
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name="close-circle" size={20} color="#555" />
                     </TouchableOpacity>
                 )}
             </View>
 
+            {/* Results */}
             {isLoading ? (
                 <View style={styles.centerContainer}>
                     <ActivityIndicator size="large" color="#1DB954" />
-                    <Text style={styles.loaderText}>Searching the universe...</Text>
+                    <Text style={styles.loaderText}>Searching...</Text>
+                </View>
+            ) : hasSearched && totalResults === 0 ? (
+                <View style={styles.centerContainer}>
+                    <Ionicons name="search-outline" size={64} color="#222" />
+                    <Text style={styles.emptyText}>No results for "{searchQuery}"</Text>
+                    <Text style={styles.emptySubText}>Try a different keyword</Text>
                 </View>
             ) : hasSearched ? (
-                <FlatList
-                    data={searchResults}
+                <SectionList
+                    sections={sections}
                     keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderTrackItem}
-                    contentContainerStyle={styles.listContainer}
-                    ListHeaderComponent={
-                        searchArtists.length > 0 ? (
-                            <View style={{ marginBottom: 8 }}>
-                                <Text style={styles.sectionLabel}>Artists</Text>
-                                <FlatList
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    data={searchArtists}
-                                    keyExtractor={(item) => `artist-${item.id}`}
-                                    renderItem={renderArtistItem}
-                                    contentContainerStyle={{ paddingBottom: 4 }}
-                                />
-                                {searchResults.length > 0 && <Text style={styles.sectionLabel}>Songs</Text>}
-                            </View>
-                        ) : null
-                    }
-                    ListEmptyComponent={
-                        <View style={styles.centerContainer}>
-                            <Ionicons name="search-outline" size={60} color="#333" />
-                            <Text style={styles.emptyText}>No results found for "{searchQuery}"</Text>
+                    renderSectionHeader={({ section: { title } }) => (
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>{title}</Text>
                         </View>
-                    }
+                    )}
+                    renderItem={({ item, section }) => {
+                        if (section.type === 'artist') return renderArtist({ item });
+                        if (section.type === 'album') return renderAlbum({ item });
+                        return renderSong({ item });
+                    }}
+                    contentContainerStyle={styles.listContainer}
+                    stickySectionHeadersEnabled={false}
+                    showsVerticalScrollIndicator={false}
                 />
             ) : (
                 <View style={styles.centerContainer}>
-                    <Ionicons name="musical-notes-outline" size={80} color="#222" />
-                    <Text style={styles.initialTitle}>Find your favorite songs</Text>
-                    <Text style={styles.initialSubtitle}>Search for Melodify's best music</Text>
+                    <Ionicons name="musical-notes-outline" size={80} color="#1a1a2e" />
+                    <Text style={styles.initialTitle}>Find your sound</Text>
+                    <Text style={styles.initialSubtitle}>Search for songs, artists, or albums</Text>
                 </View>
             )}
         </View>
@@ -121,138 +186,48 @@ const SearchScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#0b0b12',
-    },
-    header: {
-        paddingHorizontal: 20,
-        marginBottom: 20,
-    },
+    container: { flex: 1, backgroundColor: '#0b0b12' },
     headerTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: 'white',
-        letterSpacing: -0.5,
+        fontSize: 32, fontWeight: '800', color: 'white',
+        paddingHorizontal: 20, marginBottom: 16, letterSpacing: -0.5,
     },
     searchBarContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        marginHorizontal: 20,
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        height: 52,
-        marginBottom: 24,
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#1a1a24', marginHorizontal: 16,
+        borderRadius: 12, paddingHorizontal: 14, height: 50,
+        marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
     },
-    searchIcon: {
-        marginRight: 12,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: 'black',
-        fontWeight: '600',
-        height: '100%',
-    },
-    listContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 130, // For PlayerBar
-    },
+    searchIcon: { marginRight: 10 },
+    searchInput: { flex: 1, fontSize: 15, color: 'white', fontWeight: '500', height: '100%' },
+    listContainer: { paddingBottom: 160 },
+    sectionHeader: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
+    sectionTitle: { color: 'white', fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
     trackCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 12,
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 20, paddingVertical: 10,
+        borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.04)',
     },
-    trackImage: {
-        width: 56,
-        height: 56,
-        borderRadius: 6,
+    artistCard: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 20, paddingVertical: 10,
+        borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.04)',
     },
-    trackInfo: {
-        flex: 1,
-        marginLeft: 16,
-        marginRight: 10,
-    },
-    trackName: {
-        color: 'white',
-        fontSize: 15,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
-    trackArtist: {
-        color: '#b3b3b3',
-        fontSize: 13,
-        fontWeight: '500',
-    },
+    trackImage: { width: 52, height: 52, borderRadius: 6 },
+    artistImage: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: '#1DB954' },
+    trackInfo: { flex: 1, marginLeft: 14, marginRight: 8 },
+    trackName: { color: 'white', fontSize: 15, fontWeight: '600', marginBottom: 3 },
+    trackArtist: { color: '#888', fontSize: 13, fontWeight: '400' },
     playIconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 32, height: 32, borderRadius: 16,
         backgroundColor: '#1DB954',
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: 'center', alignItems: 'center',
     },
-    centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: 100,
-    },
-    loaderText: {
-        color: '#b3b3b3',
-        marginTop: 16,
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    emptyText: {
-        color: '#b3b3b3',
-        fontSize: 16,
-        marginTop: 16,
-        fontWeight: '500',
-    },
-    initialTitle: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginTop: 24,
-        letterSpacing: -0.5,
-    },
-    initialSubtitle: {
-        color: '#b3b3b3',
-        fontSize: 14,
-        marginTop: 8,
-        fontWeight: '500',
-    },
-    sectionLabel: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 12,
-        marginTop: 4,
-    },
-    artistChip: {
-        width: 84,
-        marginRight: 14,
-        alignItems: 'center',
-    },
-    artistChipImage: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        borderWidth: 2,
-        borderColor: '#1DB954',
-    },
-    artistChipName: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: '600',
-        marginTop: 8,
-        textAlign: 'center',
-    },
+    centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 },
+    loaderText: { color: '#888', marginTop: 14, fontSize: 14 },
+    emptyText: { color: 'white', fontSize: 18, fontWeight: '700', marginTop: 20, letterSpacing: -0.3 },
+    emptySubText: { color: '#666', fontSize: 14, marginTop: 6 },
+    initialTitle: { color: 'white', fontSize: 22, fontWeight: '700', marginTop: 24, letterSpacing: -0.5 },
+    initialSubtitle: { color: '#555', fontSize: 14, marginTop: 8 },
 });
 
 export default SearchScreen;

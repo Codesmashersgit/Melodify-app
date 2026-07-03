@@ -35,12 +35,18 @@
 
  
 <div align="center">
-  <h3>✨Mobile Landing Page</h3>
-  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.38.jpeg" alt="Landing Page Placeholder" width="400"/>
-  <br/>
+  <h3>✨ Mobile Landing Page</h3>
 
-  <h3>Popular Albums</h3>
-  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.27.jpeg" alt="Dashboard Placeholder" width="400"/>
-  <br/>
+  <table>
+    <tr>
+      <td align="center">
+        <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.38.jpeg" width="250" alt="Landing Page"/>
+      </td>
+      <td align="center">
+        <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.27.jpeg" width="250" alt="Dashboard"/>
+      </td>
+    </tr>
+  </table>
+</div>
 
 </div>

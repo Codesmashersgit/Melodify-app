@@ -16,8 +16,7 @@ const app = express();
 const allowedOrigins = [
     'http://localhost:5173', 
     process.env.CLIENT_URL,
-    'https://melodify-app.vercel.app', // Add common ones just in case
-    'https://melodify.vercel.app'
+    'https://melodifynew.netlify.app'
 ].filter(Boolean);
 
 app.use(cors({ 
@@ -338,80 +337,24 @@ const formatSong = (song) => {
 
 // ========================== ENDPOINTS ==========================
 
-// Audio Stream Proxy — resolves full HQ URL and streams it
+// Audio Resolve — resolves HQ URL and returns 302 redirect to CDN directly
+// This way expo-av streams directly from JioSaavn CDN, bypassing Render as middleman
 app.get('/api/stream', async (req, res) => {
-    let { url, id, name, artist } = req.query;
+    let { id, name, artist } = req.query;
 
-    if (!id && !url) return res.status(400).send('Song ID or URL is required');
+    if (!id) return res.status(400).send('Song ID is required');
 
-    // If we have a song ID, resolve the full HQ URL
-    if (id) {
+    try {
         const resolvedUrl = await resolveFullSongUrl(id, name, artist);
         if (resolvedUrl) {
-            url = resolvedUrl;
-        } else if (url) {
-            // Fallback: try to upgrade preview URL manually
-            if (url.includes('preview.saavncdn.com')) {
-                url = url.replace(/preview\.saavncdn\.com/, 'aac.saavncdn.com')
-                         .replace(/_p\.(mp4|aac|m4a|mp3)/, '_320.mp4');
-            }
-        } else {
-            console.warn(`🛑 Giving up on stream for ${name || id}`);
-            return res.status(404).send('Could not resolve song URL');
+            // Redirect client directly to CDN — no proxy overhead
+            return res.redirect(302, resolvedUrl);
         }
+        return res.status(404).send('Could not resolve song URL');
+    } catch (err) {
+        console.error('Stream resolve error:', err.message);
+        return res.status(500).send('Stream failed');
     }
-
-    // Stream the audio
-    const lib = url.startsWith('https') ? https : http;
-    const streamOptions = {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.jiosaavn.com/',
-            'Accept': 'audio/mpeg, audio/wav, audio/aac, audio/ogg, audio/*;q=0.9, */*;q=0.5',
-        }
-    };
-
-    // Forward range headers for seeking support
-    if (req.headers.range) {
-        streamOptions.headers['Range'] = req.headers.range;
-    }
-
-    const doStream = (streamUrl, redirectCount = 0) => {
-        if (redirectCount > 5) {
-            return res.status(502).send('Too many redirects');
-        }
-
-        const streamLib = streamUrl.startsWith('https') ? https : http;
-        streamLib.get(streamUrl, streamOptions, (proxyRes) => {
-            // Handle redirects
-            if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
-                return doStream(proxyRes.headers.location, redirectCount + 1);
-            }
-
-            // Set proper headers for audio streaming
-            const headers = {
-                'Content-Type': proxyRes.headers['content-type'] || 'audio/mp4',
-                'Accept-Ranges': 'bytes',
-                'Access-Control-Allow-Origin': '*',
-            };
-            if (proxyRes.headers['content-length']) {
-                headers['Content-Length'] = proxyRes.headers['content-length'];
-            }
-            if (proxyRes.headers['content-range']) {
-                headers['Content-Range'] = proxyRes.headers['content-range'];
-            }
-
-            res.writeHead(proxyRes.statusCode, headers);
-            proxyRes.pipe(res);
-        }).on('error', (err) => {
-            console.error('Proxy stream error:', err.message);
-            if (!res.headersSent) {
-                res.status(500).send('Stream failed');
-            }
-        });
-    };
-
-    doStream(url);
 });
 
 // Search songs

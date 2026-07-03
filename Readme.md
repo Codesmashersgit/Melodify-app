@@ -23,11 +23,12 @@
   <br/>
 
    <h3>Artist Collection</h3>
-  <img src="./client/src/assets/Screenshot 2026-07-03 132721.png" alt="Pricing Placeholder" width="200"/>
+  <img src="./client/src/assets/Screenshot 2026-07-03 132721.png" alt="Pricing Placeholder" width="600"/>
   <br/>
 
-  <img src="./client/src/assets/Screenshot 2026-07-03 132748.png" alt="Pricing Placeholder" width="200"/>
- 
+  <h3>Playing music</h3>
+  <img src="./client/src/assets/Screenshot 2026-07-03 132748.png" alt="Pricing Placeholder" width="600"/>
+  <br/>
 
 
  ## 🎨 Mobile UI
@@ -35,11 +36,11 @@
  
 <div align="center">
   <h3>✨Mobile Landing Page</h3>
-  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.38.jpeg" alt="Landing Page Placeholder" width="600"/>
+  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.38.jpeg" alt="Landing Page Placeholder" width="400"/>
   <br/>
 
   <h3>Popular Albums</h3>
-  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.27.jpeg" alt="Dashboard Placeholder" width="600"/>
+  <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.27.jpeg" alt="Dashboard Placeholder" width="400"/>
   <br/>
 
 </div>

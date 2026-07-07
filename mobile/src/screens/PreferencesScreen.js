@@ -14,11 +14,17 @@ const GENRES = [
     { id: 'telugu', label: 'Telugu', emoji: '🌶️' },
     { id: 'lofi', label: 'Lo-Fi / Chill', emoji: '☕' },
     { id: 'hiphop', label: 'Hip-Hop', emoji: '🎧' },
+    { id: 'indie', label: 'Indie', emoji: '🎸' },
+    { id: 'devotional', label: 'Devotional', emoji: '🙏' },
+    { id: 'kpop', label: 'K-Pop', emoji: '✨' },
+    { id: 'rock', label: 'Rock', emoji: '🤘' },
+    { id: 'electronic', label: 'Electronic', emoji: '⚡' },
+    { id: 'workout', label: 'Workout', emoji: '💪' },
 ];
 
 const PreferencesScreen = ({ navigation }) => {
     const { user, updatePreferences } = useAuth();
-    const [selected, setSelected] = useState([]);
+    const [selected, setSelected] = useState(user?.preferences || []);
     const insets = useSafeAreaInsets();
 
     const toggleGenre = (id) => {
@@ -31,8 +37,12 @@ const PreferencesScreen = ({ navigation }) => {
 
     const handleContinue = async () => {
         await updatePreferences(selected);
-        // Navigate to Home or the main app will render it automatically if preferences are checked in AppNavigator
-        navigation.replace('MainApp');
+        // If navigating from Profile, we might want to go back, else replace
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            navigation.replace('MainApp');
+        }
     };
 
     return (

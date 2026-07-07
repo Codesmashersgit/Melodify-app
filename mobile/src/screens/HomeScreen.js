@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     View, Text, ScrollView, FlatList, Image, TouchableOpacity,
     StyleSheet, StatusBar, Dimensions, Animated, ImageBackground,
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import NotificationsModal from '../components/NotificationsModal';
 import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../components/Skeleton';
+import API_BASE_URL from '../config';
 
 const { width } = Dimensions.get('window');
 
@@ -59,6 +60,13 @@ const HomeScreen = ({ navigation }) => {
         return 'Good evening 🌙';
     };
 
+    const getVibeGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'What are we feeling this morning? 🌅';
+        if (hour < 18) return 'What are we feeling this afternoon? ☀️';
+        return 'What are we feeling tonight? ✨';
+    };
+
     const getMoodTracks = () => {
         if (!tracks || tracks.length === 0) return [];
         switch (selectedMood) {
@@ -69,6 +77,12 @@ const HomeScreen = ({ navigation }) => {
             default: return tracks.slice(0, 10);
         }
     };
+
+    // Stable shuffle — only re-shuffles when tracks list itself changes
+    const madeForYouTracks = useMemo(() => {
+        if (!tracks || tracks.length === 0) return [];
+        return [...tracks].sort(() => Math.random() - 0.5).slice(0, 10);
+    }, [tracks]);
 
     // Track card (horizontal)
     const renderTrackCard = ({ item }) => (
@@ -89,14 +103,61 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
     );
 
-    // Album card
+    // Album card — click plays the album's first song
+    const [loadingAlbumId, setLoadingAlbumId] = useState(null);
+
+    const handleAlbumPress = async (album) => {
+        setLoadingAlbumId(album.id);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/album/${album.id}`);
+            const data = await response.json();
+            const albumTracks = (data.tracks || []).filter(t => {
+                if (!t?.name) return false;
+                const name = t.name.toLowerCase();
+                // Filter out trailers, samples, promos etc.
+                const junk = ['trailer', 'sample', 'testing', 'promo', 'making', 'teaser', 'dialogue', 'jukebox'];
+                return !junk.some(j => name.includes(j));
+            });
+
+            if (albumTracks.length > 0) {
+                // Play all valid album tracks
+                playTrack(albumTracks[0], albumTracks);
+            } else {
+                // Fallback: play a random song from home screen tracks
+                const homeTracks = tracks || [];
+                if (homeTracks.length > 0) {
+                    const random = homeTracks[Math.floor(Math.random() * homeTracks.length)];
+                    playTrack(random, homeTracks);
+                }
+            }
+        } catch (e) {
+            console.error('Album fetch error:', e);
+            // On error also fallback to random home track
+            const homeTracks = tracks || [];
+            if (homeTracks.length > 0) {
+                const random = homeTracks[Math.floor(Math.random() * homeTracks.length)];
+                playTrack(random, homeTracks);
+            }
+        } finally {
+            setLoadingAlbumId(null);
+        }
+    };
+
+
     const renderAlbumCard = ({ item }) => (
         <TouchableOpacity
             style={styles.albumCard}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('Album', { albumId: item.id })}
+            onPress={() => handleAlbumPress(item)}
         >
-            <Image source={{ uri: item.image }} style={styles.albumImage} />
+            <View style={{ position: 'relative' }}>
+                <Image source={{ uri: item.image }} style={styles.albumImage} />
+                {loadingAlbumId === item.id && (
+                    <View style={styles.albumLoadingOverlay}>
+                        <Ionicons name="musical-notes" size={22} color="#1DB954" />
+                    </View>
+                )}
+            </View>
             <Text style={styles.albumTitle} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.albumSubtitle} numberOfLines={1}>{item.artist}</Text>
         </TouchableOpacity>
@@ -160,7 +221,7 @@ const HomeScreen = ({ navigation }) => {
                 <View style={styles.greetingBlock}>
                     <Text style={styles.greetingSmall}>{getGreeting()}</Text>
                     <Text style={styles.greetingName}>{user?.name?.split(' ')[0] || 'Welcome'}</Text>
-                    <Text style={styles.greetingVibe}>What are we feeling tonight? ✨</Text>
+                    <Text style={styles.greetingVibe}>{getVibeGreeting()}</Text>
                 </View>
 
                 {/* ── Hero Banner — Girl With Headphones ── */}
@@ -170,7 +231,7 @@ const HomeScreen = ({ navigation }) => {
                     onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}
                 >
                     <Image
-                        source={{ uri: 'https://images.pexels.com/photos/3734661/pexels-photo-3734661.jpeg?auto=compress&cs=tinysrgb&w=800' }}
+                        source={require('../assets/girl_hero.png')}
                         style={styles.heroImage}
                         resizeMode="cover"
                     />
@@ -235,22 +296,46 @@ const HomeScreen = ({ navigation }) => {
                         </View>
                     </View>
                     <View style={styles.genreRow}>
-                        <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
-                            onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}>
-                            <ExpoLinearGradient colors={['#FF6B35', '#D62828']} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
-                                <Text style={styles.genreEmoji}>🎬</Text>
-                                <Text style={styles.genreLabel}>Bollywood</Text>
-                                <Text style={styles.genreTap}>Tap to explore →</Text>
-                            </ExpoLinearGradient>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
-                            onPress={() => tracks?.length > 5 && playTrack(tracks[5], tracks)}>
-                            <ExpoLinearGradient colors={['#4C1D95', '#1e1b4b']} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
-                                <Text style={styles.genreEmoji}>🎧</Text>
-                                <Text style={styles.genreLabel}>Hip Hop</Text>
-                                <Text style={styles.genreTap}>Tap to explore →</Text>
-                            </ExpoLinearGradient>
-                        </TouchableOpacity>
+                        {(() => {
+                            const prefs = user?.preferences?.length > 0 ? user.preferences : ['bollywood', 'hiphop'];
+                            const getGenreDetails = (p) => {
+                                switch(p.toLowerCase()) {
+                                    case 'bollywood': return { label: 'Bollywood', emoji: '🎬', colors: ['#FF6B35', '#D62828'] };
+                                    case 'hollywood': return { label: 'Hollywood', emoji: '🌟', colors: ['#3A86FF', '#004E98'] };
+                                    case 'punjabi': return { label: 'Punjabi', emoji: '🥁', colors: ['#FFBE0B', '#E56B6F'] };
+                                    case 'bhojpuri': return { label: 'Bhojpuri', emoji: '🔥', colors: ['#FB5607', '#9D0208'] };
+                                    case 'tamil': return { label: 'Tamil', emoji: '🌴', colors: ['#8338EC', '#3A0CA3'] };
+                                    case 'lofi': return { label: 'Lo-Fi', emoji: '☕', colors: ['#9D4EDD', '#5A189A'] };
+                                    case 'hiphop': return { label: 'Hip Hop', emoji: '🎧', colors: ['#4C1D95', '#1e1b4b'] };
+                                    case 'indie': return { label: 'Indie', emoji: '🎸', colors: ['#06D6A0', '#073B4C'] };
+                                    default: return { label: p.charAt(0).toUpperCase() + p.slice(1), emoji: '🎵', colors: ['#1DB954', '#0d5926'] };
+                                }
+                            };
+
+                            const card1 = getGenreDetails(prefs[0]);
+                            const card2 = getGenreDetails(prefs[1] || prefs[0]);
+
+                            return (
+                                <>
+                                    <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
+                                        onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}>
+                                        <ExpoLinearGradient colors={card1.colors} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
+                                            <Text style={styles.genreEmoji}>{card1.emoji}</Text>
+                                            <Text style={styles.genreLabel}>{card1.label}</Text>
+                                            <Text style={styles.genreTap}>Tap to explore →</Text>
+                                        </ExpoLinearGradient>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.genreCard, { backgroundColor: '#0d0d0d' }]} activeOpacity={0.85}
+                                        onPress={() => tracks?.length > 5 && playTrack(tracks[5], tracks)}>
+                                        <ExpoLinearGradient colors={card2.colors} style={styles.genreGradient} start={{x:0,y:0}} end={{x:1,y:1}}>
+                                            <Text style={styles.genreEmoji}>{card2.emoji}</Text>
+                                            <Text style={styles.genreLabel}>{card2.label}</Text>
+                                            <Text style={styles.genreTap}>Tap to explore →</Text>
+                                        </ExpoLinearGradient>
+                                    </TouchableOpacity>
+                                </>
+                            );
+                        })()}
                     </View>
                 </View>
 
@@ -436,7 +521,7 @@ const HomeScreen = ({ navigation }) => {
                         <FlatList
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            data={[...(tracks || [])].sort(() => Math.random() - 0.5).slice(0, 10)}
+                            data={madeForYouTracks}
                             keyExtractor={(item, i) => 'made-' + item.id + i}
                             renderItem={renderTopHitCard}
                             contentContainerStyle={styles.horizontalList}
@@ -620,7 +705,13 @@ const styles = StyleSheet.create({
     // Album Card
     albumCard: { width: 130, marginRight: 12 },
     albumImage: { width: 130, height: 130, borderRadius: 12, marginBottom: 8 },
+    albumLoadingOverlay: {
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 8,
+        borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center', alignItems: 'center',
+    },
     albumTitle: { color: 'white', fontSize: 12, fontWeight: '600', marginBottom: 2 },
+
     albumSubtitle: { color: '#777', fontSize: 11 },
 
     // Top Hit Card

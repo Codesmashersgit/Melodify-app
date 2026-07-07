@@ -31,34 +31,32 @@ const decryptDES = (encryptedBase64) => {
 };
 
 const resolveAudioUrl = async (songId, songName, songArtist) => {
-    // Strategy 1: DIRECT JioSaavn API using decrypt
+    if (!songId) return null;
+    
+    const proxyUrl = `${API_BASE_URL}/api/stream?id=${songId}&name=${encodeURIComponent(songName || '')}&artist=${encodeURIComponent(songArtist || '')}`;
+    
     try {
-        const directApi = `https://www.jiosaavn.com/api.php?__call=song.getDetails&pids=${songId}&ctx=wap6dot0&_format=json&_marker=0`;
-        const response = await axios.get(directApi, { timeout: 8000 });
-        const data = response.data;
-        if (data && data[songId]) {
-            const song = data[songId];
-            let url = '';
-            if (song.encrypted_media_url) {
-                url = decryptDES(song.encrypted_media_url);
-            }
-            if (!url && song.media_preview_url) {
-                url = song.media_preview_url;
-            }
-            
-            if (url && typeof url === 'string') {
-                // Force high quality AAC streaming
-                url = url.replace(/_96_p\.mp4|_96\.mp4|_160\.mp4|_128\.mp4/g, '_320.mp4')
-                         .replace('preview.saavncdn.com', 'aac.saavncdn.com')
-                         .replace('http://', 'https://');
-                return url;
+        // Fetch with HEAD to resolve the 302 redirect in JS safely without downloading the whole file
+        const response = await fetch(proxyUrl, { method: 'HEAD', redirect: 'follow' });
+        
+        let finalUrl = response.url;
+        
+        // If the backend redirected us to the JioSaavn CDN, check if it's accessible.
+        // expo-av natively crashes if it hits a 403 or 404 directly.
+        if (finalUrl && finalUrl !== proxyUrl) {
+            const headCheck = await fetch(finalUrl, { method: 'HEAD' });
+            if (headCheck.ok || headCheck.status === 200) {
+                console.log("Verified URL is accessible:", finalUrl.substring(0, 50));
+                return finalUrl;
+            } else {
+                console.warn(`URL returned ${headCheck.status}, native crash prevented!`);
             }
         }
     } catch (e) {
-        console.error("Direct JioSaavn API failed:", e.message);
+        console.error("Redirect resolution failed:", e);
     }
-
-    // Strategy 2: Public API fallbacks
+    
+    // Fallback to public APIs if proxy fails or returns 403
     const apis = [
         `https://saavn.dev/api/songs/${songId}`,
         `https://jiosaavn-api-ashutosh.vercel.app/api/songs?id=${songId}`,
@@ -68,7 +66,6 @@ const resolveAudioUrl = async (songId, songName, songArtist) => {
         try {
             const response = await axios.get(api, { timeout: 8000 });
             const data = response.data;
-
             let song = null;
             if (data?.data && Array.isArray(data.data)) song = data.data[0];
             else if (data?.data?.id) song = data.data;
@@ -81,21 +78,18 @@ const resolveAudioUrl = async (songId, songName, songArtist) => {
                         d.quality === '320kbps' || d.quality === '320' || d.quality === 'high'
                     ) || downloadUrls[downloadUrls.length - 1];
                     const url = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
-                    if (url) return url.replace('http://', 'https://');
+                    if (url) {
+                        const headCheck = await fetch(url, { method: 'HEAD' });
+                        if (headCheck.ok) return url.replace('http://', 'https://');
+                    }
                 }
-                if (song.url && song.url.includes('saavncdn')) return song.url.replace('http://', 'https://');
             }
         } catch (e) {
             continue;
         }
     }
-
-    // Strategy 3: Fallback to the Render backend stream proxy
-    try {
-        return `${API_BASE_URL}/api/stream?id=${songId}&name=${encodeURIComponent(songName || '')}&artist=${encodeURIComponent(songArtist || '')}`;
-    } catch (e) {
-        return null;
-    }
+    
+    return null;
 };
 
 // ─────────────────────────────────────────────────────────────

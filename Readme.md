@@ -1,109 +1,127 @@
-# 🎵 Melodify
+<div align="center">
+  <img src="https://img.icons8.com/color/120/000000/music.png" alt="Melodify Logo" />
+  
+  # 🎵 Melodify
+  
+  **The Ultimate AI-Powered Music Streaming Experience**
 
-Melodify is a full-stack, AI-powered music streaming application built with **React Native (Expo)** on the frontend and **Node.js (Express)** on the backend. It leverages the JioSaavn API for an infinite catalog of music and integrates Google Gemini AI for smart, mood-based voice search and dynamic music recommendations.
+  <p>
+    <a href="https://reactnative.dev/"><img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native" /></a>
+    <a href="https://expo.dev/"><img src="https://img.shields.io/badge/Expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" /></a>
+    <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" /></a>
+    <a href="https://deepmind.google/technologies/gemini/"><img src="https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI" /></a>
+  </p>
+</div>
 
 ---
 
-## 🌟 Key Features
+## 🌟 What is Melodify?
 
-### 🎧 Frontend (Mobile App)
-- **High-Quality Audio Playback:** Full background audio support with lock-screen controls using `react-native-track-player` and `react-native-music-control`.
-- **Dynamic Preferences:** The Home Screen dynamically adapts its content sections based on the user's selected preferences (e.g., Bollywood, Hollywood, Lofi).
-- **AI Voice Search ✨:** Tap the microphone icon or type how you feel (e.g., "I want to party" or "Aaj mera mood sad hai"). Google Gemini AI breaks down the context and fetches the perfect playlist for your mood.
-- **Slick UI/UX:** Built with a premium, responsive dark/light mode design featuring smooth micro-animations, equalizer animations, and skeleton loading states.
-- **User Authentication & Profiles:** Manage your profile, select music preferences, and get personalized recommendations.
+Melodify is a premium, full-stack music streaming application. It provides an ad-free, infinite catalog of music by integrating seamlessly with the JioSaavn API. What sets Melodify apart is its **Google Gemini AI integration**, allowing users to search for music based purely on their current mood or vibe using natural language voice commands!
 
-### ⚙️ Backend (Server)
-- **JioSaavn API Integration:** Fetches high-quality (320kbps) audio streams, top charts, artist details, and album information in real-time.
-- **DES Decryption Engine:** Securely decrypts encrypted media URLs from the JioSaavn CDN to serve direct, uninterrupted audio streams to the mobile app.
-- **Google Gemini AI Endpoint:** Features a dedicated `/api/ai-mood` endpoint that interprets natural language user moods and converts them into highly optimized search queries.
-- **Smart Fallbacks:** Implements multiple stream resolution strategies (including parallel API fetching and search fallbacks) to ensure songs always play.
+---
+
+## ✨ Amazing Features
+
+### 🎧 Seamless Audio Experience
+- **High-Quality Streaming:** Enjoy uninterrupted 320kbps HD audio.
+- **Background Playback:** Full support for background audio and lock-screen media controls using `react-native-track-player` and `react-native-music-control`.
+- **Dynamic Equalizer & Micro-Animations:** A beautiful, responsive UI that feels alive while your music plays.
+
+### 🧠 Smart AI Voice Search
+- **Talk to Melodify:** Tap the 🎤 icon and say how you feel (e.g., *"Aaj bahut sad lag raha hai"* or *"I need workout energy"*).
+- **Gemini Powered:** The backend leverages Google Gemini 2.5 Flash to instantly understand your mood and fetch the perfect personalized playlist.
+- **Text AI Search:** Prefer typing? Type your mood and hit the ✨ button for the same magical results.
+
+### 🎛️ Personalized Dynamic Preferences
+- **Your Vibe, Front & Center:** The Home Screen automatically adapts to your saved preferences (Bollywood, Lofi, EDM, etc.).
+- **Infinite Scrolling:** Browse Top Hits, New Releases, and Trending Albums tailored just for you.
+
+### 🔐 Robust Backend Engine
+- **Direct CDN Streaming:** The Express backend securely decrypts JioSaavn's DES-encrypted media URLs and streams them directly to the client with zero proxy lag.
+- **Smart Fallbacks:** If a high-quality link fails, the backend automatically uses parallel fetching strategies to ensure the music never stops.
 
 ---
 
 ## 🛠️ Technology Stack
 
-**Mobile Frontend:**
-- React Native & Expo SDK 54
-- React Navigation (Bottom Tabs & Native Stack)
-- `@react-native-voice/voice` for Speech-to-Text
-- `expo-av` & `react-native-track-player` for Audio
-- AsyncStorage for local caching
-
-**Backend:**
-- Node.js & Express.js
-- `axios` for JioSaavn API communication
-- `crypto-js` for DES decryption
-- `@google/genai` (Gemini 2.5 Flash) for AI mood analysis
+| Frontend (Mobile) | Backend (Server) | AI & External APIs |
+| :--- | :--- | :--- |
+| **React Native** (0.76+) | **Node.js** (v18+) | **Google Gemini AI** |
+| **Expo** (SDK 54) | **Express.js** | **JioSaavn API** |
+| React Navigation v7 | `axios` | |
+| `@react-native-voice/voice` | `crypto-js` (DES Decryption) | |
+| `expo-av` | `dotenv` | |
 
 ---
 
 ## 📂 Project Structure
 
-```
+```text
 Melodify/
-├── mobile/                  # React Native (Expo) Frontend
+├── mobile/                  # 📱 React Native (Expo) Frontend
 │   ├── src/
-│   │   ├── components/      # UI components (TrackCard, Skeletons, Player)
-│   │   ├── context/         # AuthContext, PlaybackContext
-│   │   ├── screens/         # HomeScreen, SearchScreen, PlayerScreen, etc.
-│   │   └── config.js        # API Base URL configuration
-│   ├── app.json             # Expo configuration (Permissions, SDK versions)
+│   │   ├── components/      # Reusable UI (TrackCard, Skeletons, Player)
+│   │   ├── context/         # React Context (AuthContext, PlaybackContext)
+│   │   ├── screens/         # App Screens (Home, Search, Player, Profile)
+│   │   └── config.js        # Server IP Configuration
+│   ├── app.json             # Expo config (Custom permissions & plugins)
 │   └── package.json
 │
-├── server/                  # Node.js Express Backend
-│   ├── index.js             # Main server logic, JioSaavn proxy, AI endpoints
+├── server/                  # ⚙️ Node.js Express Backend
+│   ├── index.js             # API routes, Decryption Logic, AI Integration
 │   ├── package.json
-│   └── .env                 # Environment variables (GEMINI_API_KEY)
+│   └── .env                 # Secrets (GEMINI_API_KEY)
 │
-└── README.md
+└── Readme.md                # 📖 You are here
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Run Locally
 
-### Prerequisites
-- Node.js (v18+)
-- EAS CLI (`npm install -g eas-cli`) for building the APK
-- A Google Gemini API Key
+### 1️⃣ Start the Backend Server
 
-### 1. Setting up the Backend
+The backend requires Node.js and a Gemini API Key to run.
+
 ```bash
 cd server
 npm install
 
-# Create a .env file and add your Gemini API Key
-echo "GEMINI_API_KEY=your_api_key_here" > .env
-echo "BASE_URL=http://your_local_ip:5000" >> .env
+# Create a .env file
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
+echo "BASE_URL=http://localhost:5000" >> .env
 
-# Start the server (Requires legacy OpenSSL provider for decryption)
+# Start the server (Uses legacy OpenSSL provider for crypto-js decryption)
 npm start
 ```
-The server will start on `http://localhost:5000`.
+*Server will be live at `http://localhost:5000`*
 
-### 2. Setting up the Mobile App
-*Note: Due to native modules like `@react-native-voice/voice` and `react-native-track-player`, the app must be built into an APK (it will crash in Expo Go).*
+### 2️⃣ Start the Mobile App
+
+Because Melodify uses powerful native modules (like Voice Recognition and Background Audio), **it cannot run in the standard Expo Go app**. You must compile an APK or use an EAS Development Client.
 
 ```bash
 cd mobile
 npm install
 
-# Update src/config.js with your backend's IP address (if running locally) or your deployed Render URL.
+# ⚠️ Important: Update src/config.js to point to your backend's IP address!
 # Example: const API_BASE_URL = "http://192.168.1.5:5000";
 
-# Build the Android APK using EAS
+# Build the Android APK using Expo Application Services (EAS)
 npx eas build -p android --profile preview
 ```
 
-Once the build finishes, install the APK on your Android device and enjoy!
+Once the build is complete, download the APK, install it on your Android phone, and experience the magic of Melodify! 🎶
 
 ---
 
-## ⚠️ Known Issues & Fixes
-- **Gradle Build Failure on Android:** The `@react-native-voice/voice` module does not fully support the New Architecture (Fabric). This has been mitigated by setting `"newArchEnabled": false` in `app.json`.
-- **Expo Go Incompatibility:** Voice search and background audio playback utilize native code. Test these features on a physical device using a development build or the compiled APK.
+## 💡 Developer Notes & Known Fixes
+- **Gradle Build Issue with Voice Module:** The `@react-native-voice/voice` package currently has issues with React Native's New Architecture. To fix this, `"newArchEnabled": false` has been explicitly set in `app.json` via the `expo-build-properties` plugin.
+- **Audio Decryption:** The JioSaavn API returns DES-encrypted URLs. The backend handles this decryption locally using `crypto-js`. 
 
 ---
 
-*Built with ❤️ and 🎵 by sk_rungta.*
+<div align="center">
+  <b>Built with ❤️ by sk_rungta & Antigravity</b>
+</div>

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://img.icons8.com/color/120/000000/music.png" alt="Melodify Logo" />
+  <img src="./client/src/assets/melodify.png" alt="Melodify Logo" width="200" />
   
   # 🎵 Melodify
   
@@ -18,6 +18,43 @@
 ## 🌟 What is Melodify?
 
 Melodify is a premium, full-stack music streaming application. It provides an ad-free, infinite catalog of music by integrating seamlessly with the JioSaavn API. What sets Melodify apart is its **Google Gemini AI integration**, allowing users to search for music based purely on their current mood or vibe using natural language voice commands!
+
+---
+
+## 🎨 Project Gallery
+
+### Web UI
+<div align="center">
+  <h4>✨ Landing Page</h4>
+  <img src="./client/src/assets/Screenshot 2026-07-03 122815.png" alt="Landing Page" width="600"/>
+  <br/>
+  <h4>Popular Albums</h4>
+  <img src="./client/src/assets/Screenshot 2026-07-03 122830.png" alt="Popular Albums" width="600"/>
+  <br/>
+  <h4>Search Functionality</h4>
+  <img src="./client/src/assets/Screenshot 2026-07-03 122901.png" alt="Search Functionality" width="600"/>
+  <br/>
+  <h4>Artist Collection</h4>
+  <img src="./client/src/assets/Screenshot 2026-07-03 132721.png" alt="Artist Collection" width="600"/>
+  <br/>
+  <h4>Playing Music</h4>
+  <img src="./client/src/assets/Screenshot 2026-07-03 132748.png" alt="Playing Music" width="600"/>
+</div>
+
+### Mobile UI
+<div align="center">
+  <h4>✨ Mobile Views</h4>
+  <table>
+    <tr>
+      <td align="center">
+        <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.38.jpeg" width="250" alt="Mobile Landing Page"/>
+      </td>
+      <td align="center">
+        <img src="./client/src/assets/WhatsApp Image 2026-07-03 at 12.07.27.jpeg" width="250" alt="Mobile Dashboard"/>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 

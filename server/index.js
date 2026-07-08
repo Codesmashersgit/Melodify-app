@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const yts = require('yt-search');
+const { GoogleGenAI } = require('@google/genai');
 
 dotenv.config();
 
@@ -651,6 +652,41 @@ app.get('/api/video', async (req, res) => {
     } catch (err) {
         console.error('YouTube search error:', err.message);
         res.status(500).json({ error: 'Failed to search YouTube' });
+    }
+});
+
+app.get('/api/ai-mood', async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) return res.status(400).json({ error: 'Query is required' });
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY is not configured' });
+        }
+
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const prompt = `You are a music vibe expert. A user says: "${query}". Analyze this mood/sentence and return exactly 3-5 keywords that would yield the best songs for this mood when searched on a music streaming platform (like JioSaavn). For example, if they say "aaj mera mood bahut kharab hai", return "sad emotional lofi hindi". If they say "party karni hai", return "bollywood party dance upbeat". DO NOT return anything else except the keywords.`;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        const keywords = response.text.trim().replace(/['"]/g, '');
+        
+        // Use the existing Saavn search api internally
+        const data = await jiosaavnRequest({
+            __call: 'search.getResults',
+            q: keywords,
+            n: '15',
+        });
+        
+        const tracks = (data.results || []).map(formatSong);
+        res.json({ keywords, tracks });
+        
+    } catch (error) {
+        console.error('AI Mood Error:', error);
+        res.status(500).json({ error: 'AI processing failed' });
     }
 });
 

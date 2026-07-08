@@ -174,6 +174,9 @@ export const PlaybackProvider = ({ children }) => {
                     playsInSilentModeIOS: true,
                     interruptionModeIOS: 1,
                 });
+                // Note: handleNext and handlePrev need to be passed or accessed via ref, 
+                // but since they are defined later in the component, we'll set up listeners there.
+
             } catch (error) {
                 console.error('Error configuring audio mode:', error);
             }
@@ -203,9 +206,10 @@ export const PlaybackProvider = ({ children }) => {
             setCurrentTime(status.positionMillis / 1000);
             setDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
             setIsPlaying(status.isPlaying);
+            
             if (status.didJustFinish) {
                 setIsPlaying(false);
-                // Auto advance to next track
+                // Auto advance to next track sequentially in the current playlist
                 const currentTracks = tracksRef.current;
                 const currentTrackVal = currentTrackRef.current;
                 if (currentTracks && currentTracks.length > 0 && currentTrackVal) {
@@ -257,8 +261,6 @@ export const PlaybackProvider = ({ children }) => {
             const songId = track.id;
             const songName = track.name;
             const songArtist = track.artist;
-
-            console.log(`🎵 Resolving audio for: ${songName} (${songId})`);
 
             const audioUrl = await resolveAudioUrl(songId, songName, songArtist);
             console.log(`🔗 Audio URL: ${audioUrl?.substring(0, 60)}...`);

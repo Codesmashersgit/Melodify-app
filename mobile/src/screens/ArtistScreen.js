@@ -29,7 +29,7 @@ const ArtistScreen = ({ route, navigation }) => {
     };
 
     const renderTrackItem = ({ item, index }) => (
-        <TouchableOpacity style={styles.trackItem} onPress={() => playTrack(item)}>
+        <TouchableOpacity style={styles.trackItem} onPress={() => playTrack(item, tracks)}>
             <Text style={styles.trackIndex}>{index + 1}</Text>
             <Image source={{ uri: item.image }} style={styles.trackImage} />
             <View style={styles.trackInfo}>

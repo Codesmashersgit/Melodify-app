@@ -70,8 +70,12 @@ const AboutScreen = ({ navigation }) => {
                                     : 'Not set'}
                             </Text>
                         </View>
-                        <TouchableOpacity onPress={() => navigation.navigate('Preferences')}>
-                            <Ionicons name="pencil" size={20} color="#1DB954" />
+                        <TouchableOpacity 
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(29, 185, 84, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}
+                            onPress={() => navigation.navigate('Preferences')}
+                        >
+                            <Ionicons name="pencil" size={14} color="#1DB954" style={{ marginRight: 4 }} />
+                            <Text style={{ color: '#1DB954', fontSize: 13, fontWeight: 'bold' }}>Edit</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import Constants from 'expo-constants';
+import Voice from '@react-native-voice/voice';
 
 const SearchScreen = ({ navigation }) => {
     const { playTrack, artists, albums } = usePlayback();
@@ -20,6 +22,35 @@ const SearchScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const debounceRef = useRef(null);
 
+    const [isListening, setIsListening] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiMoodKeywords, setAiMoodKeywords] = useState('');
+
+    useEffect(() => {
+        try {
+            Voice.onSpeechStart = () => setIsListening(true);
+            Voice.onSpeechEnd = () => setIsListening(false);
+            Voice.onSpeechResults = (e) => {
+                if (e.value && e.value.length > 0) {
+                    const text = e.value[0];
+                    setSearchQuery(text);
+                    handleAiSearch(text);
+                }
+            };
+            Voice.onSpeechError = (e) => {
+                setIsListening(false);
+                console.log('Voice error:', e);
+            };
+        } catch (e) {
+            console.log('Voice setup error:', e);
+        }
+        return () => {
+            try { Voice.destroy().then(Voice.removeAllListeners); } catch (e) {}
+        };
+    }, []);
+
+    const aiModeRef = useRef(false);
+
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -28,8 +59,13 @@ const SearchScreen = ({ navigation }) => {
             setSongResults([]);
             setArtistResults([]);
             setAlbumResults([]);
+            setAiMoodKeywords('');
+            aiModeRef.current = false;
             return;
         }
+
+        // If in AI mode, don't fire normal search via debounce
+        if (aiModeRef.current) return;
 
         debounceRef.current = setTimeout(() => {
             doSearch(searchQuery.trim());
@@ -38,15 +74,63 @@ const SearchScreen = ({ navigation }) => {
         return () => clearTimeout(debounceRef.current);
     }, [searchQuery]);
 
+    const startListening = async () => {
+        if (Constants.appOwnership === 'expo') {
+            alert('Voice search is not supported in Expo Go. Please type your mood and press the AI button ✨ instead, or build a native APK.');
+            return;
+        }
+        try {
+            setAiMoodKeywords('');
+            await Voice.start('en-US'); 
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleAiSearch = async (text) => {
+        if (!text || !text.trim()) return;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        aiModeRef.current = true;
+        setAiLoading(true);
+        setHasSearched(true);
+        setSongResults([]);
+        setArtistResults([]);
+        setAlbumResults([]);
+        try {
+            // Try AI endpoint first
+            const response = await axios.get(`${API_BASE_URL}/api/ai-mood?query=${encodeURIComponent(text)}`, { timeout: 10000 });
+            const { keywords, tracks } = response.data;
+            setAiMoodKeywords(keywords || text);
+            setSongResults(tracks || []);
+        } catch (error) {
+            console.log('AI endpoint not available, falling back to direct search');
+            // Fallback: search directly with the typed query on JioSaavn
+            try {
+                setAiMoodKeywords(`🔍 Searching: "${text}"`);
+                const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(text)}`);
+                const results = response.data || [];
+                setSongResults(results.filter(r => r.id));
+            } catch (fallbackErr) {
+                console.error('Fallback search also failed:', fallbackErr);
+                setAiMoodKeywords('Search failed. Please try again.');
+            }
+        } finally {
+            setAiLoading(false);
+            setIsListening(false);
+        }
+    };
+
     const doSearch = async (query) => {
+        aiModeRef.current = false;
+        setAiMoodKeywords('');
         setIsLoading(true);
         setHasSearched(true);
         try {
             const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`);
             const allResults = response.data || [];
 
-            // Categorize results
-            const songs = allResults.filter(r => r.preview_url);
+            // /api/search returns tracks with id field (not preview_url)
+            const songs = allResults.filter(r => r.id);
             setSongResults(songs);
 
             // Filter artists from context that match query
@@ -120,23 +204,38 @@ const SearchScreen = ({ navigation }) => {
     const totalResults = artistResults.length + albumResults.length + songResults.length;
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
+        <View style={[styles.container, { paddingTop: insets.top }]}>
             <Text style={styles.headerTitle}>Search</Text>
 
-            {/* Search Bar */}
             <View style={styles.searchBarContainer}>
                 <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Songs, artists, albums..."
-                    placeholderTextColor="#555"
+                    placeholder="Songs, artists, or 'how you feel'..."
+                    placeholderTextColor="#666"
                     value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    autoCorrect={false}
+                    onChangeText={(text) => {
+                        setSearchQuery(text);
+                        // Only clear AI mode if user actually changes the text
+                        if (aiModeRef.current && text !== searchQuery) {
+                            setAiMoodKeywords('');
+                            aiModeRef.current = false;
+                        }
+                    }}
                     autoCapitalize="none"
+                    autoCorrect={false}
                 />
+                
+                {/* AI Search Text Trigger */}
+                <TouchableOpacity onPress={() => handleAiSearch(searchQuery)} style={styles.aiButton}>
+                    <Text style={styles.aiButtonText}>✨</Text>
+                </TouchableOpacity>
+
+                {/* Voice Search Trigger */}
+                <TouchableOpacity onPress={startListening} style={[styles.micButton, isListening && styles.micListening]}>
+                    <Ionicons name={isListening ? "mic" : "mic-outline"} size={22} color={isListening ? "white" : "#1DB954"} />
+                </TouchableOpacity>
+
                 {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <Ionicons name="close-circle" size={20} color="#555" />
@@ -145,11 +244,26 @@ const SearchScreen = ({ navigation }) => {
             </View>
 
             {/* Results */}
-            {isLoading ? (
+
+            {isLoading || aiLoading ? (
                 <View style={styles.centerContainer}>
                     <ActivityIndicator size="large" color="#1DB954" />
-                    <Text style={styles.loaderText}>Searching...</Text>
+                    <Text style={styles.loaderText}>{aiLoading ? '🧠 AI is reading your mood...' : 'Searching...'}</Text>
                 </View>
+            ) : aiModeRef.current && songResults.length > 0 ? (
+                // AI mode: show keyword banner + flat list of songs
+                <FlatList
+                    data={songResults}
+                    keyExtractor={(item) => item.id?.toString()}
+                    ListHeaderComponent={
+                        <View style={styles.aiResultContainer}>
+                            <Text style={styles.aiResultText}>✨ Songs for: <Text style={{fontWeight: 'bold', color: 'white'}}>{aiMoodKeywords}</Text></Text>
+                        </View>
+                    }
+                    renderItem={renderSong}
+                    contentContainerStyle={[styles.listContainer, { paddingTop: 0 }]}
+                    showsVerticalScrollIndicator={false}
+                />
             ) : hasSearched && totalResults === 0 ? (
                 <View style={styles.centerContainer}>
                     <Ionicons name="search-outline" size={64} color="#222" />
@@ -199,6 +313,12 @@ const styles = StyleSheet.create({
     },
     searchIcon: { marginRight: 10 },
     searchInput: { flex: 1, fontSize: 15, color: 'white', fontWeight: '500', height: '100%' },
+    micButton: { padding: 6, marginLeft: 5, borderRadius: 20 },
+    micListening: { backgroundColor: '#1DB954' },
+    aiButton: { padding: 6, marginLeft: 5 },
+    aiButtonText: { fontSize: 18 },
+    aiResultContainer: { backgroundColor: 'rgba(29, 185, 84, 0.1)', marginHorizontal: 16, padding: 12, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(29, 185, 84, 0.3)' },
+    aiResultText: { color: '#1DB954', fontSize: 14, textAlign: 'center' },
     listContainer: { paddingBottom: 160 },
     sectionHeader: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
     sectionTitle: { color: 'white', fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },

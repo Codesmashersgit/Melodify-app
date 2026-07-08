@@ -160,5 +160,5 @@ Once the build is complete, download the APK, install it on your Android phone, 
 ---
 
 <div align="center">
-  <b>Built with ❤️ by sk_rungta & Antigravity</b>
+  <b>Built with ❤️ by Sudhanshu Raj</b>
 </div>

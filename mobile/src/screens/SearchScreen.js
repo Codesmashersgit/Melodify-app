@@ -9,7 +9,11 @@ import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 import Constants from 'expo-constants';
-import Voice from '@react-native-voice/voice';
+import {
+    ExpoSpeechRecognitionModule,
+    useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
+
 
 const SearchScreen = ({ navigation }) => {
     const { playTrack, artists, albums } = usePlayback();
@@ -26,28 +30,23 @@ const SearchScreen = ({ navigation }) => {
     const [aiLoading, setAiLoading] = useState(false);
     const [aiMoodKeywords, setAiMoodKeywords] = useState('');
 
-    useEffect(() => {
-        try {
-            Voice.onSpeechStart = () => setIsListening(true);
-            Voice.onSpeechEnd = () => setIsListening(false);
-            Voice.onSpeechResults = (e) => {
-                if (e.value && e.value.length > 0) {
-                    const text = e.value[0];
-                    setSearchQuery(text);
-                    handleAiSearch(text);
-                }
-            };
-            Voice.onSpeechError = (e) => {
-                setIsListening(false);
-                console.log('Voice error:', e);
-            };
-        } catch (e) {
-            console.log('Voice setup error:', e);
+    // expo-speech-recognition event handlers
+    useSpeechRecognitionEvent('start', () => setIsListening(true));
+    useSpeechRecognitionEvent('end', () => setIsListening(false));
+    useSpeechRecognitionEvent('result', (event) => {
+        if (event.results && event.results.length > 0) {
+            const text = event.results[0]?.transcript;
+            if (text) {
+                setSearchQuery(text);
+                handleAiSearch(text);
+            }
         }
-        return () => {
-            try { Voice.destroy().then(Voice.removeAllListeners); } catch (e) {}
-        };
-    }, []);
+    });
+    useSpeechRecognitionEvent('error', (event) => {
+        setIsListening(false);
+        console.log('Voice error:', event.error);
+    });
+
 
     const aiModeRef = useRef(false);
 
@@ -75,15 +74,20 @@ const SearchScreen = ({ navigation }) => {
     }, [searchQuery]);
 
     const startListening = async () => {
-        if (Constants.appOwnership === 'expo') {
-            alert('Voice search is not supported in Expo Go. Please type your mood and press the AI button ✨ instead, or build a native APK.');
-            return;
-        }
         try {
             setAiMoodKeywords('');
-            await Voice.start('en-US'); 
+            const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Microphone permission is required for voice search.');
+                return;
+            }
+            ExpoSpeechRecognitionModule.start({
+                lang: 'en-IN',
+                interimResults: false,
+                maxAlternatives: 1,
+            });
         } catch (e) {
-            console.error(e);
+            console.error('Voice start error:', e);
         }
     };
 

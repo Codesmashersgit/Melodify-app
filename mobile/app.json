@@ -46,15 +46,16 @@
         {
           "android": {
             "newArchEnabled": false,
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
             "minSdkVersion": 24
           },
           "ios": {
             "newArchEnabled": false
           }
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ],
     "owner": "sk_rungta",
     "extra": {

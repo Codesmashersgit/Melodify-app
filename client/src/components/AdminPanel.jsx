@@ -29,8 +29,8 @@ const AdminPanel = () => {
     try {
       const headers = { 'x-admin-secret': ADMIN_SECRET_KEY };
       const [statsRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/stats`, { headers }),
-        axios.get(`${API_BASE_URL}/admin/users`, { headers })
+        axios.get(`${API_BASE_URL}/api/user/admin/stats`, { headers }),
+        axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers })
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data);
@@ -52,7 +52,7 @@ const AdminPanel = () => {
     if (!window.confirm(`Are you sure you want to delete user ${name}? This cannot be undone.`)) return;
     
     try {
-      await axios.delete(`${API_BASE_URL}/admin/users/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/user/admin/users/${id}`, {
         headers: { 'x-admin-secret': ADMIN_SECRET_KEY }
       });
       setUsers(users.filter(u => u.id !== id));

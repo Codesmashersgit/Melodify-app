@@ -176,7 +176,9 @@ router.post('/playlists/:id/songs', authenticateToken, (req, res) => {
 
 // Email Transporter (Use Environment Variables in Production)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER || 'your-email@gmail.com',
         pass: process.env.EMAIL_PASS || 'your-app-password'
@@ -193,48 +195,50 @@ router.post('/forgot-password', (req, res) => {
             return res.json({ success: true, message: 'If an account exists, a reset link was sent.' });
         }
 
-        const resetToken = crypto.randomBytes(32).toString('hex');
+        // Generate 6 digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const tokenExpiry = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
 
-        db.run(`UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?`, [resetToken, tokenExpiry, user.id], async (err) => {
+        db.run(`UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?`, [otp, tokenExpiry, user.id], async (err) => {
             if (err) return res.status(500).json({ error: 'Database error' });
 
-            const resetLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
-            
-            // Console log the link for testing if email is not configured
-            console.log('\n--- PASSWORD RESET LINK ---');
-            console.log(`To reset password for ${email}, go to:\n${resetLink}\n---------------------------\n`);
+            // Console log the OTP for testing if email is not configured
+            console.log('\n--- PASSWORD RESET OTP ---');
+            console.log(`OTP for ${email} is: ${otp}\n---------------------------\n`);
 
             try {
                 await transporter.sendMail({
                     from: '"Melodify Support" <noreply@melodify.com>',
                     to: email,
-                    subject: 'Reset your Melodify Password',
+                    subject: 'Your Melodify Password Reset OTP',
                     html: `
                         <div style="font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 40px; text-align: center;">
                             <h1 style="color: #1DB954;">Melodify</h1>
                             <h2>Password Reset Request</h2>
-                            <p style="color: #b3b3b3; font-size: 16px;">We received a request to reset your password. Click the button below to choose a new one:</p>
-                            <a href="${resetLink}" style="display: inline-block; padding: 14px 28px; background: #1DB954; color: #000; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 16px; margin: 20px 0;">Reset Password</a>
-                            <p style="color: #777; font-size: 12px;">This link will expire in 1 hour. If you did not request this, please ignore this email.</p>
+                            <p style="color: #b3b3b3; font-size: 16px;">We received a request to reset your password. Here is your OTP:</p>
+                            <div style="margin: 20px auto; padding: 15px 30px; background: #282828; display: inline-block; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1DB954;">
+                                ${otp}
+                            </div>
+                            <p style="color: #777; font-size: 12px; margin-top: 30px;">This OTP will expire in 1 hour. If you did not request this, please ignore this email.</p>
                         </div>
                     `
                 });
+                res.json({ success: true, message: 'OTP sent to your email.' });
             } catch (mailErr) {
-                console.error('Failed to send email (Check credentials in Render):', mailErr.message);
+                console.error('Failed to send email:', mailErr);
+                res.status(500).json({ error: 'Failed to send email. Check your SMTP credentials.' });
             }
-
-            res.json({ success: true, message: 'Reset link sent to your email.' });
         });
     });
 });
 
 router.post('/reset-password', async (req, res) => {
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password are required' });
+    const { token, newPassword, email } = req.body;
+    if (!token || !newPassword || !email) return res.status(400).json({ error: 'Email, OTP token and new password are required' });
 
-    db.get(`SELECT id, reset_token_expiry FROM users WHERE reset_token = ?`, [token], async (err, user) => {
-        if (err || !user) return res.status(400).json({ error: 'Invalid or expired token' });
+    // Find the user by email AND verify the OTP token
+    db.get(`SELECT id, reset_token, reset_token_expiry FROM users WHERE email = ? AND reset_token = ?`, [email, token], async (err, user) => {
+        if (err || !user) return res.status(400).json({ error: 'Invalid OTP or Email' });
         
         // Check expiry
         if (new Date() > new Date(user.reset_token_expiry)) {

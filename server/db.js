@@ -16,10 +16,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 platform TEXT DEFAULT 'web',
+                reset_token TEXT,
+                reset_token_expiry DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`);
             // Migrate: add platform column if it doesn't exist (for existing DBs)
             db.run(`ALTER TABLE users ADD COLUMN platform TEXT DEFAULT 'web'`, () => {});
+            db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT`, () => {});
+            db.run(`ALTER TABLE users ADD COLUMN reset_token_expiry DATETIME`, () => {});
 
             // Liked Songs table
             db.run(`CREATE TABLE IF NOT EXISTS liked_songs (

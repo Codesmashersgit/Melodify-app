@@ -1,10 +1,12 @@
-import React from 'react'
+import React from 'react';
 import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
 import Nav from './components/Nav';
 import Body from './components/Body';
 import Signup from './components/Signup';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import Album from './components/Album';
 import Search from './components/Search';
 import ArtistPage from './components/ArtistPage';
@@ -52,6 +54,8 @@ function App() {
           </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </HistoryProvider>

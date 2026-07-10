@@ -77,6 +77,10 @@ const LoginScreen = ({ navigation }) => {
                                 <View style={styles.inputHighlight} />
                             </View>
 
+                            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                                <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
                                 {isLoading ? (
                                     <ActivityIndicator color="black" />
@@ -188,6 +192,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
+    },
+    forgotPasswordText: {
+        color: 'white',
+        textAlign: 'center',
+        marginTop: 15,
+        marginBottom: 20,
+        fontWeight: 'bold',
     },
     loginButton: {
         backgroundColor: '#1DB954',

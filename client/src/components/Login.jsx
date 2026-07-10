@@ -108,7 +108,9 @@ const Login = () => {
                 <span className="toggle-switch"></span>
                 <span className="toggle-label">Remember me</span>
               </label>
-              <Link to='#' className='forgot-link' id="forgot-password-link">Forgot password?</Link>
+              <Link to='/forgot-password' style={{ color: '#b3b3b3', textDecoration: 'none', fontSize: '14px', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#b3b3b3'}>
+                Forgot your password?
+              </Link>
             </div>
 
             <button className='btn-cta-premium' id="login-submit-btn" type="submit">

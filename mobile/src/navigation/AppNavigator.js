@@ -12,6 +12,7 @@ import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import AlbumScreen from '../screens/AlbumScreen';
 import ArtistScreen from '../screens/ArtistScreen';
 import LibraryScreen from '../screens/LibraryScreen';
@@ -147,6 +148,13 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Signup"
               component={SignupScreen}
+              options={{
+                animationEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
               options={{
                 animationEnabled: true,
               }}

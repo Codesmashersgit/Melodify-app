@@ -172,13 +172,30 @@ router.post('/playlists/:id/songs', authenticateToken, (req, res) => {
 
 // --- ADMIN PANEL ROUTES ---
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'melodify_admin_2026';
-
 const authenticateAdmin = (req, res, next) => {
-    const secret = req.headers['x-admin-secret'];
-    if (secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-    next();
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(403).json({ error: 'Unauthorized' });
+    
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || decoded.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+        next();
+    });
 };
+
+router.post('/admin/login', (req, res) => {
+    const { email, password } = req.body;
+    if (email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Access denied: Not an admin email' });
+    
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
+        if (err || !user) return res.status(400).json({ error: 'Admin account not found' });
+        
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
+        
+        const adminToken = jwt.sign({ id: user.id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ success: true, token: adminToken });
+    });
+});
 
 router.get('/admin/stats', authenticateAdmin, (req, res) => {
     db.get(`SELECT 

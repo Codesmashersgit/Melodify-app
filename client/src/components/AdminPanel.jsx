@@ -4,30 +4,37 @@ import API_BASE_URL from '../config';
 import { FiUsers, FiSmartphone, FiMonitor, FiHeart, FiTrash2, FiLogOut } from 'react-icons/fi';
 import './AdminPanel.css';
 
-const ADMIN_SECRET_KEY = 'melodify_admin_2026';
-
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [secret, setSecret] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [adminToken, setAdminToken] = useState(null);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (secret === ADMIN_SECRET_KEY) {
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('Invalid admin secret');
+    setLoading(true);
+    setError('');
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/user/admin/login`, { email, password });
+      if (res.data.success) {
+        setAdminToken(res.data.token);
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const headers = { 'x-admin-secret': ADMIN_SECRET_KEY };
+      const headers = { 'x-admin-token': adminToken };
       const [statsRes, usersRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/user/admin/stats`, { headers }),
         axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers })
@@ -53,7 +60,7 @@ const AdminPanel = () => {
     
     try {
       await axios.delete(`${API_BASE_URL}/api/user/admin/users/${id}`, {
-        headers: { 'x-admin-secret': ADMIN_SECRET_KEY }
+        headers: { 'x-admin-token': adminToken }
       });
       setUsers(users.filter(u => u.id !== id));
       fetchAdminData();
@@ -66,17 +73,27 @@ const AdminPanel = () => {
     return (
       <div className="admin-login-container">
         <div className="admin-login-box">
-          <h2>Melodify Admin</h2>
+          <h2>Admin Login</h2>
           <form onSubmit={handleLogin}>
             <input 
-              type="password" 
-              placeholder="Enter Admin Secret" 
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
+              type="email" 
+              placeholder="Admin Email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoFocus
+              required
+            />
+            <input 
+              type="password" 
+              placeholder="Admin Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
             {error && <p className="admin-error">{error}</p>}
-            <button type="submit" className="admin-btn">Access Dashboard</button>
+            <button type="submit" className="admin-btn" disabled={loading}>
+              {loading ? 'Verifying...' : 'Access Dashboard'}
+            </button>
           </form>
         </div>
       </div>

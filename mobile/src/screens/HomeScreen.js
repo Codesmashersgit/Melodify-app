@@ -310,7 +310,7 @@ const HomeScreen = ({ navigation }) => {
                     onPress={() => tracks?.length > 0 && playTrack(tracks[0], tracks)}
                 >
                     <Image
-                        source={require('../assets/girl_hero.png')}
+                        source={require('../assets/girl_hero.jpg')}
                         style={styles.heroImage}
                         resizeMode="cover"
                     />

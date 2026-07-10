@@ -177,8 +177,9 @@ router.post('/playlists/:id/songs', authenticateToken, (req, res) => {
 // Email Transporter (Use Environment Variables in Production)
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER || 'your-email@gmail.com',
         pass: process.env.EMAIL_PASS || 'your-app-password'
@@ -191,42 +192,43 @@ router.post('/forgot-password', (req, res) => {
 
     db.get(`SELECT id FROM users WHERE email = ?`, [email], (err, user) => {
         if (err || !user) {
-            // We return success even if user not found to prevent email enumeration attacks
             return res.json({ success: true, message: 'If an account exists, a reset link was sent.' });
         }
 
         // Generate 6 digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const tokenExpiry = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+        const tokenExpiry = new Date(Date.now() + 3600000).toISOString();
 
         db.run(`UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?`, [otp, tokenExpiry, user.id], async (err) => {
             if (err) return res.status(500).json({ error: 'Database error' });
 
-            // Console log the OTP for testing if email is not configured
             console.log('\n--- PASSWORD RESET OTP ---');
             console.log(`OTP for ${email} is: ${otp}\n---------------------------\n`);
 
+            const senderEmail = process.env.EMAIL_USER || 'your-email@gmail.com';
+
             try {
                 await transporter.sendMail({
-                    from: '"Melodify Support" <noreply@melodify.com>',
+                    from: `"Melodify Support" <${senderEmail}>`,
                     to: email,
                     subject: 'Your Melodify Password Reset OTP',
                     html: `
                         <div style="font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 40px; text-align: center;">
-                            <h1 style="color: #1DB954;">Melodify</h1>
-                            <h2>Password Reset Request</h2>
+                            <h1 style="color: #ff6b00; font-size: 28px;">🎵 Melodify</h1>
+                            <h2 style="color: #fff; margin-top: 20px;">Password Reset Request</h2>
                             <p style="color: #b3b3b3; font-size: 16px;">We received a request to reset your password. Here is your OTP:</p>
-                            <div style="margin: 20px auto; padding: 15px 30px; background: #282828; display: inline-block; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1DB954;">
+                            <div style="margin: 20px auto; padding: 20px 40px; background: #282828; display: inline-block; border-radius: 12px; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #ff6b00; border: 2px solid rgba(255,107,0,0.3);">
                                 ${otp}
                             </div>
+                            <p style="color: #b3b3b3; font-size: 14px; margin-top: 20px;">Enter this OTP on the reset password page.</p>
                             <p style="color: #777; font-size: 12px; margin-top: 30px;">This OTP will expire in 1 hour. If you did not request this, please ignore this email.</p>
                         </div>
                     `
                 });
                 res.json({ success: true, message: 'OTP sent to your email.' });
             } catch (mailErr) {
-                console.error('Failed to send email:', mailErr);
-                res.status(500).json({ error: 'Failed to send email. Check your SMTP credentials.' });
+                console.error('Failed to send email:', mailErr.message);
+                res.status(500).json({ error: `Failed to send email: ${mailErr.message}` });
             }
         });
     });

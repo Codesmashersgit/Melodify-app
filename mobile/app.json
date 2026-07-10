@@ -16,7 +16,9 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ]
+        ],
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
       }
     },
     "android": {
@@ -25,7 +27,8 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "WAKE_LOCK",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -57,11 +60,11 @@
       ],
       "expo-speech-recognition"
     ],
-    "owner": "sk_rungta",
     "extra": {
       "eas": {
-        "projectId": "5879f652-9255-44af-973f-90c8d1370b42"
+        "projectId": "f3be5949-d3ef-4116-9b4c-0dca079d8c19"
       }
-    }
+    },
+    "owner": "sudhanshu_raj"
   }
 }

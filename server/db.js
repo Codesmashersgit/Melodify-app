@@ -15,8 +15,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
+                platform TEXT DEFAULT 'web',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`);
+            // Migrate: add platform column if it doesn't exist (for existing DBs)
+            db.run(`ALTER TABLE users ADD COLUMN platform TEXT DEFAULT 'web'`, () => {});
 
             // Liked Songs table
             db.run(`CREATE TABLE IF NOT EXISTS liked_songs (

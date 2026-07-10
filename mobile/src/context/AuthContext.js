@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
 
     const signup = async (name, email, password) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/user/signup`, { name, email, password });
+            const response = await axios.post(`${API_BASE_URL}/api/user/signup`, { name, email, password, platform: 'apk' });
             if (response.data.token) {
                 await AsyncStorage.setItem('melodify_token', response.data.token);
             }

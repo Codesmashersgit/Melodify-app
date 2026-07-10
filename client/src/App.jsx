@@ -12,6 +12,7 @@ import FullPlayer from './components/FullPlayer';
 import LikedSongs from './components/LikedSongs';
 import ShowAll from './components/ShowAll';
 import PlaylistPage from './components/PlaylistPage';
+import AdminPanel from './components/AdminPanel';
 import { usePlayback } from './context/PlaybackContext';
 
 
@@ -51,6 +52,7 @@ function App() {
           </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </HistoryProvider>
     </Router>

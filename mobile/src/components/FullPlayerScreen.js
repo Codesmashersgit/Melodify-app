@@ -292,9 +292,10 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             minimumTrackTintColor="#1DB954"
                             maximumTrackTintColor="rgba(255,255,255,0.12)"
                             thumbTintColor="white"
+                            tapToSeek={true}
                         />
                         <View style={styles.timeContainer}>
-                            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                            <Text style={styles.timeText}>{formatTime(isSliding ? sliderValue : currentTime)}</Text>
                             <Text style={styles.timeText}>{formatTime(duration)}</Text>
                         </View>
                     </View>

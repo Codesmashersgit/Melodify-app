@@ -29,12 +29,13 @@ const cookieOptions = {
 // --- AUTHENTICATION ---
 
 router.post('/signup', async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, platform } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`, [name, email, hashedPassword], function(err) {
+        const userPlatform = platform === 'apk' ? 'apk' : 'web';
+        db.run(`INSERT INTO users (name, email, password, platform) VALUES (?, ?, ?, ?)`, [name, email, hashedPassword, userPlatform], function(err) {
             if (err) {
                 if (err.message.includes('UNIQUE')) {
                     return res.status(400).json({ error: 'Email already exists' });
@@ -44,7 +45,7 @@ router.post('/signup', async (req, res) => {
             
             const token = jwt.sign({ id: this.lastID, email, name }, JWT_SECRET, { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
-            res.json({ user: { id: this.lastID, name, email }, token });
+            res.json({ user: { id: this.lastID, name, email, platform: userPlatform }, token });
         });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
@@ -166,6 +167,51 @@ router.post('/playlists/:id/songs', authenticateToken, (req, res) => {
                 res.json({ success: true, id: this.lastID });
             }
         );
+    });
+});
+
+// --- ADMIN PANEL ROUTES ---
+
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'melodify_admin_2026';
+
+const authenticateAdmin = (req, res, next) => {
+    const secret = req.headers['x-admin-secret'];
+    if (secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+    next();
+};
+
+router.get('/admin/stats', authenticateAdmin, (req, res) => {
+    db.get(`SELECT 
+        COUNT(*) as total_users,
+        SUM(CASE WHEN platform = 'web' THEN 1 ELSE 0 END) as web_users,
+        SUM(CASE WHEN platform = 'apk' THEN 1 ELSE 0 END) as apk_users,
+        (SELECT COUNT(*) FROM liked_songs) as total_liked_songs,
+        (SELECT COUNT(*) FROM playlists) as total_playlists
+    FROM users`, [], (err, row) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(row);
+    });
+});
+
+router.get('/admin/users', authenticateAdmin, (req, res) => {
+    db.all(`SELECT 
+        u.id, u.name, u.email, u.platform, u.created_at,
+        COUNT(ls.id) as liked_songs_count,
+        COUNT(DISTINCT p.id) as playlists_count
+    FROM users u
+    LEFT JOIN liked_songs ls ON ls.user_id = u.id
+    LEFT JOIN playlists p ON p.user_id = u.id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(rows);
+    });
+});
+
+router.delete('/admin/users/:id', authenticateAdmin, (req, res) => {
+    db.run(`DELETE FROM users WHERE id = ?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ success: true, deleted: this.changes });
     });
 });
 

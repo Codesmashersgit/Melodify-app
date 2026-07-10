@@ -665,7 +665,7 @@ app.get('/api/ai-mood', async (req, res) => {
         }
 
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const prompt = `You are a music vibe expert. A user says: "${query}". Analyze this mood/sentence and return exactly 3-5 keywords that would yield the best songs for this mood when searched on a music streaming platform (like JioSaavn). For example, if they say "aaj mera mood bahut kharab hai", return "sad emotional lofi hindi". If they say "party karni hai", return "bollywood party dance upbeat". DO NOT return anything else except the keywords.`;
+        const prompt = `You are a music vibe expert. A user says: "${query}". Analyze this mood/sentence and return exactly ONE highly searchable music query (max 2-3 words) that would yield the best songs for this mood when searched on JioSaavn. For example, if they say "aaj mera mood bahut kharab hai", return "Sad Hindi". If they say "party karni hai", return "Bollywood Party". If they say "I want to relax", return "Lofi Chill". DO NOT return anything else except the short search query string.`;
         
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',

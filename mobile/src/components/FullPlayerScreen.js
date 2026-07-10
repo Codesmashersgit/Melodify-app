@@ -27,6 +27,8 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [isLiking, setIsLiking] = useState(false);
     const [progressBarWidth, setProgressBarWidth] = useState(0);
+    const [isSliding, setIsSliding] = useState(false);
+    const [sliderValue, setSliderValue] = useState(0);
     const insets = useSafeAreaInsets();
 
     // Animated values
@@ -105,6 +107,13 @@ const FullPlayerScreen = ({ visible, onClose }) => {
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+    // Sync slider with currentTime unless user is scrubbing
+    useEffect(() => {
+        if (!isSliding) {
+            setSliderValue(currentTime);
+        }
+    }, [currentTime, isSliding]);
+
     const handleSeek = async (event) => {
         if (!duration || progressBarWidth <= 0) return;
         const offset = event.nativeEvent.locationX;
@@ -139,10 +148,11 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             </TouchableOpacity>
                         </View>
                     ) : videoId ? (
-                        <YoutubeIframe
-                            height={height}
-                            width={width}
-                            videoId={videoId}
+                        <View style={{ width: width, height: width * (9 / 16) }}>
+                            <YoutubeIframe
+                                height={width * (9 / 16)}
+                                width={width}
+                                videoId={videoId}
                             play={videoPlaying}
                             initialPlayerParams={{
                                 autoplay: 1,
@@ -166,6 +176,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                                 setVideoPlaying(true);
                             }}
                         />
+                        </View>
                     ) : null}
 
                     {/* Floating Top Bar */}
@@ -271,9 +282,12 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             style={styles.slider}
                             minimumValue={0}
                             maximumValue={duration > 0 ? duration : 1}
-                            value={currentTime}
+                            value={sliderValue}
+                            onSlidingStart={() => setIsSliding(true)}
+                            onValueChange={(val) => setSliderValue(val)}
                             onSlidingComplete={async (value) => {
                                 await seekTo(value);
+                                setIsSliding(false);
                             }}
                             minimumTrackTintColor="#1DB954"
                             maximumTrackTintColor="rgba(255,255,255,0.12)"

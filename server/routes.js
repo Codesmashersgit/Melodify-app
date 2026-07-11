@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const db = require('./db');
 
+const dotenv = require("dotenv");
+dotenv.config();
+
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'melodify_super_secret_key_123';
 
@@ -181,10 +184,13 @@ const transporter = nodemailer.createTransport({
     secure: false,
     requireTLS: true,
     auth: {
+        
         user: process.env.EMAIL_USER || 'your-email@gmail.com',
         pass: process.env.EMAIL_PASS || 'your-app-password'
     }
+    
 });
+
 
 router.post('/forgot-password', (req, res) => {
     const { email } = req.body;

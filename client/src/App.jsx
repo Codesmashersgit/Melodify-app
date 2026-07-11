@@ -37,12 +37,25 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Redirect logged-in users away from auth pages
+const PublicOnlyRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: 'white' }}>Loading...</div>;
+  }
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <HistoryProvider>
         <SplashScreen />
         <Routes>
+          {/* Protected: requires login */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Body />} />
             <Route path="search" element={<Search />} />
@@ -52,11 +65,18 @@ function App() {
             <Route path="show-all/:category" element={<ShowAll />} />
             <Route path="playlist/:id" element={<PlaylistPage />} />
           </Route>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Public only: redirect to home if already logged in */}
+          <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+          <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
+          <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
+          <Route path="/reset-password" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
+
+          {/* Admin: has its own internal auth */}
           <Route path="/admin" element={<AdminPanel />} />
+
+          {/* Catch all: redirect unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HistoryProvider>
     </Router>

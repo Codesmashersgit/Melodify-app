@@ -152,7 +152,7 @@ export const PlaybackProvider = ({ children }) => {
             setArtists(artistsResponse.data);
         } catch (error) {
             console.error("Error fetching initial data:", error);
-            setFetchError('Data load nahi ho paaya. Neeche kheech kar phir try karein.');
+            setFetchError('Data fetch failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -280,7 +280,7 @@ export const PlaybackProvider = ({ children }) => {
         } catch (error) {
             console.error("Error loading sound:", error);
             setIsPlaying(false);
-            setFetchError('Gaana load nahi ho paaya. Dobara try karein.');
+            setFetchError('Please try again');
             // Do not throw the error up, keep it caught to avoid native bridge crashes
         } finally {
             isLoadingSound.current = false;
@@ -374,7 +374,7 @@ export const PlaybackProvider = ({ children }) => {
                 setVideoId(id);
                 // onReady in FullPlayerScreen will trigger setVideoPlaying(true)
             } catch (e) {
-                setVideoError('Video nahi mila 😔 Try kar baad mein');
+                setVideoError('Video not found... Try again..');
                 setMode('audio');
                 setVideoId(null);
             } finally {

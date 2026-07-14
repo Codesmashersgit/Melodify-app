@@ -11,6 +11,8 @@ const AdminPanel = () => {
   const [adminToken, setAdminToken] = useState(null);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [activeTab, setActiveTab] = useState('users');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,12 +37,14 @@ const AdminPanel = () => {
     setLoading(true);
     try {
       const headers = { 'x-admin-token': adminToken };
-      const [statsRes, usersRes] = await Promise.all([
+      const [statsRes, usersRes, feedbackRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/user/admin/stats`, { headers }),
-        axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers })
+        axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers }),
+        axios.get(`${API_BASE_URL}/api/user/admin/feedback`, { headers })
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data);
+      setFeedback(feedbackRes.data);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch admin data. Ensure server is running and updated.');
@@ -143,56 +147,119 @@ const AdminPanel = () => {
             <div className="stat-card">
               <div className="stat-icon likes"><FiHeart /></div>
               <div className="stat-info">
-                <h3>Total Likes</h3>
-                <p>{stats.total_liked_songs || 0}</p>
+                <h3>Playlists</h3>
+                <p>{stats.totalPlaylists || 0}</p>
               </div>
             </div>
           </div>
 
-          <div className="admin-table-container">
-            <h3>Registered Users</h3>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Platform</th>
-                  <th>Joined</th>
-                  <th>Stats</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td>
-                      <span className={`platform-badge ${u.platform}`}>
-                        {u.platform === 'apk' ? <FiSmartphone /> : <FiMonitor />} {u.platform?.toUpperCase() || 'WEB'}
-                      </span>
-                    </td>
-                    <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                    <td>
-                      <span className="stat-pill"><FiHeart size={12}/> {u.liked_songs_count}</span>
-                    </td>
-                    <td>
-                      <button className="delete-btn" onClick={() => handleDeleteUser(u.id, u.name)}>
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan="7" style={{textAlign: 'center', padding: '2rem'}}>No users found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="admin-tabs" style={{display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
+            <button 
+              className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('users')}
+              style={{background: 'none', border: 'none', borderBottom: activeTab === 'users' ? '2px solid #1DB954' : '2px solid transparent', color: activeTab === 'users' ? 'white' : '#888', padding: '10px 0', fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.2s'}}
+            >
+              Registered Users
+            </button>
+            <button 
+              className={`admin-tab-btn ${activeTab === 'feedback' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('feedback')}
+              style={{background: 'none', border: 'none', borderBottom: activeTab === 'feedback' ? '2px solid #1DB954' : '2px solid transparent', color: activeTab === 'feedback' ? 'white' : '#888', padding: '10px 0', fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.2s'}}
+            >
+              App Feedback
+            </button>
           </div>
+
+          {activeTab === 'users' ? (
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Signup Platform</th>
+                    <th>Last Login</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id}>
+                      <td>{u.id}</td>
+                      <td>{u.name}</td>
+                      <td>{u.email}</td>
+                      <td>
+                        <span className={`platform-badge ${u.platform}`}>
+                          {u.platform === 'apk' ? <FiSmartphone /> : <FiMonitor />} {u.platform?.toUpperCase() || 'WEB'}
+                        </span>
+                      </td>
+                      <td>
+                        {u.last_login_platform ? (
+                           <span className={`platform-badge ${u.last_login_platform}`}>
+                            {u.last_login_platform === 'apk' ? <FiSmartphone /> : <FiMonitor />} {u.last_login_platform?.toUpperCase()}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <button className="delete-btn" onClick={() => handleDeleteUser(u.id, u.name)}>
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {users.length === 0 && (
+                    <tr>
+                      <td colSpan="7" style={{textAlign: 'center', padding: '2rem'}}>No users found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Platform</th>
+                    <th>Rating</th>
+                    <th>Comment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feedback.map(f => (
+                    <tr key={f.id}>
+                      <td>{new Date(f.created_at).toLocaleString()}</td>
+                      <td>
+                        <strong>{f.name}</strong><br/>
+                        <span style={{fontSize: '0.8rem', color: '#888'}}>{f.email}</span>
+                      </td>
+                      <td>
+                        <span className={`platform-badge ${f.platform}`}>
+                          {f.platform === 'apk' ? <FiSmartphone /> : <FiMonitor />} {f.platform?.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        {Array(5).fill(0).map((_, i) => (
+                          <span key={i} style={{color: i < f.rating ? '#1DB954' : '#444'}}>★</span>
+                        ))}
+                      </td>
+                      <td>{f.comment || '-'}</td>
+                    </tr>
+                  ))}
+                  {feedback.length === 0 && (
+                    <tr>
+                      <td colSpan="5" style={{textAlign: 'center', padding: '2rem'}}>No feedback received yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : null}
     </div>

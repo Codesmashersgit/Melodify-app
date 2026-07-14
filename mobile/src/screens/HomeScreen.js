@@ -76,13 +76,21 @@ const HomeScreen = ({ navigation }) => {
     };
 
     const handleSubmitFeedback = async () => {
-        // You could send this to an API
-        console.log('Feedback submitted:', { rating, feedback });
         try {
+            const token = await AsyncStorage.getItem('melodify_token');
+            if (token) {
+                await axios.post(`${API_BASE_URL}/api/user/feedback`, {
+                    rating,
+                    comment: feedback,
+                    platform: 'apk'
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
             await AsyncStorage.setItem('melodify_has_rated', 'true');
             setHasRated(true);
         } catch (e) {
-            console.log('Error saving rating status', e);
+            console.log('Error saving feedback:', e);
         }
         handleExitApp();
     };

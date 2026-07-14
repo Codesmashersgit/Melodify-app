@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
 import FullPlayerScreen from './FullPlayerScreen';
 
@@ -9,6 +10,7 @@ const { width } = Dimensions.get('window');
 const PlayerBar = () => {
     const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks, isTrackLoading } = usePlayback();
     const [isFullPlayerVisible, setIsFullPlayerVisible] = React.useState(false);
+    const insets = useSafeAreaInsets();
 
     if (!currentTrack) return null;
 
@@ -17,7 +19,7 @@ const PlayerBar = () => {
     return (
         <>
             <TouchableOpacity
-                style={styles.container}
+                style={[styles.container, { bottom: 60 + (insets.bottom > 0 ? insets.bottom : 10) + 4 }]}
                 activeOpacity={0.95}
                 onPress={() => setIsFullPlayerVisible(true)}
             >

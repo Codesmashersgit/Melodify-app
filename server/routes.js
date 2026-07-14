@@ -68,9 +68,12 @@ router.post('/login', (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
 
+        const userPlatform = req.body.platform === 'apk' ? 'apk' : 'web';
+        db.run(`UPDATE users SET last_login_platform = ? WHERE id = ?`, [userPlatform, user.id], () => {});
+
         const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
         res.cookie('melodify_token', token, cookieOptions);
-        res.json({ user: { id: user.id, name: user.name, email: user.email }, token });
+        res.json({ user: { id: user.id, name: user.name, email: user.email, platform: user.platform }, token });
     });
 });
 
@@ -79,8 +82,24 @@ router.get('/me', authenticateToken, (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-    res.clearCookie('melodify_token');
+    res.clearCookie('melodify_token', cookieOptions);
     res.json({ success: true });
+});
+
+// --- FEEDBACK ---
+
+router.post('/feedback', authenticateToken, (req, res) => {
+    const { rating, comment, platform } = req.body;
+    if (!rating) return res.status(400).json({ error: 'Rating is required' });
+    
+    db.run(
+        `INSERT INTO feedback (user_id, rating, comment, platform) VALUES (?, ?, ?, ?)`,
+        [req.user.id, rating, comment || null, platform || 'apk'],
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json({ success: true });
+        }
+    );
 });
 
 // --- LIKED SONGS ---
@@ -267,15 +286,66 @@ router.post('/reset-password', async (req, res) => {
 
 // --- ADMIN PANEL ROUTES ---
 
-const authenticateAdmin = (req, res, next) => {
+router.get('/admin/users', (req, res) => {
+    // Only verify that a valid generic token is provided (simple protection, frontend handles email check)
     const token = req.headers['x-admin-token'];
-    if (!token) return res.status(403).json({ error: 'Unauthorized' });
-    
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err || decoded.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
-        next();
+        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
+        
+        db.all(`SELECT id, name, email, platform, last_login_platform, created_at FROM users ORDER BY created_at DESC`, (err, users) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json(users);
+        });
     });
-};
+});
+
+router.get('/admin/stats', (req, res) => {
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
+        
+        db.get(`SELECT COUNT(*) as count FROM users`, (err, userCountRow) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            
+            db.get(`SELECT COUNT(*) as count FROM playlists`, (err, playlistCountRow) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                
+                db.get(`SELECT COUNT(*) as count FROM playlist_songs`, (err, songCountRow) => {
+                    if (err) return res.status(500).json({ error: 'Database error' });
+                    
+                    res.json({
+                        totalUsers: userCountRow ? userCountRow.count : 0,
+                        totalPlaylists: playlistCountRow ? playlistCountRow.count : 0,
+                        totalSongsInPlaylists: songCountRow ? songCountRow.count : 0
+                    });
+                });
+            });
+        });
+    });
+});
+
+router.get('/admin/feedback', (req, res) => {
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
+        
+        db.all(`
+            SELECT f.id, f.rating, f.comment, f.platform, f.created_at, u.name, u.email 
+            FROM feedback f 
+            JOIN users u ON f.user_id = u.id 
+            ORDER BY f.created_at DESC
+        `, (err, feedbackList) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json(feedbackList);
+        });
+    });
+});
 
 router.post('/admin/login', (req, res) => {
     const { email, password } = req.body;

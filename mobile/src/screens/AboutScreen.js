@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, ScrollView, S
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { usePlayback } from '../context/PlaybackContext';
 
 const AboutScreen = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     const { user, logout } = useAuth();
+    const { isPlaying, togglePlay } = usePlayback();
 
     const openLink = (url) => {
         Linking.openURL(url).catch((err) => console.error("Couldn't load page", err));
@@ -19,6 +21,9 @@ const AboutScreen = ({ navigation }) => {
             [
                 { text: "Cancel", style: "cancel" },
                 { text: "Logout", style: "destructive", onPress: async () => {
+                    if (isPlaying) {
+                        await togglePlay();
+                    }
                     await logout();
                     navigation.replace('Login');
                 }}

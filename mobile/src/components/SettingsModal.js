@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { usePlayback } from '../context/PlaybackContext';
 
 const SettingsModal = ({ visible, onClose }) => {
   const { logout } = useAuth();
+  const { isPlaying, togglePlay } = usePlayback();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [privateMode, setPrivateMode] = useState(false);
 
@@ -86,8 +88,11 @@ const SettingsModal = ({ visible, onClose }) => {
     },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (isPlaying) {
+      await togglePlay();
+    }
+    await logout();
     onClose();
   };
 

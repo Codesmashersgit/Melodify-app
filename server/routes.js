@@ -26,13 +26,14 @@ const authenticateToken = (req, res, next) => {
 
 // Middleware to verify admin JWT token
 const authenticateAdmin = (req, res, next) => {
+    // Accept token from Authorization header OR x-admin-token header
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.headers['x-admin-token'];
 
     if (!token) return res.status(401).json({ error: 'Admin token required' });
 
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err || decoded.role !== 'admin') return res.status(403).json({ error: 'Admin access denied' });
+        if (err || !decoded || decoded.role !== 'admin') return res.status(403).json({ error: 'Admin access denied' });
         req.user = decoded;
         next();
     });
@@ -361,11 +362,11 @@ router.get('/admin/feedback', (req, res) => {
     });
 });
 
-router.post('/admin/login', (req, res) => {
+router.post('/admin/login', async (req, res) => {
     const { email, password } = req.body;
     if (email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Access denied: Not an admin email' });
     
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
+    db.get(`SELECT * FROM users WHERE email = $1`, [email], async (err, user) => {
         if (err || !user) return res.status(400).json({ error: 'Admin account not found' });
         
         const validPassword = await bcrypt.compare(password, user.password);
@@ -384,30 +385,40 @@ router.get('/admin/stats', authenticateAdmin, (req, res) => {
         (SELECT COUNT(*) FROM liked_songs) as total_liked_songs,
         (SELECT COUNT(*) FROM playlists) as total_playlists
     FROM users`, [], (err, row) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
         res.json(row);
     });
 });
 
 router.get('/admin/users', authenticateAdmin, (req, res) => {
     db.all(`SELECT 
-        u.id, u.name, u.email, u.platform, u.created_at,
+        u.id, u.name, u.email, u.platform, u.last_login_platform, u.created_at,
         COUNT(ls.id) as liked_songs_count,
         COUNT(DISTINCT p.id) as playlists_count
     FROM users u
     LEFT JOIN liked_songs ls ON ls.user_id = u.id
     LEFT JOIN playlists p ON p.user_id = u.id
-    GROUP BY u.id
+    GROUP BY u.id, u.name, u.email, u.platform, u.last_login_platform, u.created_at
     ORDER BY u.created_at DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
         res.json(rows);
     });
 });
 
+router.get('/admin/feedback', authenticateAdmin, (req, res) => {
+    db.all(`SELECT f.id, f.rating, f.comment, f.platform, f.created_at, u.name, u.email
+        FROM feedback f
+        LEFT JOIN users u ON u.id = f.user_id
+        ORDER BY f.created_at DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+        res.json(rows || []);
+    });
+});
+
 router.delete('/admin/users/:id', authenticateAdmin, (req, res) => {
-    db.run(`DELETE FROM users WHERE id = ?`, [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json({ success: true, deleted: this.changes });
+    db.run(`DELETE FROM users WHERE id = $1`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+        res.json({ success: true });
     });
 });
 

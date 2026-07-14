@@ -24,6 +24,20 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// Middleware to verify admin JWT token
+const authenticateAdmin = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Admin token required' });
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || decoded.role !== 'admin') return res.status(403).json({ error: 'Admin access denied' });
+        req.user = decoded;
+        next();
+    });
+};
+
 const cookieOptions = {
     httpOnly: true,
     secure: true, // MUST be true for sameSite: 'none'

@@ -256,6 +256,12 @@ export const PlaybackProvider = ({ children }) => {
             setCurrentTrack(track);
             setIsPlaying(false);
 
+            // Prefetch video in background
+            const q = `${track.name} ${track.artist}`;
+            axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`)
+                .then(res => setVideoId(res.data.videoId))
+                .catch(() => {});
+
             // ─── Resolve actual audio URL directly from JioSaavn APIs ───
             // Extract the song ID from the preview_url or use track.id directly
             const songId = track.id;
@@ -363,21 +369,24 @@ export const PlaybackProvider = ({ children }) => {
             }
             setIsPlaying(false);
             setMode('video');
-            setVideoLoading(true);
             setVideoError(null);
             setVideoPlaying(false);
 
-            try {
-                const query = `${currentTrack.name} ${currentTrack.artist} official music video`;
-                const response = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(query)}`, { timeout: 15000 });
-                const id = response.data.videoId;
-                setVideoId(id);
-                // onReady in FullPlayerScreen will trigger setVideoPlaying(true)
-            } catch (e) {
-                setVideoError('Video not found... Try again..');
-                setMode('audio');
-                setVideoId(null);
-            } finally {
+            if (!videoId) {
+                setVideoLoading(true);
+                try {
+                    const query = `${currentTrack.name} ${currentTrack.artist} official music video`;
+                    const response = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(query)}`, { timeout: 15000 });
+                    setVideoId(response.data.videoId);
+                } catch (e) {
+                    setVideoError('Video not found... Try again..');
+                    setMode('audio');
+                    setVideoId(null);
+                } finally {
+                    setVideoLoading(false);
+                }
+            } else {
+                // If prefetched, it will trigger onReady in FullPlayerScreen instantly
                 setVideoLoading(false);
             }
         } else {

@@ -28,14 +28,24 @@ import BottomNav from './components/BottomNav';
 
 import SplashScreen from './components/SplashScreen';
 
+import { useLocation } from 'react-router-dom';
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
   if (loading) {
     return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>;
   }
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+  
+  // If user has no preferences and is not already on preferences page, force them there
+  if ((!user.preferences || user.preferences.length === 0) && location.pathname !== '/preferences') {
+    return <Navigate to="/preferences" replace />;
+  }
+
   return children;
 };
 

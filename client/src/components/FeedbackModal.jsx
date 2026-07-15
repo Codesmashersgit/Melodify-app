@@ -19,18 +19,21 @@ const FeedbackModal = () => {
         const hasRated = localStorage.getItem('melodify_web_has_rated');
         if (hasRated === 'true') return;
 
-        // Detect exit intent (mouse leaving viewport at the top)
-        const handleMouseLeave = (e) => {
-            if (e.clientY <= 0 || e.clientX <= 0 || (e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
-                // Check local storage again just in case it was updated in another tab
-                if (localStorage.getItem('melodify_web_has_rated') !== 'true') {
+        // Detect when user tries to close the tab
+        const handleBeforeUnload = (e) => {
+            if (localStorage.getItem('melodify_web_has_rated') !== 'true') {
+                e.preventDefault();
+                e.returnValue = ''; // Required for Chrome to show native prompt
+                
+                // If they cancel the prompt and stay, show our React modal
+                setTimeout(() => {
                     setIsVisible(true);
-                }
+                }, 500);
             }
         };
 
-        document.addEventListener('mouseleave', handleMouseLeave);
-        return () => document.removeEventListener('mouseleave', handleMouseLeave);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [user]);
 
     const handleSubmit = async () => {

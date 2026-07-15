@@ -46,7 +46,7 @@ const Preferences = () => {
         setSaving(true);
         try {
             await updatePreferences(selected);
-            navigate(-1);
+            navigate('/');
         } catch (error) {
             console.error("Failed to save preferences", error);
         } finally {

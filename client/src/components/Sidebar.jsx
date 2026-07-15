@@ -77,18 +77,11 @@ const Sidebar = () => {
           <span style={{ fontSize: '1.2rem', cursor: 'pointer', color: 'var(--melodify-dim-white)' }}>+</span>
         </div>
 
-        <NavLink to="/liked" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} no-hover`} style={{ marginBottom: '8px' }}>
+        <NavLink to="/liked" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} no-hover`} style={{ marginBottom: '20px' }}>
           <div style={{ width: '24px', height: '24px', background: 'linear-gradient(135deg, #450af5, #c4efd9)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>
             <span style={{ color: 'white', fontSize: '12px' }}>♥</span>
           </div>
           <span>Liked Songs</span>
-        </NavLink>
-
-        <NavLink to="/preferences" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} no-hover`} style={{ marginBottom: '20px' }}>
-          <div style={{ width: '24px', height: '24px', background: '#ff6b35', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>
-            <span style={{ color: 'white', fontSize: '14px' }}>⚙</span>
-          </div>
-          <span>Preferences</span>
         </NavLink>
 
         <div className='sidebar-box' style={{ backgroundColor: 'var(--melodify-light-grey)', marginBottom: '16px' }}>

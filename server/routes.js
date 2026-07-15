@@ -379,11 +379,11 @@ router.post('/admin/login', async (req, res) => {
 
 router.get('/admin/stats', authenticateAdmin, (req, res) => {
     db.get(`SELECT 
-        COUNT(*) as total_users,
-        SUM(CASE WHEN platform = 'web' THEN 1 ELSE 0 END) as web_users,
-        SUM(CASE WHEN platform = 'apk' THEN 1 ELSE 0 END) as apk_users,
-        (SELECT COUNT(*) FROM liked_songs) as total_liked_songs,
-        (SELECT COUNT(*) FROM playlists) as total_playlists
+        CAST(COUNT(*) AS INTEGER) as total_users,
+        CAST(COALESCE(SUM(CASE WHEN platform = 'web' THEN 1 ELSE 0 END), 0) AS INTEGER) as web_users,
+        CAST(COALESCE(SUM(CASE WHEN platform = 'apk' THEN 1 ELSE 0 END), 0) AS INTEGER) as apk_users,
+        CAST((SELECT COUNT(*) FROM liked_songs) AS INTEGER) as total_liked_songs,
+        CAST((SELECT COUNT(*) FROM playlists) AS INTEGER) as total_playlists
     FROM users`, [], (err, row) => {
         if (err) return res.status(500).json({ error: 'Database error', details: err.message });
         res.json(row);

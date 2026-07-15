@@ -15,6 +15,7 @@ import LikedSongs from './components/LikedSongs';
 import ShowAll from './components/ShowAll';
 import PlaylistPage from './components/PlaylistPage';
 import AdminPanel from './components/AdminPanel';
+import Preferences from './components/Preferences';
 import { usePlayback } from './context/PlaybackContext';
 
 
@@ -62,6 +63,7 @@ function App() {
             <Route path="album/:id" element={<Album />} />
             <Route path="artist/:id" element={<ArtistPage />} />
             <Route path="liked" element={<LikedSongs />} />
+            <Route path="preferences" element={<Preferences />} />
             <Route path="show-all/:category" element={<ShowAll />} />
             <Route path="playlist/:id" element={<PlaylistPage />} />
           </Route>

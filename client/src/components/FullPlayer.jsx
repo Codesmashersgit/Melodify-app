@@ -33,6 +33,28 @@ const FullPlayer = () => {
         setVolume(parseFloat(e.target.value));
     };
 
+    // Prefetch video ID when track changes
+    useEffect(() => {
+        if (!currentTrack) return;
+        let isMounted = true;
+        
+        const fetchVideo = async () => {
+            try {
+                const q = `${currentTrack.name} ${currentTrack.artist}`;
+                const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
+                if (isMounted && res.data.videoId) {
+                    setVideoId(res.data.videoId);
+                }
+            } catch (e) {
+                console.log('Prefetch video failed', e);
+            }
+        };
+        
+        fetchVideo();
+        
+        return () => { isMounted = false; };
+    }, [currentTrack]);
+
     const switchMode = async (newMode) => {
         if (newMode === mode) return;
 
@@ -41,34 +63,35 @@ const FullPlayer = () => {
             if (isPlaying) togglePlay();
 
             setMode('video');
-            setVideoLoading(true);
             setVideoError(null);
-            setVideoId(null);
-
-            try {
-                const q = `${currentTrack.name} ${currentTrack.artist}`;
-                const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
-                setVideoId(res.data.videoId);
-
-                // Request true browser fullscreen after video is ready
-                setTimeout(() => {
-                    if (videoContainerRef.current?.requestFullscreen) {
-                        videoContainerRef.current.requestFullscreen().catch(() => {});
-                    }
-                }, 300);
-            } catch (e) {
-                setVideoError('Music video nahi mila 😔');
-                setMode('audio');
-            } finally {
-                setVideoLoading(false);
+            
+            if (!videoId) {
+                setVideoLoading(true);
+                try {
+                    const q = `${currentTrack.name} ${currentTrack.artist}`;
+                    const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
+                    setVideoId(res.data.videoId);
+                } catch (e) {
+                    setVideoError('Music video nahi mila 😔');
+                    setMode('audio');
+                } finally {
+                    setVideoLoading(false);
+                }
             }
+
+            // Request true browser fullscreen after video is ready
+            setTimeout(() => {
+                if (videoContainerRef.current?.requestFullscreen) {
+                    videoContainerRef.current.requestFullscreen().catch(() => {});
+                }
+            }, 300);
+            
         } else {
             // Exit fullscreen if active
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => {});
             }
             setMode('audio');
-            setVideoId(null);
         }
     };
 
@@ -110,7 +133,7 @@ const FullPlayer = () => {
                             ref={iframeRef}
                             width="100%"
                             height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
+                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
                             title="Music Video"
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"

@@ -97,22 +97,24 @@ pool.on('error', (err) => {
 db.serialize(() => {
     // Users table
     db.run(`CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        platform TEXT DEFAULT 'web',
-        last_login_platform TEXT,
-        reset_token TEXT,
-        reset_token_expiry TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`);
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    platform TEXT DEFAULT 'web',
+    last_login_platform TEXT,
+    reset_token TEXT,
+    reset_token_expiry TIMESTAMP,
+    preferences TEXT DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`);
     
     // Add columns dynamically for migrations
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'web'`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_platform TEXT`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences TEXT DEFAULT '[]'`, () => {});
 
     // Liked Songs table
     db.run(`CREATE TABLE IF NOT EXISTS liked_songs (

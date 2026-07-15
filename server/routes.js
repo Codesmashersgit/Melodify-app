@@ -93,7 +93,63 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/me', authenticateToken, (req, res) => {
-    res.json({ user: req.user });
+
+    db.get(
+        `SELECT id, name, email, platform, preferences 
+         FROM users 
+         WHERE id = ?`,
+        [req.user.id],
+        (err, user) => {
+
+            if (err) {
+                return res.status(500).json({
+                    error: "Database error"
+                });
+            }
+
+            if (!user) {
+                return res.status(404).json({
+                    error: "User not found"
+                });
+            }
+
+            user.preferences = user.preferences
+                ? JSON.parse(user.preferences)
+                : [];
+
+            res.json({
+                user
+            });
+        }
+    );
+
+});
+router.put('/preferences', authenticateToken, (req, res) => {
+
+    const { preferences } = req.body;
+
+    db.run(
+        `UPDATE users SET preferences = ? WHERE id = ?`,
+        [
+            JSON.stringify(preferences),
+            req.user.id
+        ],
+        function(err) {
+
+            if (err) {
+                return res.status(500).json({
+                    error: "Database error"
+                });
+            }
+
+            res.json({
+                success: true,
+                preferences
+            });
+
+        }
+    );
+
 });
 
 router.post('/logout', (req, res) => {

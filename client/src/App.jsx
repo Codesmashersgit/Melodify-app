@@ -22,6 +22,7 @@ import { usePlayback } from './context/PlaybackContext';
 import { BrowserRouter as Router, Route, Routes, Outlet, Navigate } from 'react-router-dom';
 import { HistoryProvider } from './context/HistoryContext';
 import { useAuth } from './context/AuthContext';
+import FeedbackModal from './components/FeedbackModal';
 
 import BottomNav from './components/BottomNav';
 
@@ -55,6 +56,7 @@ function App() {
     <Router>
       <HistoryProvider>
         <SplashScreen />
+        <FeedbackModal />
         <Routes>
           {/* Protected: requires login */}
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>

@@ -5,11 +5,42 @@ import axios from 'axios';
 import API_BASE_URL from '../config';
 import { FaPlay } from 'react-icons/fa';
 
+import { useAuth } from '../context/AuthContext';
+
 const Body = () => {
+    const { user } = useAuth();
     const { playTrack, playArtistTracks, artists, albums, tracks, searchTracks } = usePlayback();
     const navigate = useNavigate();
     const [albumSongsCache, setAlbumSongsCache] = useState({});
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
+    const [preferenceTracks, setPreferenceTracks] = useState({});
+    const [preferencesLoading, setPreferencesLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchPreferences = async () => {
+            if (!user?.preferences || user.preferences.length === 0) {
+                setPreferencesLoading(false);
+                return;
+            }
+            setPreferencesLoading(true);
+            const newPrefs = {};
+            try {
+                await Promise.all(user.preferences.map(async (pref) => {
+                    const res = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
+                    const prefTracks = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
+                    if (prefTracks.length > 0) {
+                        newPrefs[pref] = prefTracks.filter(t => t.preview_url || t.id);
+                    }
+                }));
+                setPreferenceTracks(newPrefs);
+            } catch (err) {
+                console.error("Error fetching preference tracks:", err);
+            } finally {
+                setPreferencesLoading(false);
+            }
+        };
+        fetchPreferences();
+    }, [user?.preferences]);
 
     const homeCategories = [
         { name: 'Podcasts', color: '#E13300', query: 'podcasts' },
@@ -59,6 +90,27 @@ const Body = () => {
 
     return (
         <div className='fade-in'>
+            {/* User Preferences Sections */}
+            {!preferencesLoading && Object.entries(preferenceTracks).map(([pref, prefSongs]) => (
+                <section key={pref} className='section-container'>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h2 className='section-title' style={{ margin: 0, textTransform: 'capitalize' }}>More of what you like: {pref}</h2>
+                    </div>
+                    <div className='grid-container'>
+                        {prefSongs.slice(0, 6).map(track => (
+                            <div key={track.id} className='card' onClick={(e) => handlePlay(track, e)}>
+                                <img src={track.image} alt={track.name} className='card-image' />
+                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.name}</h4>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
+                                <div className='play-button-overlay' onClick={(e) => handlePlay(track, e)}>
+                                    <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            ))}
+
             {/* Artists Section */}
             <section className='section-container'>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>

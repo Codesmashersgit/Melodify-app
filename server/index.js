@@ -28,7 +28,9 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     }, 
-    credentials: true 
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+    exposedHeaders: ['Authorization']
 }));
 app.use(cookieParser());
 app.use(express.json());
@@ -358,9 +360,20 @@ app.get('/api/stream', async (req, res) => {
     }
 });
 
+// --- IN-MEMORY CACHE (No Redis needed!) ---
+// Caches API responses to make UI navigation instant
+const apiCache = new Map();
+// Clear cache every 1 hour to prevent memory bloat
+setInterval(() => apiCache.clear(), 60 * 60 * 1000);
+
 // Search songs
 app.get('/api/search', async (req, res) => {
     const { query } = req.query;
+    const cacheKey = `search_${query}`;
+    if (apiCache.has(cacheKey)) {
+        return res.json(apiCache.get(cacheKey));
+    }
+
     try {
         const data = await jiosaavnRequest({
             __call: 'search.getResults',
@@ -368,6 +381,7 @@ app.get('/api/search', async (req, res) => {
             n: '20',
         });
         const tracks = (data.results || []).map(formatSong);
+        apiCache.set(cacheKey, tracks);
         res.json(tracks);
     } catch (err) {
         console.error('Search error:', err.message);
@@ -377,6 +391,9 @@ app.get('/api/search', async (req, res) => {
 
 // Get trending/popular songs for home page (Top Hits)
 app.get('/api/top-tracks', async (req, res) => {
+    const cacheKey = 'top_tracks';
+    if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
+
     try {
         const data = await jiosaavnRequest({
             __call: 'search.getResults',
@@ -384,6 +401,7 @@ app.get('/api/top-tracks', async (req, res) => {
             n: '20',
         });
         const tracks = (data.results || []).map(formatSong);
+        apiCache.set(cacheKey, tracks);
         res.json(tracks);
     } catch (err) {
         console.error('Top tracks error:', err.message);
@@ -393,16 +411,21 @@ app.get('/api/top-tracks', async (req, res) => {
 
 // Get new releases / albums for home page
 app.get('/api/recommendations', async (req, res) => {
+    const cacheKey = 'recommendations';
+    if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
+
     try {
         const data = await jiosaavnRequest({
             __call: 'content.getHomepageData',
         });
+        
         const albums = (data.new_albums || []).map(album => ({
             id: album.albumid || album.id,
             name: album.title || album.name,
             artist: album.music || album.subtitle || '',
             image: hdImage(album.image),
         }));
+        apiCache.set(cacheKey, albums);
         res.json(albums.slice(0, 10));
     } catch (err) {
         console.error('Recommendations error:', err.message);

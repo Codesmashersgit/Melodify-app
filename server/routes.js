@@ -88,7 +88,13 @@ router.post('/login', (req, res) => {
 
         const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
         res.cookie('melodify_token', token, cookieOptions);
-        res.json({ user: { id: user.id, name: user.name, email: user.email, platform: user.platform }, token });
+        
+        let parsedPreferences = null;
+        if (user.preferences !== null && user.preferences !== undefined) {
+            try { parsedPreferences = JSON.parse(user.preferences); } catch(e) { parsedPreferences = []; }
+        }
+        
+        res.json({ user: { id: user.id, name: user.name, email: user.email, platform: user.platform, preferences: parsedPreferences }, token });
     });
 });
 
@@ -113,9 +119,17 @@ router.get('/me', authenticateToken, (req, res) => {
                 });
             }
 
-            user.preferences = user.preferences
-                ? JSON.parse(user.preferences)
-                : [];
+            // null = never set preferences (new user) → redirect to preferences page
+            // '[]' or populated = preferences set (even if empty) → don't redirect
+            if (user.preferences !== null && user.preferences !== undefined) {
+                try {
+                    user.preferences = JSON.parse(user.preferences);
+                } catch(e) {
+                    user.preferences = [];
+                }
+            } else {
+                user.preferences = null; // explicitly null = new user, never set
+            }
 
             res.json({
                 user
@@ -356,67 +370,6 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // --- ADMIN PANEL ROUTES ---
-
-router.get('/admin/users', (req, res) => {
-    // Only verify that a valid generic token is provided (simple protection, frontend handles email check)
-    const token = req.headers['x-admin-token'];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
-        
-        db.all(`SELECT id, name, email, platform, last_login_platform, created_at FROM users ORDER BY created_at DESC`, (err, users) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            res.json(users);
-        });
-    });
-});
-
-router.get('/admin/stats', (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
-        
-        db.get(`SELECT COUNT(*) as count FROM users`, (err, userCountRow) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            
-            db.get(`SELECT COUNT(*) as count FROM playlists`, (err, playlistCountRow) => {
-                if (err) return res.status(500).json({ error: 'Database error' });
-                
-                db.get(`SELECT COUNT(*) as count FROM playlist_songs`, (err, songCountRow) => {
-                    if (err) return res.status(500).json({ error: 'Database error' });
-                    
-                    res.json({
-                        totalUsers: userCountRow ? userCountRow.count : 0,
-                        totalPlaylists: playlistCountRow ? playlistCountRow.count : 0,
-                        totalSongsInPlaylists: songCountRow ? songCountRow.count : 0
-                    });
-                });
-            });
-        });
-    });
-});
-
-router.get('/admin/feedback', (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err || decoded.email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Forbidden' });
-        
-        db.all(`
-            SELECT f.id, f.rating, f.comment, f.platform, f.created_at, u.name, u.email 
-            FROM feedback f 
-            JOIN users u ON f.user_id = u.id 
-            ORDER BY f.created_at DESC
-        `, (err, feedbackList) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            res.json(feedbackList);
-        });
-    });
-});
 
 router.post('/admin/login', async (req, res) => {
     const { email, password } = req.body;

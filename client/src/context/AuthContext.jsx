@@ -151,19 +151,17 @@ export const AuthProvider = ({ children }) => {
     const updatePreferences = async (preferences) => {
         try {
 
+            setUser(prev => ({
+                ...prev,
+                preferences
+            }));
+
             await axios.put(
                 `${API_BASE_URL}/api/user/preferences`,
                 {
                     preferences
                 }
             );
-
-
-            setUser(prev => ({
-                ...prev,
-                preferences
-            }));
-
         } catch (error) {
             console.error(
                 "Preference update failed",

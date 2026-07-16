@@ -9,6 +9,7 @@ export const PlaybackProvider = ({ children }) => {
     const [tracks, setTracks] = useState([]);
     const [currentTrack, setCurrentTrack] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isRepeat, setIsRepeat] = useState(false);
     const [volume, setVolume] = useState(0.7);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -124,10 +125,19 @@ export const PlaybackProvider = ({ children }) => {
     // Handle audio end event using useCallback and reference to dependencies
     useEffect(() => {
         const audio = audioRef.current;
-        const handleEnd = () => handleNext();
+        const handleEnd = () => {
+            if (isRepeat) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log("Replay blocked:", e));
+            } else {
+                handleNext();
+            }
+        };
         audio.addEventListener('ended', handleEnd);
         return () => audio.removeEventListener('ended', handleEnd);
-    }, [handleNext]);
+    }, [handleNext, isRepeat]);
+
+    const toggleRepeat = useCallback(() => setIsRepeat(prev => !prev), []);
 
     const playArtistTracks = useCallback(async (artistId) => {
         setIsLoading(true);
@@ -185,8 +195,8 @@ export const PlaybackProvider = ({ children }) => {
 
     return (
         <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, volume, currentTime, duration, isLoading, isExpanded,
-            playTrack, playArtistTracks, togglePlay, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand,
+            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isExpanded,
+            playTrack, playArtistTracks, togglePlay, toggleRepeat, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand,
             albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults
         }}>
             {children}

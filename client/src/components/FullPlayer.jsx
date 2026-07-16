@@ -7,7 +7,8 @@ import API_BASE_URL from '../config';
 const FullPlayer = () => {
     const {
         currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-        currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded
+        currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded,
+        isRepeat, toggleRepeat
     } = usePlayback();
 
     // Video mode state
@@ -17,8 +18,6 @@ const FullPlayer = () => {
     const [videoError, setVideoError] = useState(null);
     const iframeRef = useRef(null);
     const videoContainerRef = useRef(null);
-
-    if (!isExpanded || !currentTrack) return null;
 
     const progressPercentage = (currentTime / duration) * 100 || 0;
 
@@ -95,6 +94,8 @@ const FullPlayer = () => {
         }
     };
 
+    if (!isExpanded || !currentTrack) return null;
+
     // In video mode, render a completely different full-screen layout
     if (mode === 'video') {
         return (
@@ -129,18 +130,43 @@ const FullPlayer = () => {
                         </div>
                     )}
                     {videoId && !videoLoading && (
-                        <iframe
-                            ref={iframeRef}
-                            width="100%"
-                            height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-                            title="Music Video"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                            allowFullScreen
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
-                        />
+                        <>
+                            <iframe
+                                ref={iframeRef}
+                                width="100%"
+                                height="100%"
+                                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&iv_load_policy=3&cc_load_policy=0&showinfo=0&color=white`}
+                                title="Music Video"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                allowFullScreen
+                                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
+                            />
+                            {/* Block YouTube top bar (title + logo) - solid black */}
+                            <div style={{
+                                position: 'absolute', top: 0, left: 0, right: 0,
+                                height: '62px',
+                                background: '#000',
+                                pointerEvents: 'none',
+                                zIndex: 5,
+                            }} />
+                            {/* Block YouTube bottom bar (controls + settings + CC + more) */}
+                            <div style={{
+                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                height: '50px',
+                                background: '#000',
+                                pointerEvents: 'none',
+                                zIndex: 5,
+                            }} />
+                            {/* Block end-screen more videos overlay */}
+                            <div style={{
+                                position: 'absolute', inset: 0,
+                                pointerEvents: 'none',
+                                zIndex: 4,
+                            }} />
+                        </>
                     )}
+
                 </div>
 
                 {/* Overlay controls at bottom */}
@@ -374,7 +400,10 @@ const FullPlayer = () => {
                                 onClick={(e) => { e.stopPropagation(); handleNext(); }}
                                 style={{ fontSize: '24px', color: 'white', cursor: 'pointer' }}
                             />
-                            <FaUndoAlt style={{ fontSize: '16px', opacity: 0.4, cursor: 'pointer' }} />
+                            <FaUndoAlt 
+                                onClick={(e) => { e.stopPropagation(); toggleRepeat(); }}
+                                style={{ fontSize: '16px', opacity: isRepeat ? 1 : 0.4, color: isRepeat ? '#1DB954' : 'white', cursor: 'pointer', transition: 'all 0.2s' }} 
+                            />
                         </div>
 
                         {/* Progress Slider */}

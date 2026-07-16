@@ -3,13 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
-import { FaPlay } from 'react-icons/fa';
+import { FaPlay, FaPause } from 'react-icons/fa';
 
 import { useAuth } from '../context/AuthContext';
 
 const Body = () => {
     const { user } = useAuth();
-    const { playTrack, playArtistTracks, artists, albums, tracks, searchTracks } = usePlayback();
+    const { playTrack, playArtistTracks, artists, albums, tracks, searchTracks, currentTrack, isPlaying, togglePlay } = usePlayback();
     const navigate = useNavigate();
     const [albumSongsCache, setAlbumSongsCache] = useState({});
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
@@ -97,13 +97,24 @@ const Body = () => {
                         <h2 className='section-title' style={{ margin: 0, textTransform: 'capitalize' }}>More of what you like: {pref}</h2>
                     </div>
                     <div className='grid-container'>
-                        {prefSongs.slice(0, 6).map(track => (
-                            <div key={track.id} className='card' onClick={(e) => handlePlay(track, e)}>
-                                <img src={track.image} alt={track.name} className='card-image' />
-                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.name}</h4>
+                        {prefSongs.slice(0, 10).map(track => (
+                            <div key={track.id} className={`card ${currentTrack?.id === track.id ? 'playing-card' : ''}`} onClick={() => playTrack(track, preferenceTracks[pref])}>
+                                <div style={{ position: 'relative' }}>
+                                    <img src={track.image} alt={track.name} className='card-image' />
+                                    {currentTrack?.id === track.id && (
+                                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                            <span style={{ fontSize: '28px' }}>🎵</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
                                 <div className='play-button-overlay' onClick={(e) => handlePlay(track, e)}>
-                                    <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                    {currentTrack?.id === track.id && isPlaying ? (
+                                        <FaPause style={{ color: 'black', fontSize: '14px' }} />
+                                    ) : (
+                                        <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -214,14 +225,25 @@ const Body = () => {
                     </Link>
                 </div>
                 <div className='grid-container'>
-                    {tracks.slice(0, 6).map((track, i) => (
-                        <div key={track.id} className='card' onClick={() => playTrack(track, tracks)}>
-                            <img src={track.image} alt={track.name} className='card-image' />
-                            <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.name}</h4>
+                    {tracks.slice(0, 10).map((track, i) => (
+                        <div key={track.id} className={`card ${currentTrack?.id === track.id ? 'playing-card' : ''}`} onClick={() => playTrack(track, tracks)}>
+                            <div style={{ position: 'relative' }}>
+                                <img src={track.image} alt={track.name} className='card-image' />
+                                {currentTrack?.id === track.id && (
+                                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                        <span style={{ fontSize: '28px' }}>🎵</span>
+                                    </div>
+                                )}
+                            </div>
+                            <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
                             <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
                             {track.preview_url && (
-                                <div className='play-button-overlay' onClick={(e) => { e.stopPropagation(); playTrack(track, tracks); }}>
-                                    <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                <div className='play-button-overlay' onClick={(e) => { e.stopPropagation(); currentTrack?.id === track.id ? togglePlay() : playTrack(track, tracks); }}>
+                                    {currentTrack?.id === track.id && isPlaying ? (
+                                        <FaPause style={{ color: 'black', fontSize: '14px' }} />
+                                    ) : (
+                                        <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                    )}
                                 </div>
                             )}
                         </div>

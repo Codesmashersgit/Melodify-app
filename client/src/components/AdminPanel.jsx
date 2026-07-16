@@ -39,7 +39,7 @@ const AdminPanel = () => {
     setLoading(true);
     setError('');
     try {
-      const headers = { 'x-admin-token': adminToken };
+      const headers = { 'Authorization': `Bearer ${adminToken}` };
       const [statsRes, usersRes, feedbackRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/user/admin/stats`, { headers }),
         axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers }),
@@ -67,7 +67,7 @@ const AdminPanel = () => {
     
     try {
       await axios.delete(`${API_BASE_URL}/api/user/admin/users/${id}`, {
-        headers: { 'x-admin-token': adminToken }
+        headers: { 'Authorization': `Bearer ${adminToken}` }
       });
       setUsers(users.filter(u => u.id !== id));
       fetchAdminData();
@@ -305,7 +305,7 @@ const AdminPanel = () => {
 
               {activeTab === 'feedback' && (
                 <div className="admin-panel-section">
-                  <h2>User Feedback</h2>
+                  
                   {feedback.length === 0 ? (
                     <div className="empty-state">
                       <FiHeart size={48} color="rgba(255,255,255,0.2)" />
@@ -317,8 +317,18 @@ const AdminPanel = () => {
                         <div key={item.id} className="feedback-card">
                           <div className="feedback-header">
                             <div className="feedback-user">
-                              <div className="user-avatar small">{item.user_name?.charAt(0).toUpperCase()}</div>
-                              <span>{item.user_name}</span>
+                              <div className="user-avatar small" style={{
+                                width: '36px', height: '36px', borderRadius: '50%', 
+                                background: 'linear-gradient(135deg, #1DB954, #1ed760)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontWeight: 'bold', color: '#000', fontSize: '1.2rem'
+                              }}>
+                                {(item.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: '600', color: 'white' }}>{item.name || 'Unknown User'}</span>
+                                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{item.email || 'No email'}</span>
+                              </div>
                             </div>
                             <span className="feedback-date">{formatDate(item.created_at)}</span>
                           </div>

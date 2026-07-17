@@ -27,7 +27,7 @@ const MOODS = [
 
 // ─── HomeScreen ───────────────────────────────────────────────
 const HomeScreen = ({ navigation }) => {
-    const { artists, albums, tracks, playTrack, isLoading, refetchHomeData } = usePlayback();
+    const { artists, albums, tracks, playTrack, isLoading, refetchHomeData, currentTrack, isPlaying } = usePlayback();
     const { user } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
     const [selectedMood, setSelectedMood] = useState('energetic');
@@ -172,23 +172,30 @@ const HomeScreen = ({ navigation }) => {
     }, [tracks]);
 
     // Track card (horizontal)
-    const renderTrackCard = ({ item }) => (
+    const renderTrackCard = ({ item }) => {
+        const isCurrent = currentTrack?.id === item.id;
+        return (
         <TouchableOpacity
-            style={styles.trackCard}
+            style={[styles.trackCard, isCurrent && { borderWidth: 2, borderColor: '#1DB954' }]}
             activeOpacity={0.75}
             onPress={() => playTrack(item, tracks)}
         >
             <Image source={{ uri: item.image }} style={styles.trackCardImage} />
             <View style={styles.trackCardOverlay} />
+            {isCurrent && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30 }}>{isPlaying ? '🎵' : '⏸️'}</Text>
+                </View>
+            )}
             <View style={styles.trackCardInfo}>
-                <Text style={styles.trackCardTitle} numberOfLines={2}>{item.name}</Text>
+                <Text style={[styles.trackCardTitle, isCurrent && { color: '#1DB954' }]} numberOfLines={2}>{item.name}</Text>
                 <Text style={styles.trackCardArtist} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
             </View>
             <View style={styles.trackCardPlayBtn}>
-                <Ionicons name="play" size={14} color="black" />
+                <Ionicons name={isCurrent && isPlaying ? 'pause' : 'play'} size={14} color="black" />
             </View>
         </TouchableOpacity>
-    );
+    )};
 
     // Album card — click plays the album's first song
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
@@ -251,20 +258,29 @@ const HomeScreen = ({ navigation }) => {
     );
 
     // Top hit row card
-    const renderTopHitCard = ({ item }) => (
+    const renderTopHitCard = ({ item }) => {
+        const isCurrent = currentTrack?.id === item.id;
+        return (
         <TouchableOpacity
-            style={styles.topHitCard}
+            style={[styles.topHitCard, isCurrent && { backgroundColor: 'rgba(29,185,84,0.12)', borderLeftWidth: 3, borderLeftColor: '#1DB954' }]}
             activeOpacity={0.75}
             onPress={() => playTrack(item, tracks)}
         >
-            <Image source={{ uri: item.image }} style={styles.topHitImage} />
+            <View style={{ position: 'relative' }}>
+                <Image source={{ uri: item.image }} style={styles.topHitImage} />
+                {isCurrent && (
+                    <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 18 }}>🎵</Text>
+                    </View>
+                )}
+            </View>
             <View style={styles.topHitInfo}>
-                <Text style={styles.topHitTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={[styles.topHitTitle, isCurrent && { color: '#1DB954' }]} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.topHitSubtitle} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
             </View>
-            <Ionicons name="play-circle" size={32} color="#1DB954" />
+            <Ionicons name={isCurrent && isPlaying ? 'pause-circle' : 'play-circle'} size={32} color="#1DB954" />
         </TouchableOpacity>
-    );
+    )};
 
     return (
         <View style={styles.container}>

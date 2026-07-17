@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>;
+    return <SplashScreen />;
   }
   if (!user) {
     return <Navigate to="/login" replace />;

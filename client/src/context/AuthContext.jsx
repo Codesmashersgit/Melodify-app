@@ -139,10 +139,12 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             await axios.post(`${API_BASE_URL}/api/user/logout`);
-            setUser(null);
-
         } catch (error) {
             console.error('Logout failed', error);
+        } finally {
+            setUser(null);
+            // Hard redirect — no home flash, clears all state
+            window.location.replace('/login');
         }
     };
 

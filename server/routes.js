@@ -279,6 +279,32 @@ router.post('/playlists/:id/songs', authenticateToken, (req, res) => {
     });
 });
 
+router.delete('/playlists/:id', authenticateToken, (req, res) => {
+    const playlistId = req.params.id;
+    
+    // Ensure ownership before deleting
+    db.run(`DELETE FROM playlists WHERE id = ? AND user_id = ?`, [playlistId, req.user.id], function(err) {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Playlist not found or unauthorized' });
+        res.json({ success: true, message: 'Playlist deleted' });
+    });
+});
+
+router.delete('/playlists/:id/songs/:songId', authenticateToken, (req, res) => {
+    const playlistId = req.params.id;
+    const songId = req.params.songId;
+    
+    // Verify ownership of the playlist first
+    db.get(`SELECT id FROM playlists WHERE id = ? AND user_id = ?`, [playlistId, req.user.id], (err, playlist) => {
+        if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+        
+        db.run(`DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?`, [playlistId, songId], function(err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json({ success: true, message: 'Song removed from playlist' });
+        });
+    });
+});
+
 // --- PASSWORD RESET ---
 
 // Email Transporter (Use Environment Variables in Production)

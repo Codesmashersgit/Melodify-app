@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const axios = require('axios');
 const userRoutes = require('./routes');
 const dotenv = require('dotenv');
 const https = require('https');
@@ -357,6 +358,54 @@ app.get('/api/stream', async (req, res) => {
     } catch (err) {
         console.error('Stream resolve error:', err.message);
         return res.status(500).send('Stream failed');
+    }
+});
+
+// Download Audio — streams the CDN file to the client as an attachment
+app.get('/api/download', async (req, res) => {
+    let { id, name, artist } = req.query;
+
+    if (!id) return res.status(400).send('Song ID is required');
+
+    try {
+        const resolvedUrl = await resolveFullSongUrl(id, name, artist);
+        if (!resolvedUrl) {
+            return res.status(404).send('Could not resolve song URL for download');
+        }
+
+        // Fetch the audio stream from the CDN with proper headers
+        const response = await axios({
+            method: 'GET',
+            url: resolvedUrl,
+            responseType: 'stream',
+            maxRedirects: 5,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'audio/mpeg, audio/*, */*',
+                'Referer': 'https://www.jiosaavn.com/'
+            }
+        });
+
+        // Set headers to force download as MP3
+        const safeName = (name || id).replace(/[^\w\s\-()]/gi, '').trim();
+        res.setHeader('Content-Disposition', `attachment; filename="${safeName}.mp3"`);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (response.headers['content-length']) {
+            res.setHeader('Content-Length', response.headers['content-length']);
+        }
+
+        // Pipe the audio buffer stream to the client response
+        response.data.pipe(res);
+
+        // Handle errors mid-stream
+        response.data.on('error', (err) => {
+            console.error('Stream pipe error:', err.message);
+            if (!res.headersSent) res.status(500).send('Stream failed');
+        });
+    } catch (err) {
+        console.error('Download stream error:', err.message);
+        if (!res.headersSent) return res.status(500).send('Download failed');
     }
 });
 

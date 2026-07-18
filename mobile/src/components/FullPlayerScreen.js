@@ -287,7 +287,10 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             onValueChange={(val) => setSliderValue(val)}
                             onSlidingComplete={async (value) => {
                                 await seekTo(value);
-                                setIsSliding(false);
+                                // Delay turning off sliding state so native player can catch up
+                                setTimeout(() => {
+                                    setIsSliding(false);
+                                }, 400);
                             }}
                             minimumTrackTintColor="#1DB954"
                             maximumTrackTintColor="rgba(255,255,255,0.12)"

@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import axios from 'axios';
 import { Audio } from 'expo-av';
 import API_BASE_URL from '../config';
+import { getDownloadedTracks } from '../services/DownloadService';
 
 import CryptoJS from 'crypto-js';
 
@@ -30,7 +31,7 @@ const decryptDES = (encryptedBase64) => {
     }
 };
 
-const resolveAudioUrl = async (songId, songName, songArtist) => {
+export const resolveAudioUrl = async (songId, songName, songArtist) => {
     if (!songId) return null;
     
     const proxyUrl = `${API_BASE_URL}/api/stream?id=${songId}&name=${encodeURIComponent(songName || '')}&artist=${encodeURIComponent(songArtist || '')}`;
@@ -108,6 +109,7 @@ export const PlaybackProvider = ({ children }) => {
     const [searchResults, setSearchResults] = useState([]);
     const [isExpanded, setIsExpanded] = useState(false);
     const [isTrackLoading, setIsTrackLoading] = useState(false);
+    const [queue, setQueue] = useState([]);
 
     // Video Mode State
     const [mode, setMode] = useState('audio'); // 'audio' | 'video'
@@ -123,10 +125,12 @@ export const PlaybackProvider = ({ children }) => {
     const appStateRef = useRef(AppState.currentState);
     const tracksRef = useRef([]);
     const currentTrackRef = useRef(null);
+    const queueRef = useRef([]);
 
     // Keep refs in sync
     useEffect(() => { tracksRef.current = tracks; }, [tracks]);
     useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
+    useEffect(() => { queueRef.current = queue; }, [queue]);
 
     // Fetch with retry (for initial data fetching from Render)
     const fetchWithRetry = async (url, { firstTimeout = 15000, retryTimeout = 45000 } = {}) => {
@@ -268,8 +272,17 @@ export const PlaybackProvider = ({ children }) => {
             const songName = track.name;
             const songArtist = track.artist;
 
-            const audioUrl = await resolveAudioUrl(songId, songName, songArtist);
-            console.log(`🔗 Audio URL: ${audioUrl?.substring(0, 60)}...`);
+            let audioUrl = null;
+            const downloadedTracks = await getDownloadedTracks();
+            const downloaded = downloadedTracks.find(t => t.id === songId);
+
+            if (downloaded && downloaded.localUri) {
+                audioUrl = downloaded.localUri;
+                console.log(`🔗 Playing from local downloaded file: ${audioUrl}`);
+            } else {
+                audioUrl = await resolveAudioUrl(songId, songName, songArtist);
+                console.log(`🔗 Audio URL: ${audioUrl?.substring(0, 60)}...`);
+            }
 
             if (!audioUrl) {
                 throw new Error('Could not resolve audio URL');
@@ -308,6 +321,12 @@ export const PlaybackProvider = ({ children }) => {
     }, [isPlaying]);
 
     const handleNext = useCallback((currentTracks, currentTrackArg) => {
+        if (queueRef.current.length > 0) {
+            const nextTrack = queueRef.current[0];
+            setQueue(prev => prev.slice(1));
+            playTrack(nextTrack);
+            return;
+        }
         const tList = currentTracks || tracksRef.current;
         const tCurrent = currentTrackArg || currentTrackRef.current;
         if (!tList || tList.length === 0) return;
@@ -326,8 +345,17 @@ export const PlaybackProvider = ({ children }) => {
         playTrack(tList[prevIndex]);
     }, [playTrack]);
 
+    const addToQueue = useCallback((track) => {
+        setQueue(prev => [...prev, track]);
+    }, []);
+
+    const playNext = useCallback((track) => {
+        setQueue(prev => [track, ...prev]);
+    }, []);
+
     const seekTo = useCallback(async (time) => {
         if (soundRef.current) {
+            setCurrentTime(time);
             await soundRef.current.setPositionAsync(time * 1000);
         }
     }, []);
@@ -404,6 +432,7 @@ export const PlaybackProvider = ({ children }) => {
             tracks, setTracks, currentTrack, isPlaying, volume, currentTime, duration,
             isLoading, isTrackLoading, isExpanded,
             playTrack, togglePlay,
+            queue, addToQueue, playNext,
             handleNext: (t, c) => handleNext(t, c),
             handlePrev: (t, c) => handlePrev(t, c),
             formatTime, seekTo, searchTracks, toggleExpand,

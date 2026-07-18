@@ -95,6 +95,9 @@ const LibraryScreen = ({ navigation }) => {
                         <Text style={styles.headerSubtitle}>Your</Text>
                         <Text style={styles.headerTitle}>Library</Text>
                     </View>
+                    <TouchableOpacity onPress={() => navigation.navigate('Downloads')} style={{ padding: 10 }}>
+                        <Ionicons name="download-outline" size={28} color="#1DB954" />
+                    </TouchableOpacity>
                 </View>
                 
                 <View style={styles.tabs}>

@@ -21,6 +21,7 @@ import PlaylistScreen from '../screens/PlaylistScreen';
 import SeeAllScreen from '../screens/SeeAllScreen';
 import AboutScreen from '../screens/AboutScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
+import DownloadsScreen from '../screens/DownloadsScreen';
 import PlayerBar from '../components/PlayerBar';
 
 const Tab = createBottomTabNavigator();

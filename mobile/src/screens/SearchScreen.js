@@ -13,6 +13,8 @@ import {
     ExpoSpeechRecognitionModule,
     useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
+import SongOptionsSheet from '../components/SongOptionsSheet';
+import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 
 
 const SearchScreen = ({ navigation }) => {
@@ -25,6 +27,15 @@ const SearchScreen = ({ navigation }) => {
     const [albumResults, setAlbumResults] = useState([]);
     const insets = useSafeAreaInsets();
     const debounceRef = useRef(null);
+
+    const [selectedTrack, setSelectedTrack] = useState(null);
+    const [optionsVisible, setOptionsVisible] = useState(false);
+    const [playlistVisible, setPlaylistVisible] = useState(false);
+
+    const openOptions = (track) => {
+        setSelectedTrack(track);
+        setOptionsVisible(true);
+    };
 
     const [isListening, setIsListening] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
@@ -164,9 +175,9 @@ const SearchScreen = ({ navigation }) => {
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
             </View>
-            <View style={styles.playIconContainer}>
-                <Ionicons name="play" size={15} color="black" style={{ marginLeft: 2 }} />
-            </View>
+            <TouchableOpacity onPress={() => openOptions(item)} style={{ padding: 10 }}>
+                <Ionicons name="ellipsis-vertical" size={20} color="#b3b3b3" />
+            </TouchableOpacity>
         </TouchableOpacity>
     );
 
@@ -299,6 +310,18 @@ const SearchScreen = ({ navigation }) => {
                     <Text style={styles.initialSubtitle}>Search for songs, artists, or albums</Text>
                 </View>
             )}
+
+            <SongOptionsSheet 
+                visible={optionsVisible}
+                onClose={() => setOptionsVisible(false)}
+                track={selectedTrack}
+                onAddToPlaylist={(track) => setPlaylistVisible(true)}
+            />
+            <AddToPlaylistSheet
+                visible={playlistVisible}
+                onClose={() => setPlaylistVisible(false)}
+                track={selectedTrack}
+            />
         </View>
     );
 };

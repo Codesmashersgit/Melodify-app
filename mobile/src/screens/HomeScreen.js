@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationsModal from '../components/NotificationsModal';
 import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../components/Skeleton';
+import SongOptionsSheet from '../components/SongOptionsSheet';
+import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 import API_BASE_URL from '../config';
 
 const { width } = Dimensions.get('window');
@@ -31,6 +33,15 @@ const HomeScreen = ({ navigation }) => {
     const { user } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
     const [selectedMood, setSelectedMood] = useState('energetic');
+
+    const [selectedTrack, setSelectedTrack] = useState(null);
+    const [optionsVisible, setOptionsVisible] = useState(false);
+    const [playlistVisible, setPlaylistVisible] = useState(false);
+
+    const openOptions = (track) => {
+        setSelectedTrack(track);
+        setOptionsVisible(true);
+    };
 
     // ─── Feedback & Exit State ────────────────────────────────
     const [exitModalVisible, setExitModalVisible] = useState(false);
@@ -191,9 +202,12 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={[styles.trackCardTitle, isCurrent && { color: '#1DB954' }]} numberOfLines={2}>{item.name}</Text>
                 <Text style={styles.trackCardArtist} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
             </View>
-            <View style={styles.trackCardPlayBtn}>
-                <Ionicons name={isCurrent && isPlaying ? 'pause' : 'play'} size={14} color="black" />
-            </View>
+            <TouchableOpacity 
+                style={styles.optionsBtn}
+                onPress={() => openOptions(item)}
+            >
+                <Ionicons name="ellipsis-vertical" size={18} color="white" />
+            </TouchableOpacity>
         </TouchableOpacity>
     )};
 
@@ -278,7 +292,9 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={[styles.topHitTitle, isCurrent && { color: '#1DB954' }]} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.topHitSubtitle} numberOfLines={1}>{item.artist?.split(' - ')[0]}</Text>
             </View>
-            <Ionicons name={isCurrent && isPlaying ? 'pause-circle' : 'play-circle'} size={32} color="#1DB954" />
+            <TouchableOpacity onPress={() => openOptions(item)} style={{ padding: 10 }}>
+                <Ionicons name="ellipsis-vertical" size={20} color="#b3b3b3" />
+            </TouchableOpacity>
         </TouchableOpacity>
     )};
 
@@ -588,6 +604,18 @@ const HomeScreen = ({ navigation }) => {
 
             <NotificationsModal visible={notifVisible} onClose={() => setNotifVisible(false)} />
 
+            <SongOptionsSheet 
+                visible={optionsVisible}
+                onClose={() => setOptionsVisible(false)}
+                track={selectedTrack}
+                onAddToPlaylist={(track) => setPlaylistVisible(true)}
+            />
+            <AddToPlaylistSheet
+                visible={playlistVisible}
+                onClose={() => setPlaylistVisible(false)}
+                track={selectedTrack}
+            />
+
             {/* ── Exit & Feedback Modal ── */}
             <Modal
                 animationType="fade"
@@ -800,10 +828,10 @@ const styles = StyleSheet.create({
     },
     trackCardTitle: { color: 'white', fontSize: 13, fontWeight: '700', marginBottom: 2 },
     trackCardArtist: { color: '#aaa', fontSize: 11 },
-    trackCardPlayBtn: {
-        position: 'absolute', bottom: 8, right: 8,
+    optionsBtn: {
+        position: 'absolute', top: 8, right: 8,
         width: 28, height: 28, borderRadius: 14,
-        backgroundColor: '#1DB954',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center', alignItems: 'center',
     },
 

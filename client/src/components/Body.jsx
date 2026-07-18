@@ -6,6 +6,8 @@ import API_BASE_URL from '../config';
 import { FaPlay, FaPause } from 'react-icons/fa';
 import { CardSkeletonRow, AlbumSkeletonRow, SectionSkeleton, SkeletonStyles } from './Skeleton';
 import { useAuth } from '../context/AuthContext';
+import SongMenu from './SongMenu';
+import AddToPlaylistModal from './AddToPlaylistModal';
 
 const Body = () => {
     const { user } = useAuth();
@@ -15,6 +17,14 @@ const Body = () => {
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
     const [preferenceTracks, setPreferenceTracks] = useState({});
     const [preferencesLoading, setPreferencesLoading] = useState(true);
+
+    const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+    const [selectedTrack, setSelectedTrack] = useState(null);
+
+    const handleOpenModal = (track) => {
+        setSelectedTrack(track);
+        setIsPlaylistModalOpen(true);
+    };
 
     React.useEffect(() => {
         const fetchPreferences = async () => {
@@ -93,8 +103,8 @@ const Body = () => {
             {/* ── User Preference Sections ── */}
             {preferencesLoading ? (
                 <>
-                    <SectionSkeleton count={5} />
-                    <SectionSkeleton count={5} />
+                    <SectionSkeleton count={10} />
+                    <SectionSkeleton count={10} />
                 </>
             ) : Object.entries(preferenceTracks).map(([pref, prefSongs]) => (
                 <section key={pref} className='section-container'>
@@ -111,6 +121,9 @@ const Body = () => {
                                             <span style={{ fontSize: '28px' }}>🎵</span>
                                         </div>
                                     )}
+                                </div>
+                                <div className="card-menu-overlay" onClick={(e) => e.stopPropagation()}>
+                                    <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
                                 </div>
                                 <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
@@ -136,7 +149,7 @@ const Body = () => {
                     </Link>
                 </div>
                 {isLoading || artists.length === 0 ? (
-                    <CardSkeletonRow count={6} />
+                    <CardSkeletonRow count={12} />
                 ) : (
                     <div className='grid-container'>
                         {artists.slice(0, 30).map(artist => (
@@ -178,7 +191,7 @@ const Body = () => {
                     </Link>
                 </div>
                 {isLoading || albums.length === 0 ? (
-                    <AlbumSkeletonRow count={6} />
+                    <AlbumSkeletonRow count={12} />
                 ) : (
                     <div className='grid-container'>
                         {albums.map(album => (
@@ -210,7 +223,7 @@ const Body = () => {
                     </Link>
                 </div>
                 {isLoading || tracks.length === 0 ? (
-                    <CardSkeletonRow count={6} />
+                    <CardSkeletonRow count={10} />
                 ) : (
                     <div className='grid-container'>
                         {tracks.slice(0, 10).map((track) => (
@@ -222,6 +235,9 @@ const Body = () => {
                                             <span style={{ fontSize: '28px' }}>🎵</span>
                                         </div>
                                     )}
+                                </div>
+                                <div className="card-menu-overlay" onClick={(e) => e.stopPropagation()}>
+                                    <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
                                 </div>
                                 <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
@@ -239,6 +255,13 @@ const Body = () => {
                     </div>
                 )}
             </section>
+            
+            {/* Modal for adding track to playlist */}
+            <AddToPlaylistModal 
+                isOpen={isPlaylistModalOpen} 
+                onClose={() => setIsPlaylistModalOpen(false)} 
+                track={selectedTrack} 
+            />
         </div>
     )
 }

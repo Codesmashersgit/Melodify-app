@@ -95,4 +95,39 @@ export const SectionSkeleton = ({ count = 5, square = false }) => (
     </div>
 );
 
+// ── Full App Skeleton (used during Auth Loading) ───────────────────
+export const AppSkeleton = () => (
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#000', overflow: 'hidden' }}>
+        {/* Sidebar Skeleton */}
+        <div style={{ width: '250px', backgroundColor: '#0b0b12', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+            <SkeletonBlock style={{ width: '150px', height: '40px', borderRadius: '8px', marginBottom: '20px' }} />
+            {Array.from({ length: 5 }).map((_, i) => (
+                <SkeletonBlock key={i} style={{ width: '80%', height: '20px', borderRadius: '4px' }} />
+            ))}
+        </div>
+        
+        {/* Main Content Skeleton */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* TopNav Skeleton */}
+            <div style={{ height: '70px', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0b0b12' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <SkeletonBlock style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                    <SkeletonBlock style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                    <SkeletonBlock style={{ width: '120px', height: '36px', borderRadius: '18px' }} />
+                    <SkeletonBlock style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+                </div>
+            </div>
+            
+            {/* Body Skeletons */}
+            <div style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
+                <SectionSkeleton count={5} square={false} />
+                <SectionSkeleton count={5} square={true} />
+            </div>
+        </div>
+        <SkeletonStyles />
+    </div>
+);
+
 export default SkeletonBlock;

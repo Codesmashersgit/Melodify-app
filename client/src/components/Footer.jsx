@@ -4,6 +4,8 @@ import { usePlayback } from '../context/PlaybackContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import AddToPlaylistModal from './AddToPlaylistModal';
+import { useNavigate } from 'react-router-dom';
 
 const Footer = () => {
   const {
@@ -14,8 +16,7 @@ const Footer = () => {
 
   const [liked, setLiked] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
-  const [playlists, setPlaylists] = useState([]);
-  const [addedPlaylistId, setAddedPlaylistId] = useState(null);
+  const navigate = useNavigate();
 
   if (!currentTrack || isExpanded) return null;
 
@@ -42,44 +43,10 @@ const Footer = () => {
     }
   };
 
-  const handleShowPlaylistModal = async (e) => {
+  const handleShowPlaylistModal = (e) => {
     e.stopPropagation();
     if (!user) return alert("Please log in to add songs to a playlist");
-    try {
-      const res = await axios.get(`${API_BASE_URL}/api/user/playlists`);
-      setPlaylists(res.data);
-      setShowPlaylistModal(true);
-    } catch (err) {
-      console.error("Failed to fetch playlists", err);
-    }
-  };
-
-  const handleAddToPlaylist = async (playlistId, e) => {
-    e.stopPropagation();
-    try {
-      await axios.post(`${API_BASE_URL}/api/user/playlists/${playlistId}/songs`, {
-        song_id: currentTrack.id,
-        song_name: currentTrack.name,
-        song_artist: currentTrack.artist,
-        song_image: currentTrack.image,
-        song_preview: currentTrack.preview_url
-      });
-      setAddedPlaylistId(playlistId);
-      setTimeout(() => {
-        setAddedPlaylistId(null);
-        setShowPlaylistModal(false);
-      }, 1200);
-    } catch (err) {
-      if (err.response?.data?.error === 'Song already in playlist') {
-        setAddedPlaylistId(playlistId);
-        setTimeout(() => {
-          setAddedPlaylistId(null);
-          setShowPlaylistModal(false);
-        }, 1200);
-      } else {
-        console.error("Failed to add song to playlist", err);
-      }
-    }
+    setShowPlaylistModal(true);
   };
 
   const handleVolumeChange = (e) => {
@@ -99,89 +66,10 @@ const Footer = () => {
     <>
       {/* Add to Playlist Modal */}
       {showPlaylistModal && (
-        <div
-          onClick={(e) => { e.stopPropagation(); setShowPlaylistModal(false); }}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 999998,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: '#282828',
-              borderRadius: '16px',
-              padding: '28px',
-              minWidth: '320px',
-              maxWidth: '400px',
-              width: '90%',
-              boxShadow: '0 30px 80px rgba(0,0,0,0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontWeight: '700', fontSize: '1.1rem' }}>Add to Playlist</h3>
-              <button
-                onClick={() => setShowPlaylistModal(false)}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            {/* Current Song Info */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginBottom: '20px' }}>
-              <img src={currentTrack.image} alt={currentTrack.name} style={{ width: '42px', height: '42px', borderRadius: '6px', objectFit: 'cover' }} />
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontWeight: '600', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentTrack.name}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentTrack.artist}</div>
-              </div>
-            </div>
-
-            {playlists.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--melodify-dim-white)', fontSize: '0.9rem' }}>
-                <p>No playlists yet.</p>
-                <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>Create one using the sidebar!</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                {playlists.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={(e) => handleAddToPlaylist(p.id, e)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: addedPlaylistId === p.id ? 'rgba(29,185,84,0.15)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${addedPlaylistId === p.id ? 'rgba(29,185,84,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                      color: 'white',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      fontSize: '0.95rem',
-                      fontWeight: '500',
-                      transition: 'all 0.2s',
-                      textAlign: 'left',
-                    }}
-                    onMouseEnter={e => { if (addedPlaylistId !== p.id) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-                    onMouseLeave={e => { if (addedPlaylistId !== p.id) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '36px', height: '36px',
-                        background: 'linear-gradient(135deg, #450af5, #c4efd9)',
-                        borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '14px',
-                      }}>♪</div>
-                      {p.name}
-                    </div>
-                    {addedPlaylistId === p.id && <FaCheck style={{ color: '#1DB954' }} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <AddToPlaylistModal 
+          track={currentTrack} 
+          onClose={() => setShowPlaylistModal(false)} 
+        />
       )}
 
       <div
@@ -278,7 +166,14 @@ const Footer = () => {
 
         {/* Right: Extra Controls */}
         <div className='volume-controls' onClick={(e) => e.stopPropagation()}>
-          <FaListUl className='control-icon' style={{ fontSize: '12px', opacity: 0.6 }} />
+          <FaListUl 
+            className='control-icon queue-icon' 
+            style={{ fontSize: '14px', opacity: 0.8, cursor: 'pointer', transition: 'color 0.2s' }} 
+            title="Queue"
+            onClick={(e) => { e.stopPropagation(); navigate('/queue'); }}
+            onMouseEnter={e => e.target.style.color = '#1DB954'}
+            onMouseLeave={e => e.target.style.color = 'inherit'}
+          />
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {volume === 0 ? <FaVolumeMute className='control-icon' style={{ fontSize: '14px' }} /> : <FaVolumeUp className='control-icon' style={{ fontSize: '14px' }} />}
             <input

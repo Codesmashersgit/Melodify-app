@@ -4,6 +4,8 @@ import API_BASE_URL from '../config';
 import { useAuth } from '../context/AuthContext';
 import { usePlayback } from '../context/PlaybackContext';
 import { FaHeart, FaPlay } from 'react-icons/fa';
+import SongMenu from './SongMenu';
+import AddToPlaylistModal from './AddToPlaylistModal';
 import './LikedSongs.css';
 
 const LikedSongs = () => {
@@ -11,6 +13,13 @@ const LikedSongs = () => {
     const { playTrack } = usePlayback();
     const [likedSongs, setLikedSongs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [selectedTrack, setSelectedTrack] = useState(null);
+
+    const handleOpenModal = (track) => {
+        setSelectedTrack(track);
+        setShowModal(true);
+    };
 
     const fetchLikedSongs = async () => {
         try {
@@ -107,14 +116,18 @@ const LikedSongs = () => {
                                     <p className="truncate">{track.artist}</p>
                                 </div>
                             </div>
-                            <div className="col-action">
+                            <div className="col-action" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <button className="unlike-btn" onClick={(e) => handleUnlike(e, track.id)}>
                                     <FaHeart />
                                 </button>
+                                <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
                             </div>
                         </div>
                     ))}
                 </div>
+            )}
+            {showModal && selectedTrack && (
+                <AddToPlaylistModal track={selectedTrack} onClose={() => setShowModal(false)} />
             )}
         </div>
     );

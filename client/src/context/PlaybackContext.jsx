@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { getTrackBlobUrl } from '../services/WebDownloadService';
 
 const PlaybackContext = createContext();
 import API_BASE_URL from '../config';
@@ -19,6 +20,7 @@ export const PlaybackProvider = ({ children }) => {
     const [selectedAlbum, setSelectedAlbum] = useState(null);
     const [searchResults, setSearchResults] = useState([]);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [queue, setQueue] = useState([]);
 
     const audioRef = useRef(new Audio());
 
@@ -81,7 +83,7 @@ export const PlaybackProvider = ({ children }) => {
         setIsPlaying(prev => !prev);
     }, [currentTrack]);
 
-    const playTrack = useCallback((track, newPlaylist = null) => {
+    const playTrack = useCallback(async (track, newPlaylist = null) => {
         if (!track || !track.preview_url) {
             console.error("Cannot play track: No preview URL found", track);
             return;
@@ -95,24 +97,43 @@ export const PlaybackProvider = ({ children }) => {
             togglePlay();
         } else {
             audioRef.current.pause();
-            audioRef.current.src = track.preview_url;
+
+            // Check if track is saved offline (IndexedDB)
+            const blobUrl = await getTrackBlobUrl(track.id);
+            const audioSrc = blobUrl || track.preview_url;
+
+            audioRef.current.src = audioSrc;
             audioRef.current.load();
 
             setCurrentTrack(track);
             setIsPlaying(true);
 
             audioRef.current.play().catch(e => {
-                console.warn("Autoplay blocked or stream interrupted:", e.message);
+                console.warn('Autoplay blocked or stream interrupted:', e.message);
             });
         }
     }, [currentTrack, togglePlay]);
 
     const handleNext = useCallback(() => {
+        if (queue.length > 0) {
+            const nextTrack = queue[0];
+            setQueue(prev => prev.slice(1));
+            playTrack(nextTrack);
+            return;
+        }
         if (tracks.length === 0) return;
         const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id);
         const nextIndex = (currentIndex + 1) % tracks.length;
         playTrack(tracks[nextIndex]);
-    }, [tracks, currentTrack, playTrack]);
+    }, [queue, tracks, currentTrack, playTrack]);
+
+    const addToQueue = useCallback((track) => {
+        setQueue(prev => [...prev, track]);
+    }, []);
+
+    const playNextInQueue = useCallback((track) => {
+        setQueue(prev => [track, ...prev]);
+    }, []);
 
     const handlePrev = useCallback(() => {
         if (tracks.length === 0) return;
@@ -195,8 +216,8 @@ export const PlaybackProvider = ({ children }) => {
 
     return (
         <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isExpanded,
-            playTrack, playArtistTracks, togglePlay, toggleRepeat, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand,
+            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isExpanded, queue,
+            playTrack, playArtistTracks, togglePlay, toggleRepeat, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand, addToQueue, playNextInQueue, setQueue,
             albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults
         }}>
             {children}

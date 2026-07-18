@@ -16,6 +16,10 @@ import ShowAll from './components/ShowAll';
 import PlaylistPage from './components/PlaylistPage';
 import AdminPanel from './components/AdminPanel';
 import Preferences from './components/Preferences';
+import Queue from './components/Queue';
+import Playlists from './components/Playlists';
+import PlaylistDetail from './components/PlaylistDetail';
+import Downloads from './components/Downloads';
 import { usePlayback } from './context/PlaybackContext';
 
 
@@ -26,7 +30,7 @@ import FeedbackModal from './components/FeedbackModal';
 
 import BottomNav from './components/BottomNav';
 
-import SplashScreen from './components/SplashScreen';
+import { AppSkeleton } from './components/Skeleton';
 
 import { useLocation } from 'react-router-dom';
 
@@ -35,7 +39,7 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return <SplashScreen />;
+    return <AppSkeleton />;
   }
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -56,7 +60,7 @@ const ProtectedRoute = ({ children }) => {
 const PublicOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: 'white' }}>Loading...</div>;
+    return <AppSkeleton />;
   }
   if (user) {
     return <Navigate to="/" replace />;
@@ -68,7 +72,6 @@ function App() {
   return (
     <Router>
       <HistoryProvider>
-        <SplashScreen />
         <FeedbackModal />
         <Routes>
           {/* Protected: requires login */}
@@ -81,6 +84,10 @@ function App() {
             <Route path="preferences" element={<Preferences />} />
             <Route path="show-all/:category" element={<ShowAll />} />
             <Route path="playlist/:id" element={<PlaylistPage />} />
+            <Route path="queue" element={<Queue />} />
+            <Route path="playlists" element={<Playlists />} />
+            <Route path="playlist-detail/:id" element={<PlaylistDetail />} />
+            <Route path="downloads" element={<Downloads />} />
           </Route>
 
           {/* Public only: redirect to home if already logged in */}

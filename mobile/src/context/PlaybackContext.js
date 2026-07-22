@@ -117,6 +117,8 @@ export const PlaybackProvider = ({ children }) => {
     const [videoLoading, setVideoLoading] = useState(false);
     const [videoError, setVideoError] = useState(null);
     const [videoPlaying, setVideoPlaying] = useState(false);
+    const [videoStartTime, setVideoStartTime] = useState(0);
+    const [videoSwitchTimestamp, setVideoSwitchTimestamp] = useState(0);
 
     const [fetchError, setFetchError] = useState(null);
 
@@ -392,13 +394,17 @@ export const PlaybackProvider = ({ children }) => {
         if (newMode === mode) return;
 
         if (newMode === 'video') {
+            const startPos = currentTime || 0;
+            setVideoStartTime(startPos);
+            setVideoSwitchTimestamp(Date.now());
+
             if (soundRef.current) {
                 try { await soundRef.current.pauseAsync(); } catch (e) {}
             }
             setIsPlaying(false);
             setMode('video');
             setVideoError(null);
-            setVideoPlaying(false);
+            setVideoPlaying(true);
 
             if (!videoId) {
                 setVideoLoading(true);
@@ -406,6 +412,7 @@ export const PlaybackProvider = ({ children }) => {
                     const query = `${currentTrack.name} ${currentTrack.artist} official music video`;
                     const response = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(query)}`, { timeout: 15000 });
                     setVideoId(response.data.videoId);
+                    setVideoPlaying(true);
                 } catch (e) {
                     setVideoError('Video not found... Try again..');
                     setMode('audio');
@@ -414,15 +421,24 @@ export const PlaybackProvider = ({ children }) => {
                     setVideoLoading(false);
                 }
             } else {
-                // If prefetched, it will trigger onReady in FullPlayerScreen instantly
                 setVideoLoading(false);
+                setVideoPlaying(true);
             }
         } else {
+            // Video -> Audio switch
+            const elapsed = (Date.now() - (videoSwitchTimestamp || Date.now())) / 1000;
+            const targetAudioTime = Math.min((videoStartTime || 0) + elapsed, duration || 999999);
+
             setVideoPlaying(false);
             setVideoId(null);
             setMode('audio');
+
             if (soundRef.current) {
-                try { await soundRef.current.playAsync(); } catch (e) {}
+                try {
+                    await seekTo(targetAudioTime);
+                    await soundRef.current.playAsync();
+                    setIsPlaying(true);
+                } catch (e) {}
             }
         }
     };
@@ -439,7 +455,7 @@ export const PlaybackProvider = ({ children }) => {
             albums, artists, selectedAlbum, searchResults, searchArtists,
             fetchError, refetchHomeData: fetchInitialData,
             // Video states
-            mode, videoId, videoLoading, videoError, videoPlaying, setVideoPlaying, switchMode
+            mode, videoId, videoLoading, videoError, videoPlaying, videoStartTime, setVideoPlaying, switchMode
         }}>
             {children}
         </PlaybackContext.Provider>

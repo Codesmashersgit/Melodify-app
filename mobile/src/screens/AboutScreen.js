@@ -86,6 +86,21 @@ const AboutScreen = ({ navigation }) => {
                 </View>
 
                 {/* Account Actions */}
+                <Text style={styles.sectionTitle}>Feedback & Support</Text>
+                <View style={styles.card}>
+                    <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Feedback')}>
+                        <View style={[styles.iconBox, { backgroundColor: '#FFD700' }]}>
+                            <Ionicons name="star" size={20} color="black" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.rowText}>Rate App & Feedback</Text>
+                            <Text style={styles.subText}>Tell us what you think or report issues</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#555" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Account Actions */}
                 <Text style={styles.sectionTitle}>Account</Text>
                 <View style={styles.card}>
                     <TouchableOpacity style={styles.row} onPress={handleLogout}>

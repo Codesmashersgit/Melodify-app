@@ -22,6 +22,7 @@ import SeeAllScreen from '../screens/SeeAllScreen';
 import AboutScreen from '../screens/AboutScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import PlayerBar from '../components/PlayerBar';
 
 const Tab = createBottomTabNavigator();
@@ -124,6 +125,13 @@ export default function AppNavigator() {
             <Stack.Screen
               name="About"
               component={AboutScreen}
+              options={{
+                animationEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="Feedback"
+              component={FeedbackScreen}
               options={{
                 animationEnabled: true,
               }}

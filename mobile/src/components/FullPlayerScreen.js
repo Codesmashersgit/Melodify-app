@@ -20,7 +20,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const {
         currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
         currentTime, duration, formatTime, seekTo,
-        mode, videoId, videoLoading, videoError, videoPlaying, setVideoPlaying, switchMode,
+        mode, videoId, videoLoading, videoError, videoPlaying, videoStartTime, setVideoPlaying, switchMode,
         tracks
     } = usePlayback();
     const { user } = useAuth();
@@ -30,6 +30,13 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const [isSliding, setIsSliding] = useState(false);
     const [sliderValue, setSliderValue] = useState(0);
     const insets = useSafeAreaInsets();
+
+    const handleMinimize = () => {
+        if (mode === 'video') {
+            switchMode('audio');
+        }
+        onClose();
+    };
 
     // Animated values
     const toggleAnim = useRef(new Animated.Value(mode === 'video' ? 1 : 0)).current;
@@ -150,38 +157,40 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                     ) : videoId ? (
                         <View style={{ width: width, height: width * (9 / 16) }}>
                             <YoutubeIframe
+                                key={`${videoId}_${Math.floor(videoStartTime || 0)}`}
                                 height={width * (9 / 16)}
                                 width={width}
                                 videoId={videoId}
-                            play={videoPlaying}
-                            initialPlayerParams={{
-                                autoplay: 1,
-                                controls: 1,
-                                modestbranding: 1,
-                                playsinline: 1,
-                                rel: 0,
-                                showinfo: 0,
-                            }}
-                            webViewProps={{
-                                mediaPlaybackRequiresUserAction: false,
-                                allowsInlineMediaPlayback: true,
-                                allowsFullscreenVideo: true,
-                            }}
-                            onChangeState={(state) => {
-                                if (state === 'ended') setVideoPlaying(false);
-                                if (state === 'paused') setVideoPlaying(false);
-                            }}
-                            onReady={() => {
-                                // Guarantee autoplay when iframe is fully loaded
-                                setVideoPlaying(true);
-                            }}
-                        />
+                                play={videoPlaying}
+                                initialPlayerParams={{
+                                    autoplay: 1,
+                                    start: Math.floor(videoStartTime || 0),
+                                    controls: 1,
+                                    modestbranding: 1,
+                                    playsinline: 1,
+                                    rel: 0,
+                                    showinfo: 0,
+                                }}
+                                webViewProps={{
+                                    mediaPlaybackRequiresUserAction: false,
+                                    allowsInlineMediaPlayback: true,
+                                    allowsFullscreenVideo: true,
+                                }}
+                                onChangeState={(state) => {
+                                    if (state === 'ended') setVideoPlaying(false);
+                                    if (state === 'paused') setVideoPlaying(false);
+                                    if (state === 'playing') setVideoPlaying(true);
+                                }}
+                                onReady={() => {
+                                    setVideoPlaying(true);
+                                }}
+                            />
                         </View>
                     ) : null}
 
                     {/* Floating Top Bar */}
                     <View style={styles.floatingTopBar}>
-                        <TouchableOpacity onPress={onClose} style={styles.floatingIconBtn}>
+                        <TouchableOpacity onPress={handleMinimize} style={styles.floatingIconBtn}>
                             <Ionicons name="chevron-down" size={26} color="white" />
                         </TouchableOpacity>
                         <View style={styles.floatingTrackInfo}>
@@ -216,7 +225,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                 <View style={{ flex: 1 }}>
                     {/* ── Header ── */}
                     <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-                        <TouchableOpacity onPress={onClose} style={styles.headerIconBtn}>
+                        <TouchableOpacity onPress={handleMinimize} style={styles.headerIconBtn}>
                             <Ionicons name="chevron-down" size={28} color="white" />
                         </TouchableOpacity>
                         <View style={styles.headerCenter}>
@@ -516,28 +525,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.5,
         shadowRadius: 12,
-    },
-
-    // Volume
-    volumeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 28,
-        gap: 12,
-        marginBottom: 8,
-    },
-    volumeBar: {
-        flex: 1,
-        height: 4,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 2,
-        overflow: 'hidden',
-    },
-    volumeFill: {
-        width: '70%',
-        height: '100%',
-        backgroundColor: 'rgba(255,255,255,0.4)',
-        borderRadius: 2,
     },
 
     // ─── Full Video Screen ───

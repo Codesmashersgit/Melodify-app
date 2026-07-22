@@ -309,22 +309,48 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
     return null;
 }
 
-// =================== SONG FORMATTING ===================
+// =================== SONG FORMATTING & CLEANUP ===================
+
+const cleanText = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&#039;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/This is a sample trailer\s*-\s*testing/gi, '')
+        .replace(/sample trailer/gi, '')
+        .replace(/testing/gi, '')
+        .trim();
+};
 
 const formatSong = (song) => {
     const info = song.more_info || {};
     const songId = song.id;
 
-    // Always route through our stream proxy with the song ID
-    // The proxy will resolve the full HQ URL on-the-fly
-    // Pass name and artist for better fallback resolution
-    const name = song.song || song.title || song.name || 'Unknown Track';
-    const artist = song.primary_artists || song.singers || song.subtitle || info.artistMap?.primary_artists?.[0]?.name || 'Unknown Artist';
-    
-    // Use environment variable for the base URL, or fallback to localhost if not set
+    let name = cleanText(song.song || song.title || song.name || 'Melodify Track');
+
+    // Extract real artist properly without fallback to test strings
+    let artistCandidate = song.primary_artists || song.singers || info.singers || info.primary_artists;
+    if (!artistCandidate && info.artistMap?.primary_artists?.length) {
+        artistCandidate = info.artistMap.primary_artists.map(a => a.name).join(', ');
+    }
+
+    if (!artistCandidate && song.subtitle) {
+        const cleanedSub = cleanText(song.subtitle);
+        if (cleanedSub && !/sample|trailer|testing/i.test(cleanedSub)) {
+            artistCandidate = cleanedSub;
+        }
+    }
+
+    let artist = cleanText(artistCandidate);
+    if (!artist || artist === 'Unknown Artist' || /sample|trailer|testing/i.test(artist)) {
+        artist = cleanText(song.album || info.album) || 'Melodify Artist';
+    }
+
     const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     const preview = songId ? `${baseUrl}/api/stream?id=${songId}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}` : '';
-
 
     return {
         id: songId,
@@ -334,7 +360,7 @@ const formatSong = (song) => {
         image: hdImage(song.image || info.image),
         preview_url: preview,
         duration_ms: (parseInt(song.duration || info.duration) || 0) * 1000,
-        album: song.album || info.album || '',
+        album: cleanText(song.album || info.album || ''),
         playCount: song.play_count || info.play_count || '0',
     };
 };

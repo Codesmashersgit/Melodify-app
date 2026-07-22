@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
-import { FaPlay, FaPause } from 'react-icons/fa';
+import { FaPlay, FaPause, FaAndroid, FaGlobe, FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 import { CardSkeletonRow, AlbumSkeletonRow, SectionSkeleton, SkeletonStyles } from './Skeleton';
 import { useAuth } from '../context/AuthContext';
 import SongMenu from './SongMenu';
@@ -254,6 +254,114 @@ const Body = () => {
                         ))}
                     </div>
                 )}
+            </section>
+
+            {/* ── Melodify Platform & Developer Footer ── */}
+            <section style={{
+                marginTop: '60px',
+                marginBottom: '40px',
+                position: 'relative',
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, rgba(29, 185, 84, 0.08) 0%, rgba(20, 20, 30, 0.95) 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '24px',
+                padding: '40px 36px',
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+            }}>
+                <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', gap: '32px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {/* Left Info */}
+                    <div style={{ flex: '1 1 340px' }}>
+                        <div style={{ marginBottom: '12px' }}>
+                            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: 'white', margin: 0, letterSpacing: '-0.5px' }}>
+                                Melodify Music Platform
+                            </h2>
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 20px 0' }}>
+                            Melodify is a next-gen music streaming ecosystem built for both <strong>Web Browser</strong> and <strong>Android Mobile Application</strong>. Stream high quality music, sync videos live, search by AI mood, and save tracks for offline play!
+                        </p>
+                        
+                        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                            <a
+                                href="/Melodify.apk"
+                                download
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    background: '#1DB954',
+                                    color: 'black',
+                                    padding: '12px 22px',
+                                    borderRadius: '30px',
+                                    fontWeight: '800',
+                                    fontSize: '0.9rem',
+                                    textDecoration: 'none',
+                                    boxShadow: '0 8px 24px rgba(29, 185, 84, 0.3)',
+                                    transition: 'transform 0.2s, background 0.2s',
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
+                                <FaAndroid size={18} /> Download Android App (.apk)
+                            </a>
+
+                            <div
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    color: 'white',
+                                    padding: '12px 20px',
+                                    borderRadius: '30px',
+                                    fontWeight: '600',
+                                    fontSize: '0.9rem',
+                                }}
+                            >
+                                <FaGlobe size={16} style={{ color: '#1DB954' }} /> Web Edition Active
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Contact Info */}
+                    <div style={{
+                        flex: '0 1 320px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        borderRadius: '20px',
+                        padding: '24px 28px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        backdropFilter: 'blur(10px)'
+                    }}>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            👨‍💻 Connect with Developer
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <a
+                                href="mailto:sudhanshu.ok1802@gmail.com"
+                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
+                            >
+                                <FaEnvelope style={{ color: '#1DB954' }} /> sudhanshu.ok1802@gmail.com
+                            </a>
+                            <a
+                                href="https://www.linkedin.com/in/sudhanshu-raj-45b205250/"
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
+                            >
+                                <FaLinkedin style={{ color: '#0A66C2' }} /> LinkedIn / Sudhanshu Raj
+                            </a>
+                            <a
+                                href="https://github.com/Codesmashersgit"
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
+                            >
+                                <FaGithub style={{ color: 'white' }} /> GitHub / Codesmashersgit
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </section>
             
             {/* Modal for adding track to playlist */}

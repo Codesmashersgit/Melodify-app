@@ -168,25 +168,12 @@ const Footer = () => {
         <div className='volume-controls' onClick={(e) => e.stopPropagation()}>
           <FaListUl 
             className='control-icon queue-icon' 
-            style={{ fontSize: '14px', opacity: 0.8, cursor: 'pointer', transition: 'color 0.2s' }} 
+            style={{ fontSize: '16px', opacity: 0.8, cursor: 'pointer', transition: 'color 0.2s' }} 
             title="Queue"
             onClick={(e) => { e.stopPropagation(); navigate('/queue'); }}
             onMouseEnter={e => e.target.style.color = '#1DB954'}
             onMouseLeave={e => e.target.style.color = 'inherit'}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {volume === 0 ? <FaVolumeMute className='control-icon' style={{ fontSize: '14px' }} /> : <FaVolumeUp className='control-icon' style={{ fontSize: '14px' }} />}
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={handleVolumeChange}
-              className='volume-slider'
-              style={{ '--volume-percent': `${volume * 100}%` }}
-            />
-          </div>
         </div>
       </div>
     </>

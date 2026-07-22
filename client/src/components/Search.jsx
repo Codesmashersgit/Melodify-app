@@ -3,6 +3,8 @@ import { FaPlay, FaPause, FaSearch, FaMicrophone, FaArrowLeft, FaTimes } from 'r
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import SongMenu from './SongMenu';
+import AddToPlaylistModal from './AddToPlaylistModal';
 
 const categories = [
     { name: 'Bollywood', color: 'linear-gradient(135deg, #D84000, #FF6B35)', query: 'bollywood hits 2024', icon: '🎬' },
@@ -23,7 +25,7 @@ const categories = [
     { name: 'Sufi', color: 'linear-gradient(135deg, #6A1B9A, #38006B)', query: 'sufi qawwali hindi', icon: '🕌' },
 ];
 
-const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togglePlay }) => {
+const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togglePlay, onAddToPlaylist }) => {
     const isCurrent = currentTrack?.id === track.id;
     return (
     <div
@@ -32,7 +34,8 @@ const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togg
             display: 'flex', alignItems: 'center',
             padding: '10px 16px', borderRadius: '10px',
             cursor: 'pointer', transition: 'background 0.15s', gap: '14px',
-            background: isCurrent ? 'rgba(29,185,84,0.1)' : 'transparent'
+            background: isCurrent ? 'rgba(29,185,84,0.1)' : 'transparent',
+            position: 'relative'
         }}
         onMouseEnter={e => {
             if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
@@ -66,6 +69,7 @@ const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togg
                 <FaPlay style={{ color: 'black', fontSize: '10px', marginLeft: '2px' }} />
             )}
         </div>
+        <SongMenu track={track} onAddToPlaylist={onAddToPlaylist} />
     </div>
 )};
 
@@ -83,10 +87,18 @@ const Search = () => {
     const [activeCategory, setActiveCategory] = useState(null);
     const [categoryLoading, setCategoryLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+    const [selectedTrack, setSelectedTrack] = useState(null);
+
     const debounceRef = useRef(null);
     const aiModeRef = useRef(false);
     const recognitionRef = useRef(null);
     const inputRef = useRef(null);
+
+    const handleOpenPlaylistModal = (track) => {
+        setSelectedTrack(track);
+        setIsPlaylistModalOpen(true);
+    };
 
     // Cleanup on unmount
     useEffect(() => {
@@ -233,13 +245,18 @@ const Search = () => {
     };
 
     return (
-        <div style={{ minHeight: '100%', paddingBottom: '120px' }}>
+        <div style={{ minHeight: '100%', paddingBottom: '140px' }}>
 
-            {/* ─── STICKY SEARCH BAR ─── */}
+            {/* ─── STICKY SEARCH BAR (FIXED ON TOP) ─── */}
             <div style={{
-                position: 'sticky', top: 0, zIndex: 50,
-                padding: '20px 28px 16px',
-                background: 'linear-gradient(180deg, #121212 70%, transparent)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                padding: '16px 28px',
+                backgroundColor: 'rgba(11, 11, 18, 0.96)',
+                backdropFilter: 'blur(20px)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
             }}>
                 {categoryResults && (
                     <button
@@ -354,7 +371,7 @@ const Search = () => {
                                             Songs <span style={{ color: 'var(--melodify-dim-white)', fontWeight: 400, fontSize: '0.9rem' }}>({songResults.length})</span>
                                         </h2>
                                         {songResults.map((track, i) => (
-                                            <SongRow key={track.id} track={track} index={i} queue={songResults} playTrack={playTrack} currentTrack={currentTrack} isPlaying={isPlaying} togglePlay={togglePlay} />
+                                            <SongRow key={track.id} track={track} index={i} queue={songResults} playTrack={playTrack} currentTrack={currentTrack} isPlaying={isPlaying} togglePlay={togglePlay} onAddToPlaylist={handleOpenPlaylistModal} />
                                         ))}
                                     </section>
                                 )}
@@ -455,50 +472,139 @@ const Search = () => {
                             <div style={{ textAlign: 'center', padding: '60px 0' }}><div className="loader"></div></div>
                         ) : (
                             categoryResults.songs.map((track, i) => (
-                                <SongRow key={track.id} track={track} index={i} queue={categoryResults.songs} playTrack={playTrack} />
+                                <SongRow key={track.id} track={track} index={i} queue={categoryResults.songs} playTrack={playTrack} currentTrack={currentTrack} isPlaying={isPlaying} togglePlay={togglePlay} onAddToPlaylist={handleOpenPlaylistModal} />
                             ))
                         )}
                     </div>
 
-                /* Default: Browse Categories */
+                /* Default: Epic Concert Hero Section */
                 ) : (
                     <div>
-                        <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '18px' }}>Browse categories</h2>
+                        {/* Concert Hero Banner */}
                         <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-                            gap: '14px',
+                            position: 'relative',
+                            borderRadius: '24px',
+                            overflow: 'hidden',
+                            minHeight: '280px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'flex-end',
+                            padding: '36px 32px',
+                            backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(11,11,18,0.95) 100%), url(https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1400&q=80)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(29,185,84,0.15)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            marginBottom: '32px'
                         }}>
-                            {categories.map((cat, i) => (
-                                <div
-                                    key={i}
-                                    onClick={() => handleCategoryClick(cat)}
-                                    style={{
-                                        background: cat.color,
-                                        borderRadius: '14px', height: '125px',
-                                        display: 'flex', flexDirection: 'column',
-                                        justifyContent: 'space-between',
-                                        padding: '16px 16px 12px', cursor: 'pointer',
-                                        position: 'relative', overflow: 'hidden',
-                                        transition: 'transform 0.2s, box-shadow 0.2s',
-                                        boxShadow: activeCategory === cat.name ? '0 0 0 3px #1DB954, 0 8px 20px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.3)',
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-                                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                >
-                                    <h3 style={{ fontSize: '1rem', fontWeight: '800', zIndex: 1, letterSpacing: '-0.3px' }}>{cat.name}</h3>
-                                    <div style={{ fontSize: '3rem', alignSelf: 'flex-end', zIndex: 1, lineHeight: 1 }}>{cat.icon}</div>
-                                    <div style={{
-                                        position: 'absolute', bottom: '-12px', right: '-12px',
-                                        width: '70px', height: '70px',
-                                        background: 'rgba(0,0,0,0.15)', borderRadius: '50%'
-                                    }} />
-                                </div>
-                            ))}
+                            {/* Neon Badge */}
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: 'rgba(29, 185, 84, 0.2)',
+                                border: '1px solid rgba(29, 185, 84, 0.5)',
+                                color: '#1DB954',
+                                padding: '6px 14px',
+                                borderRadius: '30px',
+                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                letterSpacing: '1.5px',
+                                textTransform: 'uppercase',
+                                marginBottom: '12px',
+                                backdropFilter: 'blur(10px)',
+                                width: 'fit-content'
+                            }}>
+                                <span>🔥 LIVE CONCERT VIBE</span>
+                            </div>
+
+                            <h1 style={{
+                                fontSize: '2.4rem',
+                                fontWeight: '900',
+                                color: 'white',
+                                margin: '0 0 10px 0',
+                                letterSpacing: '-0.8px',
+                                textShadow: '0 4px 20px rgba(0,0,0,0.8)'
+                            }}>
+                                Feel The Energy of Live Music 🎸
+                            </h1>
+                            <p style={{
+                                fontSize: '1rem',
+                                color: 'rgba(255,255,255,0.8)',
+                                margin: '0 0 20px 0',
+                                maxWidth: '600px',
+                                lineHeight: '1.5'
+                            }}>
+                                Search your favorite artists, albums, or type how you feel to discover AI-curated playlists.
+                            </p>
+
+                            {/* Quick Tags */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {['🔥 Bollywood Hits', '🎺 Punjabi Beats', '🎧 Lo-Fi Chill', '💪 Workout Energy', '❤️ Romantic Melodies'].map((tag, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => {
+                                            const q = tag.replace(/^[^\s]+\s/, '');
+                                            setSearchQuery(q);
+                                            doSearch(q);
+                                        }}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.1)',
+                                            border: '1px solid rgba(255,255,255,0.15)',
+                                            color: 'white',
+                                            padding: '8px 16px',
+                                            borderRadius: '20px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.2s ease',
+                                        }}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.background = '#1DB954';
+                                            e.currentTarget.style.color = 'black';
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                                            e.currentTarget.style.color = 'white';
+                                        }}
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Trending Songs Section */}
+                        <div>
+                            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                ⚡ Popular & Trending Right Now
+                            </h2>
+                            {albums && albums.length > 0 && albums[0]?.tracks ? (
+                                albums[0].tracks.slice(0, 6).map((track, i) => (
+                                    <SongRow
+                                        key={track.id || i}
+                                        track={track}
+                                        index={i}
+                                        queue={albums[0].tracks}
+                                        playTrack={playTrack}
+                                        currentTrack={currentTrack}
+                                        isPlaying={isPlaying}
+                                        togglePlay={togglePlay}
+                                        onAddToPlaylist={handleOpenPlaylistModal}
+                                    />
+                                ))
+                            ) : null}
                         </div>
                     </div>
                 )}
             </div>
+
+            <AddToPlaylistModal
+                isOpen={isPlaylistModalOpen}
+                onClose={() => setIsPlaylistModalOpen(false)}
+                track={selectedTrack}
+            />
 
             <style>{`
                 @keyframes pulse {

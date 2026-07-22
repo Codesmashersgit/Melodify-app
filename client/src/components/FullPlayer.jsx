@@ -16,6 +16,8 @@ const FullPlayer = () => {
     const [videoId, setVideoId] = useState(null);
     const [videoLoading, setVideoLoading] = useState(false);
     const [videoError, setVideoError] = useState(null);
+    const [videoStartTime, setVideoStartTime] = useState(0);
+    const [videoSwitchTimestamp, setVideoSwitchTimestamp] = useState(0);
     const iframeRef = useRef(null);
     const videoContainerRef = useRef(null);
 
@@ -58,6 +60,10 @@ const FullPlayer = () => {
         if (newMode === mode) return;
 
         if (newMode === 'video') {
+            const startPos = currentTime || 0;
+            setVideoStartTime(startPos);
+            setVideoSwitchTimestamp(Date.now());
+
             // Pause audio first
             if (isPlaying) togglePlay();
 
@@ -86,12 +92,28 @@ const FullPlayer = () => {
             }, 300);
             
         } else {
+            // Video -> Audio switch
+            const elapsed = (Date.now() - (videoSwitchTimestamp || Date.now())) / 1000;
+            const targetPos = Math.min((videoStartTime || 0) + elapsed, duration || 999999);
+
             // Exit fullscreen if active
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => {});
             }
+
+            // Seek audio to exact timestamp where video was and start playing automatically
+            seekTo(targetPos);
+            if (!isPlaying) togglePlay();
+
             setMode('audio');
         }
+    };
+
+    const handleMinimize = () => {
+        if (mode === 'video') {
+            switchMode('audio');
+        }
+        toggleExpand();
     };
 
     if (!isExpanded || !currentTrack) return null;
@@ -132,10 +154,11 @@ const FullPlayer = () => {
                     {videoId && !videoLoading && (
                         <>
                             <iframe
+                                key={`${videoId}_${Math.floor(videoStartTime)}`}
                                 ref={iframeRef}
                                 width="100%"
                                 height="100%"
-                                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&controls=1&iv_load_policy=3&cc_load_policy=0&showinfo=0&color=white`}
+                                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=${Math.floor(videoStartTime)}&enablejsapi=1&rel=0&modestbranding=1&playsinline=1&controls=1&iv_load_policy=3&cc_load_policy=0&showinfo=0&color=white`}
                                 title="Music Video"
                                 frameBorder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -211,7 +234,7 @@ const FullPlayer = () => {
 
                         {/* Close full player */}
                         <button
-                            onClick={toggleExpand}
+                            onClick={handleMinimize}
                             style={{
                                 width: '42px', height: '42px', borderRadius: '50%', border: 'none',
                                 background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
@@ -263,7 +286,7 @@ const FullPlayer = () => {
             {/* 2. Top Navigation */}
             <div style={{ position: 'relative', zIndex: 10, padding: '30px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
-                    onClick={toggleExpand}
+                    onClick={handleMinimize}
                     style={{
                         background: 'rgba(255,255,255,0.08)', border: 'none', color: 'white',
                         width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer',
@@ -417,24 +440,6 @@ const FullPlayer = () => {
                                 <div style={{ position: 'absolute', left: `${progressPercentage}%`, top: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', background: 'white', borderRadius: '50%', boxShadow: '0 0 6px rgba(255,255,255,0.4)' }}></div>
                             </div>
                             <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', minWidth: '40px' }}>{formatTime(duration)}</span>
-                        </div>
-
-                        {/* Volume Slider */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-                            {volume === 0 ? <FaVolumeMute style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }} /> : <FaVolumeUp style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }} />}
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value={volume}
-                                onChange={handleVolumeChange}
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                    width: '110px', height: '3px', cursor: 'pointer', accentColor: '#1DB954',
-                                    opacity: 0.7
-                                }}
-                            />
                         </div>
                     </div>
                 )}

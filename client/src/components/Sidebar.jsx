@@ -53,7 +53,7 @@ const Sidebar = () => {
     <div className='sidebar-container'>
       <div className='sidebar-box'>
         <div className='logo-item' style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 16px', marginBottom: '8px' }}>
-          <img src={logo} alt='Melodify' style={{ filter: 'none', width: '32px' }} />
+          <img src={logo} alt='Melodify' style={{ filter: 'none', width: '32px', borderRadius: '50%' }} />
           <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Melodify</span>
         </div>
 

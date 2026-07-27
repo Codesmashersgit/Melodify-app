@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 import { usePlayback } from '../context/PlaybackContext';
 import SongMenu from './SongMenu';
 import AddToPlaylistModal from './AddToPlaylistModal';
+import { FaTrash } from 'react-icons/fa';
 
 const PlaylistDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [playlist, setPlaylist] = useState(null);
   const { playTrack } = usePlayback();
   const [showModal, setShowModal] = useState(false);
@@ -30,16 +32,48 @@ const PlaylistDetail = () => {
     setShowModal(true);
   };
 
+  const handleDeletePlaylist = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${playlist.name}"?`)) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/api/user/playlists/${id}`);
+      navigate(-1);
+    } catch (err) {
+      console.error('Failed to delete playlist', err);
+      alert('Failed to delete playlist');
+    }
+  };
+
   if (!playlist) return <div style={{ color: 'white', padding: '24px' }}>Loading...</div>;
 
   return (
     <div style={{ padding: '24px', minHeight: '100vh', color: 'white' }}>
-      <div style={{ display: 'flex', alignItems: 'end', gap: '24px', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', alignItems: 'end', gap: '24px', marginBottom: '32px', flexWrap: 'wrap' }}>
         <div style={{ width: '200px', height: '200px', background: 'linear-gradient(135deg, #ff6b35, #1DB954)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>♪</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Playlist</span>
-          <h1 style={{ fontSize: '4rem', fontWeight: 'bold', margin: '8px 0' }}>{playlist.name}</h1>
-          <span style={{ color: 'rgba(255,255,255,0.7)' }}>{playlist.songs?.length || 0} songs</span>
+          <h1 style={{ fontSize: '3.5rem', fontWeight: 'bold', margin: '8px 0' }}>{playlist.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px' }}>
+            <span style={{ color: 'rgba(255,255,255,0.7)' }}>{playlist.songs?.length || 0} songs</span>
+            <button
+              onClick={handleDeletePlaylist}
+              title="Delete Playlist"
+              style={{
+                background: 'rgba(255, 68, 68, 0.15)',
+                border: '1px solid rgba(255, 68, 68, 0.3)',
+                color: '#ff4444',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: '600',
+                fontSize: '0.85rem'
+              }}
+            >
+              <FaTrash size={12} /> Delete Playlist
+            </button>
+          </div>
         </div>
       </div>
 

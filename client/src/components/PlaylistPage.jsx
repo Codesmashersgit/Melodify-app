@@ -46,6 +46,17 @@ const PlaylistPage = () => {
         playTrack(formattedSong, allSongs);
     };
 
+    const handleDeletePlaylist = async () => {
+        if (!window.confirm(`Are you sure you want to delete "${playlist.name}"?`)) return;
+        try {
+            await axios.delete(`${API_BASE_URL}/api/user/playlists/${id}`);
+            navigate(-1);
+        } catch (err) {
+            console.error('Failed to delete playlist', err);
+            alert('Failed to delete playlist');
+        }
+    };
+
     if (loading) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
             <div style={{ color: 'var(--melodify-dim-white)' }}>Loading playlist...</div>
@@ -102,15 +113,39 @@ const PlaylistPage = () => {
                     <p style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem' }}>
                         {playlist.songs?.length || 0} song{playlist.songs?.length !== 1 ? 's' : ''}
                     </p>
-                    {playlist.songs?.length > 0 && (
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '20px', alignItems: 'center' }}>
+                        {playlist.songs?.length > 0 && (
+                            <button
+                                className='btn-premium'
+                                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 30px', fontSize: '1rem' }}
+                                onClick={() => handlePlay(playlist.songs[0])}
+                            >
+                                <FaPlay /> Play All
+                            </button>
+                        )}
                         <button
-                            className='btn-premium'
-                            style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 30px', fontSize: '1rem' }}
-                            onClick={() => handlePlay(playlist.songs[0])}
+                            onClick={handleDeletePlaylist}
+                            title="Delete Playlist"
+                            style={{
+                                background: 'rgba(255, 68, 68, 0.15)',
+                                border: '1px solid rgba(255, 68, 68, 0.3)',
+                                color: '#ff4444',
+                                padding: '14px 20px',
+                                borderRadius: '500px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontWeight: '600',
+                                fontSize: '0.95rem',
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 68, 68, 0.3)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 68, 68, 0.15)'}
                         >
-                            <FaPlay /> Play All
+                            <FaTrash /> Delete Playlist
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
 

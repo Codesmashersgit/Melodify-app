@@ -190,25 +190,64 @@ const Search = () => {
     };
 
     const startVoiceSearch = () => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Voice search is not supported in this browser. Try Chrome!');
+        // If already listening, stop it
+        if (isListening && recognitionRef.current) {
+            recognitionRef.current.stop();
             return;
         }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Voice search is not supported in this browser. Please use Chrome!');
+            return;
+        }
+
         const recognition = new SpeechRecognition();
+
+        // en-IN → Chrome transcribes Hindi speech as English/Hinglish letters
+        // e.g. user speaks "Kesariya" or "Tum Hi Ho" → appears in English in search box
         recognition.lang = 'en-IN';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        recognition.continuous = false;
+        recognition.interimResults = true; // show live partial results while speaking
+        recognition.maxAlternatives = 3;
+
         recognitionRef.current = recognition;
 
         recognition.onstart = () => setIsListening(true);
         recognition.onend = () => setIsListening(false);
-        recognition.onerror = () => setIsListening(false);
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            setSearchQuery(text);
-            handleAiSearch(text);
+        recognition.onerror = (e) => {
+            setIsListening(false);
+            if (e.error !== 'aborted') {
+                console.warn('Voice search error:', e.error);
+            }
         };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            // Show live interim text in box while user is still speaking
+            if (interimTranscript) {
+                setSearchQuery(interimTranscript);
+            }
+
+            // When speech is finalized → set query and trigger search
+            if (finalTranscript) {
+                const cleaned = finalTranscript.trim();
+                setSearchQuery(cleaned);
+                doSearch(cleaned);
+            }
+        };
+
         recognition.start();
     };
 

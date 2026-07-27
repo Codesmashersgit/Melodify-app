@@ -66,6 +66,7 @@ const Sidebar = () => {
           <img src='https://cdn-icons-png.flaticon.com/512/122/122932.png' alt='Search' />
           <span>Search</span>
         </NavLink>
+
       </div>
 
       <div className='sidebar-box flex-grow'>

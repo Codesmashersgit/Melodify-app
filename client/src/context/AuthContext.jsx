@@ -79,8 +79,14 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/user/me`);
-                setUser(res.data.user);
+                const res = await axios.get(`${API_BASE_URL}/api/user/me`, {
+                    validateStatus: (status) => status === 200 || status === 401
+                });
+                if (res.status === 200 && res.data?.user) {
+                    setUser(res.data.user);
+                } else {
+                    setUser(null);
+                }
             } catch (error) {
                 setUser(null);
             } finally {

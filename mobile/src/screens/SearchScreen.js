@@ -49,7 +49,7 @@ const SearchScreen = ({ navigation }) => {
             const text = event.results[0]?.transcript;
             if (text) {
                 setSearchQuery(text);
-                handleAiSearch(text);
+                doSearch(text.trim());
             }
         }
     });

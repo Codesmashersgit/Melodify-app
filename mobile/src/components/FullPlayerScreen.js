@@ -51,6 +51,10 @@ const FullPlayerScreen = ({ visible, onClose }) => {
             tension: 60,
             friction: 8,
         }).start();
+        // Auto-play when switching to video
+        if (mode === 'video') {
+            setVideoPlaying(true);
+        }
     }, [mode]);
 
     // Album art pulse animation when playing
@@ -119,7 +123,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
         if (!isSliding) {
             setSliderValue(currentTime);
         }
-    }, [currentTime, isSliding]);
+    }, [currentTime]);
 
     const handleSeek = async (event) => {
         if (!duration || progressBarWidth <= 0) return;
@@ -292,18 +296,20 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             minimumValue={0}
                             maximumValue={duration > 0 ? duration : 1}
                             value={sliderValue}
-                            onSlidingStart={() => setIsSliding(true)}
-                            onValueChange={(val) => setSliderValue(val)}
+                            step={0}
+                            onSlidingStart={() => {
+                                setIsSliding(true);
+                            }}
+                            onValueChange={(val) => {
+                                setSliderValue(val);
+                            }}
                             onSlidingComplete={async (value) => {
+                                setIsSliding(false);
                                 await seekTo(value);
-                                // Delay turning off sliding state so native player can catch up
-                                setTimeout(() => {
-                                    setIsSliding(false);
-                                }, 400);
                             }}
                             minimumTrackTintColor="#1DB954"
-                            maximumTrackTintColor="rgba(255,255,255,0.12)"
-                            thumbTintColor="white"
+                            maximumTrackTintColor="rgba(255,255,255,0.15)"
+                            thumbTintColor="#ffffff"
                             tapToSeek={true}
                         />
                         <View style={styles.timeContainer}>

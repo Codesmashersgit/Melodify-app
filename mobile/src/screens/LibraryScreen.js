@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +56,30 @@ const LibraryScreen = ({ navigation }) => {
         }
     };
 
+    const handleDeletePlaylist = (playlistId, playlistName) => {
+        Alert.alert(
+            "Delete Playlist",
+            `Are you sure you want to delete "${playlistName}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const config = await getAuthHeaders();
+                            await axios.delete(`${API_BASE_URL}/api/user/playlists/${playlistId}`, config);
+                            fetchPlaylists();
+                        } catch (error) {
+                            console.error('Error deleting playlist:', error);
+                            Alert.alert('Error', 'Failed to delete playlist');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const renderSongItem = ({ item }) => (
         <TouchableOpacity style={styles.trackCard} activeOpacity={0.7} onPress={() => playTrack(item)}>
             <Image source={{ uri: item.image }} style={styles.trackImage} />
@@ -78,7 +102,13 @@ const LibraryScreen = ({ navigation }) => {
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>Playlist • {user?.name}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#b3b3b3" style={{ marginRight: 8 }} />
+            <TouchableOpacity 
+                style={{ padding: 8 }} 
+                onPress={() => handleDeletePlaylist(item.id, item.name)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <Ionicons name="trash-outline" size={20} color="#ff4444" />
+            </TouchableOpacity>
         </TouchableOpacity>
     );
 

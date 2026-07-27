@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import API_BASE_URL from '../config';
 
 const LoginScreen = ({ navigation }) => {
     const { login } = useAuth();
@@ -11,6 +14,13 @@ const LoginScreen = ({ navigation }) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Phone Auth State
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [phone, setPhone] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+    const [phoneLoading, setPhoneLoading] = useState(false);
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -24,6 +34,68 @@ const LoginScreen = ({ navigation }) => {
             navigation.navigate('Main');
         } else {
             Alert.alert('Login Failed', result.error);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/user/google-auth`, { name: 'Google User', email: 'user.google@melodify.com', platform: 'apk' });
+            if (res.data.token) {
+                await AsyncStorage.setItem('melodify_token', res.data.token);
+                navigation.replace('Main');
+            }
+        } catch (err) {
+            Alert.alert("Google Login Error", err.response?.data?.error || "Google login failed");
+        }
+    };
+
+    const handleAppleLogin = async () => {
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/user/apple-auth`, { name: 'Apple User', email: 'user.apple@melodify.com', platform: 'apk' });
+            if (res.data.token) {
+                await AsyncStorage.setItem('melodify_token', res.data.token);
+                navigation.replace('Main');
+            }
+        } catch (err) {
+            Alert.alert("Apple Login Error", err.response?.data?.error || "Apple login failed");
+        }
+    };
+
+    const handleSendOtp = async () => {
+        if (!phone || phone.length < 10) {
+            Alert.alert("Invalid Phone Number", "Please enter a 10-digit mobile number.");
+            return;
+        }
+        setPhoneLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/user/phone/send-otp`, { phone: `+91${phone}` });
+            if (res.data.success) {
+                setOtpSent(true);
+            }
+        } catch (err) {
+            Alert.alert("Error", err.response?.data?.error || "Failed to send OTP");
+        } finally {
+            setPhoneLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!otp || otp.length < 4) {
+            Alert.alert("Invalid OTP", "Please enter a valid 4-digit code.");
+            return;
+        }
+        setPhoneLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/user/phone/verify-otp`, { phone: `+91${phone}`, otp, platform: 'apk' });
+            if (res.data.token) {
+                await AsyncStorage.setItem('melodify_token', res.data.token);
+                setShowPhoneModal(false);
+                navigation.replace('Main');
+            }
+        } catch (err) {
+            Alert.alert("Verification Failed", err.response?.data?.error || "Invalid OTP code");
+        } finally {
+            setPhoneLoading(false);
         }
     };
 
@@ -102,9 +174,19 @@ const LoginScreen = ({ navigation }) => {
                                 <View style={styles.dividerLine} />
                             </View>
 
-                            <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
-                                <Ionicons name="logo-google" size={20} color="black" />
+                            <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={handleGoogleLogin} activeOpacity={0.8}>
+                                <Ionicons name="logo-google" size={20} color="#ea4335" />
                                 <Text style={styles.socialButtonText}>Continue with Google</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleLogin} activeOpacity={0.8}>
+                                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                                <Text style={styles.socialButtonText}>Continue with Apple</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={[styles.socialButton, styles.phoneButton]} onPress={() => setShowPhoneModal(true)} activeOpacity={0.8}>
+                                <Ionicons name="call" size={18} color="#1DB954" />
+                                <Text style={[styles.socialButtonText, { color: '#1DB954' }]}>Continue with Mobile No.</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -117,6 +199,85 @@ const LoginScreen = ({ navigation }) => {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Phone Login Modal */}
+            <Modal visible={showPhoneModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <TouchableOpacity 
+                            style={styles.closeModalBtn} 
+                            onPress={() => { setShowPhoneModal(false); setOtpSent(false); }}
+                        >
+                            <Ionicons name="close" size={22} color="white" />
+                        </TouchableOpacity>
+
+                        <View style={styles.modalHeaderIcon}>
+                            <Ionicons name="phone-portrait" size={32} color="#1DB954" />
+                        </View>
+
+                        <Text style={styles.modalTitle}>{otpSent ? 'Enter OTP' : 'Mobile Number Login'}</Text>
+                        <Text style={styles.modalSubtitle}>
+                            {otpSent ? `We sent a 4-digit code to +91 ${phone}` : 'Enter your mobile number to get a verification code'}
+                        </Text>
+
+                        {!otpSent ? (
+                            <View style={{ width: '100%', marginTop: 20 }}>
+                                <View style={styles.phoneInputRow}>
+                                    <View style={styles.countryCodeBox}>
+                                        <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
+                                    </View>
+                                    <TextInput
+                                        style={styles.phoneInput}
+                                        placeholder="Mobile Number"
+                                        placeholderTextColor="#666"
+                                        keyboardType="number-pad"
+                                        maxLength={10}
+                                        value={phone}
+                                        onChangeText={setPhone}
+                                    />
+                                </View>
+                                <TouchableOpacity 
+                                    style={styles.modalActionBtn} 
+                                    onPress={handleSendOtp}
+                                    disabled={phoneLoading}
+                                >
+                                    {phoneLoading ? (
+                                        <ActivityIndicator color="black" />
+                                    ) : (
+                                        <Text style={styles.modalActionBtnText}>Send Verification Code</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={{ width: '100%', marginTop: 20 }}>
+                                <TextInput
+                                    style={styles.otpInput}
+                                    placeholder="• • • •"
+                                    placeholderTextColor="#666"
+                                    keyboardType="number-pad"
+                                    maxLength={4}
+                                    value={otp}
+                                    onChangeText={setOtp}
+                                />
+                                <TouchableOpacity 
+                                    style={styles.modalActionBtn} 
+                                    onPress={handleVerifyOtp}
+                                    disabled={phoneLoading}
+                                >
+                                    {phoneLoading ? (
+                                        <ActivityIndicator color="black" />
+                                    ) : (
+                                        <Text style={styles.modalActionBtnText}>Verify & Log In</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setOtpSent(false)} style={{ marginTop: 16 }}>
+                                    <Text style={{ color: '#1DB954', textAlign: 'center', fontWeight: '600' }}>Change Mobile Number</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -269,6 +430,117 @@ const styles = StyleSheet.create({
     },
     googleButtonText: {
         color: '#FFFFFF',
+    },
+    appleButton: {
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderColor: 'rgba(255,255,255,0.15)',
+    },
+    phoneButton: {
+        backgroundColor: 'rgba(29, 185, 84, 0.1)',
+        borderColor: 'rgba(29, 185, 84, 0.3)',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalCard: {
+        width: '100%',
+        backgroundColor: '#161622',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    closeModalBtn: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalHeaderIcon: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: 'rgba(29,185,84,0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        color: 'white',
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 6,
+    },
+    modalSubtitle: {
+        color: '#888',
+        fontSize: 14,
+        textAlign: 'center',
+        paddingHorizontal: 12,
+    },
+    phoneInputRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 20,
+    },
+    countryCodeBox: {
+        height: 52,
+        paddingHorizontal: 14,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    countryCodeText: {
+        color: 'white',
+        fontWeight: '600',
+    },
+    phoneInput: {
+        flex: 1,
+        height: 52,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        color: 'white',
+        fontSize: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    otpInput: {
+        height: 60,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 12,
+        color: 'white',
+        fontSize: 26,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        letterSpacing: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        marginBottom: 20,
+    },
+    modalActionBtn: {
+        backgroundColor: '#1DB954',
+        height: 52,
+        borderRadius: 26,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalActionBtnText: {
+        color: 'black',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     footer: {
         flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Image, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -40,6 +40,32 @@ const PlaylistScreen = ({ route, navigation }) => {
         }
     };
 
+    const handleDeletePlaylist = () => {
+        Alert.alert(
+            "Delete Playlist",
+            `Are you sure you want to delete "${playlistName}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const token = await AsyncStorage.getItem('melodify_token');
+                            await axios.delete(`${API_BASE_URL}/api/user/playlists/${playlistId}`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            navigation.goBack();
+                        } catch (error) {
+                            console.error('Error deleting playlist:', error);
+                            Alert.alert('Error', 'Failed to delete playlist');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const renderSongItem = ({ item, index }) => (
         <TouchableOpacity style={styles.trackItem} onPress={() => playTrack(item)}>
             <Text style={styles.trackIndex}>{index + 1}</Text>
@@ -68,6 +94,9 @@ const PlaylistScreen = ({ route, navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="white" />
                 </TouchableOpacity>
+                <TouchableOpacity onPress={handleDeletePlaylist} style={styles.deleteButton}>
+                    <Ionicons name="trash-outline" size={22} color="#ff4444" />
+                </TouchableOpacity>
             </View>
 
             <FlatList
@@ -81,6 +110,10 @@ const PlaylistScreen = ({ route, navigation }) => {
                         <View style={styles.actionRow}>
                             <TouchableOpacity style={styles.playButton} onPress={() => songs.length > 0 && playTrack(songs[0])}>
                                 <Ionicons name="play" size={28} color="black" />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.deletePlaylistBtn} onPress={handleDeletePlaylist}>
+                                <Ionicons name="trash-outline" size={20} color="#ff4444" style={{ marginRight: 6 }} />
+                                <Text style={styles.deleteBtnText}>Delete</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -102,13 +135,16 @@ const PlaylistScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212' },
     loadingContainer: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' },
-    headerBar: { position: 'absolute', left: 15, zIndex: 10 },
+    headerBar: { position: 'absolute', left: 15, right: 15, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+    deleteButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,68,68,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,68,68,0.3)' },
     header: { alignItems: 'center', padding: 20, paddingTop: 60, paddingBottom: 10 },
     playlistIconContainer: { width: 220, height: 220, marginBottom: 20, backgroundColor: '#282828', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
     playlistName: { color: 'white', fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-    actionRow: { flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-    playButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1DB954', justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end', marginRight: 20 },
+    actionRow: { flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 10 },
+    playButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1DB954', justifyContent: 'center', alignItems: 'center' },
+    deletePlaylistBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 68, 68, 0.15)', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255, 68, 68, 0.3)' },
+    deleteBtnText: { color: '#ff4444', fontWeight: 'bold', fontSize: 14 },
     listContainer: { paddingBottom: 100 },
     trackItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20 },
     trackIndex: { color: '#b3b3b3', fontSize: 16, width: 30 },

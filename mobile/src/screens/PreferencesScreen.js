@@ -18,31 +18,15 @@ import { useAuth } from "../context/AuthContext";
 
 const { width } = Dimensions.get("window");
 
-const CARD_GAP = 10;
-const CARD_WIDTH = (width - 42) / 3;
+const CARD_GAP = 8;
+const NUM_COLS = 3;
+const CARD_WIDTH = (width - 32 - CARD_GAP * (NUM_COLS - 1)) / NUM_COLS;
 
 
 
 const PREFERENCES = [
 
   // LANGUAGES
-
-  {
-    id:"hindi",
-    label:"Hindi",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=800"
-  },
-
-  {
-    id:"english",
-    label:"English",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800"
-  },
-
   {
     id:"punjabi",
     label:"Punjabi",
@@ -50,7 +34,6 @@ const PREFERENCES = [
     icon:"music-note",
     image:"https://images.unsplash.com/photo-1501386761578-eac5c94b800f?w=800"
   },
-
   {
     id:"bhojpuri",
     label:"Bhojpuri",
@@ -58,7 +41,6 @@ const PREFERENCES = [
     icon:"music-note",
     image:"https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800"
   },
-
   {
     id:"marathi",
     label:"Marathi",
@@ -66,7 +48,6 @@ const PREFERENCES = [
     icon:"translate",
     image:"https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=800"
   },
-
   {
     id:"gujarati",
     label:"Gujarati",
@@ -74,7 +55,6 @@ const PREFERENCES = [
     icon:"translate",
     image:"https://images.unsplash.com/photo-1599661046827-dacde6976549?w=800"
   },
-
   {
     id:"bengali",
     label:"Bengali",
@@ -82,7 +62,6 @@ const PREFERENCES = [
     icon:"translate",
     image:"https://images.unsplash.com/photo-1558431382-27e303142255?w=800"
   },
-
   {
     id:"tamil",
     label:"Tamil",
@@ -90,7 +69,6 @@ const PREFERENCES = [
     icon:"translate",
     image:"https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800"
   },
-
   {
     id:"telugu",
     label:"Telugu",
@@ -98,7 +76,6 @@ const PREFERENCES = [
     icon:"translate",
     image:"https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800"
   },
-
   {
     id:"rajasthani",
     label:"Rajasthani",
@@ -107,9 +84,7 @@ const PREFERENCES = [
     image:"https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800"
   },
 
-
   // GENRES
-
   {
     id:"bollywood",
     label:"Bollywood",
@@ -117,7 +92,13 @@ const PREFERENCES = [
     icon:"movie-open",
     image:"https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800"
   },
-
+  {
+    id:"hollywood",
+    label:"Hollywood",
+    type:"Genre",
+    icon:"movie",
+    image:"https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800"
+  },
   {
     id:"lofi",
     label:"Lo-Fi",
@@ -125,7 +106,6 @@ const PREFERENCES = [
     icon:"coffee",
     image:"https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=800"
   },
-
   {
     id:"hiphop",
     label:"Hip-Hop",
@@ -133,7 +113,6 @@ const PREFERENCES = [
     icon:"microphone",
     image:"https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800"
   },
-
   {
     id:"romantic",
     label:"Romantic",
@@ -141,7 +120,6 @@ const PREFERENCES = [
     icon:"heart",
     image:"https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800"
   },
-
   {
     id:"party",
     label:"Party",
@@ -149,7 +127,6 @@ const PREFERENCES = [
     icon:"party-popper",
     image:"https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800"
   },
-
   {
     id:"devotional",
     label:"Devotional",
@@ -157,14 +134,27 @@ const PREFERENCES = [
     icon:"hands-pray",
     image:"https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=800"
   },
-
+  {
+    id:"indie",
+    label:"Indie",
+    type:"Genre",
+    icon:"guitar-acoustic",
+    image:"https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800"
+  },
+  {
+    id:"sufi",
+    label:"Sufi",
+    type:"Genre",
+    icon:"star-crescent",
+    image:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800"
+  },
   {
     id:"workout",
     label:"Workout",
     type:"Mood",
     icon:"dumbbell",
     image:"https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800"
-  }
+  },
 
 ];
 const PreferencesScreen = ({ navigation }) => {
@@ -713,19 +703,18 @@ const styles = StyleSheet.create({
     marginTop:25,
     flexDirection:"row",
     flexWrap:"wrap",
+    gap: CARD_GAP,
   },
 
 
   card:{
     width:CARD_WIDTH,
-    height:125,
-    marginRight:CARD_GAP,
-    marginBottom:CARD_GAP,
-    borderRadius:16,
+    height:120,
+    borderRadius:14,
     overflow:"hidden",
     backgroundColor:"#111",
     borderWidth:1,
-    borderColor:"rgba(255,255,255,0.12)",
+    borderColor:"rgba(255,255,255,0.10)",
   },
 
 

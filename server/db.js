@@ -115,6 +115,9 @@ db.serialize(() => {
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences TEXT DEFAULT '[]'`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp TEXT`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_expiry TIMESTAMP`, () => {});
 
     // Liked Songs table
     db.run(`CREATE TABLE IF NOT EXISTS liked_songs (
@@ -135,7 +138,12 @@ db.serialize(() => {
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`);
+    )`, () => {
+        // Automatically cleanup any existing duplicate playlists keeping only the most recent one
+        db.run(`DELETE FROM playlists WHERE id NOT IN (
+            SELECT MAX(id) FROM playlists GROUP BY user_id, LOWER(name)
+        )`, () => {});
+    });
 
     // Playlist Songs table
     db.run(`CREATE TABLE IF NOT EXISTS playlist_songs (

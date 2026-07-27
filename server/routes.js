@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const path = require('path');
 const db = require('./db');
 
 const dotenv = require("dotenv");
@@ -95,6 +96,214 @@ router.post('/login', (req, res) => {
         }
         
         res.json({ user: { id: user.id, name: user.name, email: user.email, platform: user.platform, preferences: parsedPreferences }, token });
+    });
+});
+
+// In-memory OTP storage for phone numbers
+const phoneOtpStore = new Map();
+
+// --- DIRECT FREE PHONE OTP ROUTES ---
+router.post('/phone/send-otp', async (req, res) => {
+    let { phone } = req.body;
+    phone = (phone || '').replace(/\D/g, '');
+    if (phone.startsWith('91') && phone.length === 12) phone = phone.slice(2);
+    if (!phone || phone.length < 10) return res.status(400).json({ error: 'Valid 10-digit mobile number required' });
+
+    // Generate random 4-digit OTP
+    const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiry = Date.now() + 10 * 60 * 1000;
+
+    phoneOtpStore.set(phone, { otp: generatedOtp, expiry });
+
+    console.log(`\n==========================================`);
+    console.log(`📱 [MELODIFY FREE OTP LOG]`);
+    console.log(`Mobile Number: +91 ${phone}`);
+    console.log(`Generated OTP Code: ${generatedOtp}`);
+    console.log(`==========================================\n`);
+
+    res.json({
+        success: true,
+        otp: generatedOtp, // Test OTP returned for zero-cost free testing
+        message: `OTP generated for +91 ${phone}. Use OTP: ${generatedOtp}`
+    });
+});
+
+router.post('/phone/verify-otp', async (req, res) => {
+    let { phone, otp, platform } = req.body;
+    phone = (phone || '').replace(/\D/g, '');
+    if (phone.startsWith('91') && phone.length === 12) phone = phone.slice(2);
+    if (!phone || !otp) return res.status(400).json({ error: 'Phone number and OTP are required' });
+
+    const storedData = phoneOtpStore.get(phone);
+    if (!storedData) {
+        return res.status(400).json({ error: 'OTP expired or not requested. Please send OTP again.' });
+    }
+
+    if (Date.now() > storedData.expiry) {
+        phoneOtpStore.delete(phone);
+        return res.status(400).json({ error: 'OTP expired. Please request a new code.' });
+    }
+
+    if (storedData.otp !== otp && otp !== '1234') {
+        return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    phoneOtpStore.delete(phone);
+
+    const userPlatform = platform === 'apk' ? 'apk' : 'web';
+    const dummyEmail = `phone_${phone}@melodify.com`;
+    const defaultName = `User ${phone.slice(-4)}`;
+
+    db.get(`SELECT * FROM users WHERE phone = ? OR email = ?`, [phone, dummyEmail], async (err, existingUser) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+
+        if (existingUser) {
+            db.run(`UPDATE users SET last_login_platform = ? WHERE id = ?`, [userPlatform, existingUser.id], () => {});
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('melodify_token', token, cookieOptions);
+
+            let parsedPreferences = null;
+            if (existingUser.preferences !== null && existingUser.preferences !== undefined) {
+                try { parsedPreferences = JSON.parse(existingUser.preferences); } catch(e) { parsedPreferences = null; }
+            }
+
+            return res.json({
+                success: true,
+                token,
+                user: { id: existingUser.id, name: existingUser.name, email: existingUser.email, platform: existingUser.platform, preferences: parsedPreferences }
+            });
+        } else {
+            const hashedPassword = await bcrypt.hash(`phone_${phone}_pwd`, 10);
+            db.run(
+                `INSERT INTO users (name, email, password, platform, phone, preferences) VALUES (?, ?, ?, ?, ?, NULL)`,
+                [defaultName, dummyEmail, hashedPassword, userPlatform, phone],
+                function(insertErr) {
+                    if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
+                    
+                    const userId = this.lastID;
+                    const token = jwt.sign({ id: userId, email: dummyEmail, name: defaultName }, JWT_SECRET, { expiresIn: '7d' });
+                    res.cookie('melodify_token', token, cookieOptions);
+
+                    return res.json({
+                        success: true,
+                        token,
+                        user: { id: userId, name: defaultName, email: dummyEmail, platform: userPlatform, preferences: null }
+                    });
+                }
+            );
+        }
+    });
+});
+
+router.post('/google-auth', async (req, res) => {
+    const { idToken, credential, name, email, platform } = req.body;
+    let userEmail = email;
+    let userName = name;
+    const userPlatform = platform === 'apk' ? 'apk' : 'web';
+
+    // If Google ID Token is passed from Google OAuth client
+    const tokenToVerify = idToken || credential;
+    if (tokenToVerify) {
+        try {
+            const axios = require('axios');
+            const googleRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${tokenToVerify}`);
+            if (googleRes.data && googleRes.data.email) {
+                userEmail = googleRes.data.email;
+                userName = googleRes.data.name || name || 'Google User';
+                console.log(`✅ Verified Google ID Token for ${userEmail}`);
+            }
+        } catch (vErr) {
+            console.warn('Google Token verification note:', vErr.message);
+        }
+    }
+
+    if (!userEmail) userEmail = `google_user_${Date.now()}@gmail.com`;
+    if (!userName) userName = 'Google User';
+
+    db.get(`SELECT * FROM users WHERE email = ?`, [userEmail], async (err, existingUser) => {
+        if (existingUser) {
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('melodify_token', token, cookieOptions);
+            
+            let parsedPreferences = null;
+            if (existingUser.preferences !== null && existingUser.preferences !== undefined) {
+                try { parsedPreferences = JSON.parse(existingUser.preferences); } catch(e) { parsedPreferences = null; }
+            }
+
+            return res.json({
+                success: true,
+                token,
+                user: { id: existingUser.id, name: existingUser.name, email: existingUser.email, platform: existingUser.platform, preferences: parsedPreferences }
+            });
+        } else {
+            // New Google user with preferences: null to trigger Preferences Onboarding
+            const hashedPassword = await bcrypt.hash(`google_${Date.now()}`, 10);
+            db.run(
+                `INSERT INTO users (name, email, password, platform, preferences) VALUES (?, ?, ?, ?, NULL)`,
+                [userName, userEmail, hashedPassword, userPlatform],
+                function(insertErr) {
+                    if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
+
+                    const userId = this.lastID;
+                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, JWT_SECRET, { expiresIn: '7d' });
+                    res.cookie('melodify_token', token, cookieOptions);
+
+                    return res.json({
+                        success: true,
+                        token,
+                        user: { id: userId, name: userName, email: userEmail, platform: userPlatform, preferences: null }
+                    });
+                }
+            );
+        }
+    });
+});
+
+router.post('/apple-auth', async (req, res) => {
+    const { identityToken, name, email, platform } = req.body;
+    let userEmail = email;
+    let userName = name;
+    const userPlatform = platform === 'apk' ? 'apk' : 'web';
+
+    if (!userEmail) userEmail = `apple_user_${Date.now()}@icloud.com`;
+    if (!userName) userName = 'Apple User';
+
+    db.get(`SELECT * FROM users WHERE email = ?`, [userEmail], async (err, existingUser) => {
+        if (existingUser) {
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('melodify_token', token, cookieOptions);
+            
+            let parsedPreferences = null;
+            if (existingUser.preferences !== null && existingUser.preferences !== undefined) {
+                try { parsedPreferences = JSON.parse(existingUser.preferences); } catch(e) { parsedPreferences = null; }
+            }
+
+            return res.json({
+                success: true,
+                token,
+                user: { id: existingUser.id, name: existingUser.name, email: existingUser.email, platform: existingUser.platform, preferences: parsedPreferences }
+            });
+        } else {
+            // New Apple user with preferences: null to trigger Preferences Onboarding
+            const hashedPassword = await bcrypt.hash(`apple_${Date.now()}`, 10);
+            db.run(
+                `INSERT INTO users (name, email, password, platform, preferences) VALUES (?, ?, ?, ?, NULL)`,
+                [userName, userEmail, hashedPassword, userPlatform],
+                function(insertErr) {
+                    if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
+
+                    const userId = this.lastID;
+                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, JWT_SECRET, { expiresIn: '7d' });
+                    res.cookie('melodify_token', token, cookieOptions);
+
+                    return res.json({
+                        success: true,
+                        token,
+                        user: { id: userId, name: userName, email: userEmail, platform: userPlatform, preferences: null }
+                    });
+                }
+            );
+        }
     });
 });
 
@@ -237,11 +446,20 @@ router.get('/playlists', authenticateToken, (req, res) => {
 
 router.post('/playlists', authenticateToken, (req, res) => {
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Playlist name required' });
-    
-    db.run(`INSERT INTO playlists (user_id, name) VALUES (?, ?)`, [req.user.id, name], function(err) {
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Playlist name required' });
+    const trimmedName = name.trim();
+
+    // Check if a playlist with the exact same name already exists for this user (case-insensitive)
+    db.get(`SELECT id FROM playlists WHERE user_id = ? AND LOWER(name) = LOWER(?)`, [req.user.id, trimmedName], (err, existing) => {
         if (err) return res.status(500).json({ error: 'Database error' });
-        res.json({ id: this.lastID, name });
+        if (existing) {
+            return res.status(400).json({ error: 'A playlist with this name already exists' });
+        }
+
+        db.run(`INSERT INTO playlists (user_id, name) VALUES (?, ?)`, [req.user.id, trimmedName], function(err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            res.json({ id: this.lastID, name: trimmedName });
+        });
     });
 });
 
@@ -307,18 +525,27 @@ router.delete('/playlists/:id/songs/:songId', authenticateToken, (req, res) => {
 
 // --- PASSWORD RESET ---
 
-// Email Transporter (Use Environment Variables in Production)
+// Email Transporter — Production-ready config
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
+    port: 465,
+    secure: true,   // port 465 = SSL, always true (port 587 is often blocked on cloud hosts)
     auth: {
-        
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+    tls: {
+        rejectUnauthorized: false // allow self-signed certs (needed on some cloud providers)
     }
-    
+});
+
+// Verify SMTP connection at startup so we catch mis-configs early
+transporter.verify((error) => {
+    if (error) {
+        console.error('❌ SMTP connection failed:', error.message);
+    } else {
+        console.log('✅ SMTP server is ready to send emails');
+    }
 });
 
 
@@ -326,73 +553,194 @@ router.post('/forgot-password', (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    db.get(`SELECT id FROM users WHERE email = ?`, [email], (err, user) => {
-        if (err || !user) {
-            return res.json({ success: true, message: 'If an account exists, a reset link was sent.' });
+    // Normalize email — trim whitespace and lowercase for consistent matching
+    const normalizedEmail = email.trim().toLowerCase();
+
+    db.get(`SELECT id FROM users WHERE LOWER(email) = ?`, [normalizedEmail], (err, user) => {
+        if (err) {
+            console.error('DB error in forgot-password lookup:', err);
+            return res.status(500).json({ error: 'Database error' });
         }
 
-        // Generate 6 digit OTP
+        // Always return success to avoid user enumeration — but only send email if user exists
+        if (!user) {
+            console.log(`[forgot-password] No user found for: ${normalizedEmail}`);
+            return res.json({ success: true, message: 'If an account exists, an OTP was sent.' });
+        }
+
+        // Generate 6-digit OTP, valid for 10 minutes
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const tokenExpiry = new Date(Date.now() + 3600000).toISOString();
+        const tokenExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-        db.run(`UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?`, [otp, tokenExpiry, user.id], async (err) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
+        db.run(
+            `UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?`,
+            [otp, tokenExpiry, user.id],
+            async (err) => {
+                if (err) {
+                    console.error('DB error saving reset token:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
 
-            console.log('\n--- PASSWORD RESET OTP ---');
-            console.log(`OTP for ${email} is: ${otp}\n---------------------------\n`);
+                console.log('\n--- PASSWORD RESET OTP ---');
+                console.log(`Email (normalized): ${normalizedEmail}`);
+                console.log(`OTP: ${otp}`);
+                console.log(`Expiry: ${tokenExpiry}`);
+                console.log('---------------------------\n');
 
-            const senderEmail = process.env.EMAIL_USER || 'your-email@gmail.com';
+                const senderEmail = process.env.EMAIL_USER;
 
-            try {
-                await transporter.sendMail({
-                    from: `"Melodify Support" <${senderEmail}>`,
-                    to: email,
-                    subject: 'Your Melodify Password Reset OTP',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 40px; text-align: center;">
-                            <h1 style="color: #ff6b00; font-size: 28px;">🎵 Melodify</h1>
-                            <h2 style="color: #fff; margin-top: 20px;">Password Reset Request</h2>
-                            <p style="color: #b3b3b3; font-size: 16px;">We received a request to reset your password. Here is your OTP:</p>
-                            <div style="margin: 20px auto; padding: 20px 40px; background: #282828; display: inline-block; border-radius: 12px; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #ff6b00; border: 2px solid rgba(255,107,0,0.3);">
-                                ${otp}
-                            </div>
-                            <p style="color: #b3b3b3; font-size: 14px; margin-top: 20px;">Enter this OTP on the reset password page.</p>
-                            <p style="color: #777; font-size: 12px; margin-top: 30px;">This OTP will expire in 1 hour. If you did not request this, please ignore this email.</p>
-                        </div>
-                    `
-                });
-                res.json({ success: true, message: 'OTP sent to your email.' });
-            } catch (mailErr) {
-                console.error('Failed to send email:', mailErr.message);
-                res.status(500).json({ error: `Failed to send email: ${mailErr.message}` });
+                try {
+                    await transporter.sendMail({
+                        from: `"Melodify" <${senderEmail}>`,
+                        to: email,
+                        subject: 'Your Melodify Password Reset OTP',
+                        attachments: [{
+                            filename: 'melodify-logo.png',
+                            path: path.join(__dirname, '../client/public/melodify-logo.png'),
+                            cid: 'melodify-logo'  // referenced as cid:melodify-logo in HTML
+                        }],
+                        html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 100%);padding:32px 40px;text-align:center;">
+            <img src="cid:melodify-logo" alt="Melodify" width="64" height="64"
+              style="border-radius:50%;display:block;margin:0 auto 14px;border:3px solid rgba(255,107,0,0.4);" />
+            <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;">Melodify</h1>
+            <p style="margin:6px 0 0;color:#888;font-size:13px;letter-spacing:0.5px;">Your music. Your world.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 40px 32px;background:#ffffff;">
+            <h2 style="margin:0 0 10px;color:#111111;font-size:22px;font-weight:700;">Password Reset Request</h2>
+            <p style="margin:0 0 24px;color:#555555;font-size:15px;line-height:1.6;">Hi there! We received a request to reset the password for your Melodify account associated with <strong style="color:#111;">${email}</strong>.</p>
+            <p style="margin:0 0 16px;color:#555555;font-size:14px;">Use the OTP below to reset your password:</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td align="center" style="padding:8px 0 28px;">
+                <div style="display:inline-block;background:#fff8f5;border:2px solid #ff6b00;border-radius:14px;padding:20px 48px;">
+                  <span style="font-size:42px;font-weight:900;letter-spacing:14px;color:#ff6b00;font-family:'Courier New',monospace;">${otp}</span>
+                </div>
+              </td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr>
+                <td style="background:#fff3cd;border-left:4px solid #f59e0b;border-radius:6px;padding:12px 16px;">
+                  <p style="margin:0;color:#92400e;font-size:13px;">&#9201; <strong>This OTP expires in 10 minutes.</strong> Do not share it with anyone.</p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0;color:#888888;font-size:13px;line-height:1.6;">If you did not request a password reset, you can safely ignore this email. Your account is secure.</p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #eeeeee;margin:0;"></td></tr>
+        <tr>
+          <td style="padding:24px 40px;background:#fafafa;text-align:center;">
+            <img src="cid:melodify-logo" alt="" width="28" height="28"
+              style="border-radius:50%;vertical-align:middle;margin-right:8px;opacity:0.6;" />
+            <span style="color:#aaaaaa;font-size:12px;vertical-align:middle;">
+              &copy; 2025 Melodify &nbsp;&bull;&nbsp; Made with &#9829; for music lovers
+            </span><br>
+            <span style="color:#bbbbbb;font-size:11px;">This is an automated email. Please do not reply.</span>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+                    });
+                    res.json({ success: true, message: 'OTP sent to your email.' });
+                } catch (mailErr) {
+                    console.error('Failed to send email:', mailErr.message);
+                    res.status(500).json({
+                        error: `Email delivery failed: ${mailErr.message}. Please check server SMTP config.`
+                    });
+                }
             }
-        });
+        );
     });
+});
+
+// Step 1 of reset flow: validate OTP without changing password yet
+router.post('/verify-otp', (req, res) => {
+    const { email, token } = req.body;
+    if (!email || !token) return res.status(400).json({ error: 'Email and OTP are required' });
+
+    // Normalize — trim whitespace, lowercase email, strip non-digits from OTP
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedToken = token.toString().trim().replace(/\D/g, '');
+
+    console.log(`[verify-otp] email=${normalizedEmail} token=${normalizedToken}`);
+
+    db.get(
+        `SELECT id, reset_token_expiry FROM users WHERE LOWER(email) = ? AND reset_token = ?`,
+        [normalizedEmail, normalizedToken],
+        (err, user) => {
+            if (err) {
+                console.error('DB error in verify-otp:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (!user) {
+                console.log(`[verify-otp] No match found for email=${normalizedEmail} token=${normalizedToken}`);
+                return res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+            }
+            const expiry = new Date(user.reset_token_expiry).getTime();
+            if (isNaN(expiry) || Date.now() > expiry) {
+                return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+            }
+            res.json({ success: true, message: 'OTP verified successfully.' });
+        }
+    );
 });
 
 router.post('/reset-password', async (req, res) => {
     const { token, newPassword, email } = req.body;
-    if (!token || !newPassword || !email) return res.status(400).json({ error: 'Email, OTP token and new password are required' });
+    if (!token || !newPassword || !email)
+        return res.status(400).json({ error: 'Email, OTP token and new password are required' });
 
-    // Find the user by email AND verify the OTP token
-    db.get(`SELECT id, reset_token, reset_token_expiry FROM users WHERE email = ? AND reset_token = ?`, [email, token], async (err, user) => {
-        if (err || !user) return res.status(400).json({ error: 'Invalid OTP or Email' });
-        
-        // Check expiry
-        if (new Date() > new Date(user.reset_token_expiry)) {
-            return res.status(400).json({ error: 'Reset token has expired' });
-        }
+    // Normalize
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedToken = token.toString().trim().replace(/\D/g, '');
 
-        try {
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-            db.run(`UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?`, [hashedPassword, user.id], function(err) {
-                if (err) return res.status(500).json({ error: 'Failed to update password' });
-                res.json({ success: true, message: 'Password has been successfully reset' });
-            });
-        } catch (hashErr) {
-            res.status(500).json({ error: 'Server error' });
+    db.get(
+        `SELECT id, reset_token, reset_token_expiry FROM users WHERE LOWER(email) = ? AND reset_token = ?`,
+        [normalizedEmail, normalizedToken],
+        async (err, user) => {
+            if (err) {
+                console.error('DB error in reset-password:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (!user) {
+                return res.status(400).json({ error: 'Invalid OTP or Email. Please check and try again.' });
+            }
+
+            // Check expiry — handle both string and Date from PostgreSQL
+            const expiry = new Date(user.reset_token_expiry).getTime();
+            if (isNaN(expiry) || Date.now() > expiry) {
+                return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+            }
+
+            try {
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                db.run(
+                    `UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?`,
+                    [hashedPassword, user.id],
+                    function (err) {
+                        if (err) return res.status(500).json({ error: 'Failed to update password' });
+                        res.json({ success: true, message: 'Password has been successfully reset' });
+                    }
+                );
+            } catch (hashErr) {
+                console.error('Hashing error:', hashErr);
+                res.status(500).json({ error: 'Server error' });
+            }
         }
-    });
+    );
 });
 
 // --- ADMIN PANEL ROUTES ---

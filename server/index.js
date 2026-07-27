@@ -52,20 +52,112 @@ const JIOSAAVN_BASE = process.env.JIOSAAVN_API_URL || 'https://www.jiosaavn.com/
 
 // =================== DES DECRYPTION (JioSaavn encrypted_media_url) ===================
 // JioSaavn encrypts the actual download URL using DES-ECB with a known key
+// Using pure-JS DES to avoid OpenSSL 3 "unsupported" error on Node.js v17+
 const JIOSAAVN_DES_KEY = '38346591';
+
+// ---- Pure JavaScript DES-ECB implementation (no OpenSSL dependency) ----
+const DES_PC1 = [57,49,41,33,25,17,9,1,58,50,42,34,26,18,10,2,59,51,43,35,27,19,11,3,60,52,44,36,63,55,47,39,31,23,15,7,62,54,46,38,30,22,14,6,61,53,45,37,29,21,13,5,28,20,12,4];
+const DES_PC2 = [14,17,11,24,1,5,3,28,15,6,21,10,23,19,12,4,26,8,16,7,27,20,13,2,41,52,31,37,47,55,30,40,51,45,33,48,44,49,39,56,34,53,46,42,50,36,29,32];
+const DES_IP  = [58,50,42,34,26,18,10,2,60,52,44,36,28,20,12,4,62,54,46,38,30,22,14,6,64,56,48,40,32,24,16,8,57,49,41,33,25,17,9,1,59,51,43,35,27,19,11,3,61,53,45,37,29,21,13,5,63,55,47,39,31,23,15,7];
+const DES_IP2 = [40,8,48,16,56,24,64,32,39,7,47,15,55,23,63,31,38,6,46,14,54,22,62,30,37,5,45,13,53,21,61,29,36,4,44,12,52,20,60,28,35,3,43,11,51,19,59,27,34,2,42,10,50,18,58,26,33,1,41,9,49,17,57,25];
+const DES_E  = [32,1,2,3,4,5,4,5,6,7,8,9,8,9,10,11,12,13,12,13,14,15,16,17,16,17,18,19,20,21,20,21,22,23,24,25,24,25,26,27,28,29,28,29,30,31,32,1];
+const DES_P  = [16,7,20,21,29,12,28,17,1,15,23,26,5,18,31,10,2,8,24,14,32,27,3,9,19,13,30,6,22,11,4,25];
+const DES_SHIFTS = [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1];
+const DES_SBOXES = [
+  [14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7,0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8,4,1,14,8,13,6,2,11,15,12,9,7,3,10,5,0,15,12,8,2,4,9,1,7,5,11,3,14,10,0,6,13],
+  [15,1,8,14,6,11,3,4,9,7,2,13,12,0,5,10,3,13,4,7,15,2,8,14,12,0,1,10,6,9,11,5,0,14,7,11,10,4,13,1,5,8,12,6,9,3,2,15,13,8,10,1,3,15,4,2,11,6,7,12,0,5,14,9],
+  [10,0,9,14,6,3,15,5,1,13,12,7,11,4,2,8,13,7,0,9,3,4,6,10,2,8,5,14,12,11,15,1,13,6,4,9,8,15,3,0,11,1,2,12,5,10,14,7,1,10,13,0,6,9,8,7,4,15,14,3,11,5,2,12],
+  [7,13,14,3,0,6,9,10,1,2,8,5,11,12,4,15,13,8,11,5,6,15,0,3,4,7,2,12,1,10,14,9,10,6,9,0,12,11,7,13,15,1,3,14,5,2,8,4,3,15,0,6,10,1,13,8,9,4,5,11,12,7,2,14],
+  [2,12,4,1,7,10,11,6,8,5,3,15,13,0,14,9,14,11,2,12,4,7,13,1,5,0,15,10,3,9,8,6,4,2,1,11,10,13,7,8,15,9,12,5,6,3,0,14,11,8,12,7,1,14,2,13,6,15,0,9,10,4,5,3],
+  [12,1,10,15,9,2,6,8,0,13,3,4,14,7,5,11,10,15,4,2,7,12,9,5,6,1,13,14,0,11,3,8,9,14,15,5,2,8,12,3,7,0,4,10,1,13,11,6,4,3,2,12,9,5,15,10,11,14,1,7,6,0,8,13],
+  [4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1,13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6,1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2,6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12],
+  [13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7,1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2,7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8,2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11]
+];
+
+function desBitPerm(src, table, srcLen) {
+    let dst = BigInt(0);
+    const tLen = table.length;
+    for (let i = 0; i < tLen; i++) {
+        dst = (dst << BigInt(1)) | ((src >> BigInt(srcLen - table[i])) & BigInt(1));
+    }
+    return dst;
+}
+
+function desGenerateSubkeys(keyBuf) {
+    let key56 = BigInt(0);
+    for (let b of keyBuf) key56 = (key56 << BigInt(8)) | BigInt(b);
+    let cd = desBitPerm(key56, DES_PC1, 64);
+    let C = cd >> BigInt(28);
+    let D = cd & BigInt(0xFFFFFFF);
+    const subkeys = [];
+    for (let i = 0; i < 16; i++) {
+        const sh = DES_SHIFTS[i];
+        C = ((C << BigInt(sh)) | (C >> BigInt(28 - sh))) & BigInt(0xFFFFFFF);
+        D = ((D << BigInt(sh)) | (D >> BigInt(28 - sh))) & BigInt(0xFFFFFFF);
+        subkeys.push(desBitPerm((C << BigInt(28)) | D, DES_PC2, 56));
+    }
+    return subkeys;
+}
+
+function desRound(block, subkeys) {
+    let L = block >> BigInt(32);
+    let R = block & BigInt(0xFFFFFFFF);
+    for (let i = 0; i < 16; i++) {
+        const E = desBitPerm(R, DES_E, 32);
+        let xored = E ^ subkeys[i];
+        let sOut = BigInt(0);
+        for (let j = 0; j < 8; j++) {
+            const chunk = Number((xored >> BigInt(42 - j * 6)) & BigInt(0x3F));
+            const row = ((chunk & 0x20) >> 4) | (chunk & 0x01);
+            const col = (chunk >> 1) & 0x0F;
+            sOut = (sOut << BigInt(4)) | BigInt(DES_SBOXES[j][row * 16 + col]);
+        }
+        const P = desBitPerm(sOut, DES_P, 32);
+        const newR = L ^ P;
+        L = R;
+        R = newR;
+    }
+    return desBitPerm((R << BigInt(32)) | L, DES_IP2, 64);
+}
+
+function desDecryptBlock(blockBuf, subkeys) {
+    let block = BigInt(0);
+    for (let b of blockBuf) block = (block << BigInt(8)) | BigInt(b);
+    const permuted = desBitPerm(block, DES_IP, 64);
+    let tmp = desRound(permuted, [...subkeys].reverse());
+    const out = Buffer.alloc(8);
+    for (let i = 7; i >= 0; i--) { out[i] = Number(tmp & BigInt(0xFF)); tmp >>= BigInt(8); }
+    return out;
+}
+
+function desDecryptECB(data, keyBuf) {
+    const subkeys = desGenerateSubkeys(keyBuf);
+    const blocks = Math.ceil(data.length / 8);
+    const out = [];
+    for (let i = 0; i < blocks; i++) {
+        const block = data.slice(i * 8, (i + 1) * 8);
+        const padded = block.length < 8 ? Buffer.concat([block, Buffer.alloc(8 - block.length)]) : block;
+        out.push(desDecryptBlock(padded, subkeys));
+    }
+    const result = Buffer.concat(out);
+    // Strip PKCS#5 padding
+    const padByte = result[result.length - 1];
+    if (padByte > 0 && padByte <= 8) return result.slice(0, result.length - padByte);
+    return result;
+}
 
 function decryptMediaUrl(encryptedUrl) {
     try {
         const key = Buffer.from(JIOSAAVN_DES_KEY);
         const encrypted = Buffer.from(encryptedUrl, 'base64');
-        const decipher = crypto.createDecipheriv('des-ecb', key, null);
-        decipher.setAutoPadding(true);
-        let decrypted = decipher.update(encrypted, 'binary', 'utf8');
-        decrypted += decipher.final('utf8');
-        // The decrypted URL is the actual CDN link, upgrade to 320kbps
-        return decrypted.replace('_96.mp4', '_320.mp4')
-                        .replace('_160.mp4', '_320.mp4')
-                        .replace('_128.mp4', '_320.mp4');
+        const decrypted = desDecryptECB(encrypted, key);
+        const url = decrypted.toString('utf8').replace(/\0/g, '').trim();
+        if (!url.startsWith('http')) throw new Error('Decrypted result is not a valid URL');
+        // Upgrade to 320kbps
+        return url.replace('_96.mp4', '_320.mp4')
+                  .replace('_160.mp4', '_320.mp4')
+                  .replace('_128.mp4', '_320.mp4')
+                  .replace('_48.mp4', '_320.mp4');
     } catch (e) {
         console.error('DES Decryption failed:', e.message);
         return null;
@@ -785,6 +877,174 @@ app.get('/api/ai-mood', async (req, res) => {
     } catch (error) {
         console.error('AI Mood Error:', error);
         res.status(500).json({ error: 'AI processing failed' });
+    }
+});
+
+// =================== 🤖 AI HUB ROUTES ===================
+
+// 1. VIBE DNA — Analyze listening history and generate a music personality profile
+app.post('/api/ai/vibe-dna', async (req, res) => {
+    try {
+        const { songs } = req.body;
+        if (!songs || songs.length === 0) return res.status(400).json({ error: 'No songs provided' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const songList = songs.slice(0, 30).map(s => `${s.name} by ${s.artist}`).join(', ');
+        const prompt = `You are a music personality analyst. Analyze this person's listening history and create their "Vibe DNA" profile.\n\nSongs they listen to: ${songList}\n\nReturn a JSON object with these exact keys:\n{\n  "title": "A creative 3-4 word music personality title (e.g., 'Moonlit Soul Seeker')",\n  "emoji": "2-3 emojis representing their vibe",\n  "description": "A 2-3 sentence poetic description of their music personality in English",\n  "traits": ["4 personality trait words like 'Emotional', 'Adventurous', 'Nostalgic', 'Energetic'"],\n  "dominantMood": "their dominant mood in 2 words",\n  "hiddenSide": "A fun surprising insight about their taste in 1 sentence",\n  "compatibleWith": "Types of people they'd vibe with musically in 1 sentence",\n  "searchQuery": "A 2-3 word JioSaavn search query that best matches their taste"\n}\nReturn ONLY valid JSON, no markdown.`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        let dnaData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            dnaData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to parse AI response' }); }
+        const searchData = await jiosaavnRequest({ __call: 'search.getResults', q: dnaData.searchQuery || 'mood music', n: '10' });
+        const tracks = (searchData.results || []).map(formatSong);
+        res.json({ dna: dnaData, tracks });
+    } catch (error) {
+        console.error('Vibe DNA Error:', error);
+        res.status(500).json({ error: 'AI processing failed' });
+    }
+});
+
+// 2. AI MUSIC THERAPIST — Mood diary entry → healing playlist + message
+app.post('/api/ai/therapist', async (req, res) => {
+    try {
+        const { mood } = req.body;
+        if (!mood) return res.status(400).json({ error: 'Mood text is required' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const prompt = `You are an empathetic AI music therapist. A user shared their feelings: "${mood}"\n\nAnalyze their emotional state and create a therapeutic music journey.\n\nReturn a JSON object:\n{\n  "therapistMessage": "A warm, empathetic 2-3 sentence message to the user acknowledging their feelings (in Hinglish or English based on their input language)",\n  "journeyTitle": "A poetic name for this healing music journey (e.g., 'Rising from the Storm')",\n  "phases": [\n    {"name": "Acknowledge", "description": "Start where you are", "query": "JioSaavn search query for this phase", "emoji": "💙"},\n    {"name": "Process", "description": "Let it all out", "query": "JioSaavn search query", "emoji": "🌧"},\n    {"name": "Shift", "description": "Gentle transition", "query": "JioSaavn search query", "emoji": "🌤"},\n    {"name": "Rise", "description": "Feel yourself again", "query": "JioSaavn search query", "emoji": "☀️"}\n  ],\n  "affirmation": "A short powerful affirmation sentence for them"\n}\nReturn ONLY valid JSON.`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        let therapyData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            therapyData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to parse AI response' }); }
+        const phaseResults = await Promise.all(
+            therapyData.phases.map(async (phase) => {
+                try {
+                    const data = await jiosaavnRequest({ __call: 'search.getResults', q: phase.query, n: '4' });
+                    return { ...phase, tracks: (data.results || []).map(formatSong) };
+                } catch { return { ...phase, tracks: [] }; }
+            })
+        );
+        therapyData.phases = phaseResults;
+        res.json(therapyData);
+    } catch (error) {
+        console.error('Therapist Error:', error);
+        res.status(500).json({ error: 'AI processing failed' });
+    }
+});
+
+// 3. STORY MODE — A scenario → cinematic music journey with narration
+app.post('/api/ai/story-mode', async (req, res) => {
+    try {
+        const { scenario } = req.body;
+        if (!scenario) return res.status(400).json({ error: 'Scenario is required' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const prompt = `You are a cinematic music storyteller. Create a musical journey for this scenario: "${scenario}"\n\nReturn a JSON object:\n{\n  "storyTitle": "Creative story title",\n  "storyIntro": "A 2-sentence cinematic intro setting the scene",\n  "chapters": [\n    {"chapterName": "Chapter name", "narration": "1-2 sentence narration for this moment", "query": "JioSaavn search query", "emoji": "emoji"},\n    {"chapterName": "...", "narration": "...", "query": "...", "emoji": "..."},\n    {"chapterName": "...", "narration": "...", "query": "...", "emoji": "..."},\n    {"chapterName": "...", "narration": "...", "query": "...", "emoji": "..."},\n    {"chapterName": "...", "narration": "...", "query": "...", "emoji": "..."}\n  ],\n  "epilogue": "A beautiful closing line for the story"\n}\nReturn ONLY valid JSON.`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        let storyData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            storyData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to parse AI response' }); }
+        const chapterResults = await Promise.all(
+            storyData.chapters.map(async (chapter) => {
+                try {
+                    const data = await jiosaavnRequest({ __call: 'search.getResults', q: chapter.query, n: '3' });
+                    return { ...chapter, tracks: (data.results || []).map(formatSong) };
+                } catch { return { ...chapter, tracks: [] }; }
+            })
+        );
+        storyData.chapters = chapterResults;
+        res.json(storyData);
+    } catch (error) {
+        console.error('Story Mode Error:', error);
+        res.status(500).json({ error: 'AI processing failed' });
+    }
+});
+
+// 4. EMOTION MIRROR — Webcam image → Gemini Vision mood → songs
+app.post('/api/ai/emotion', async (req, res) => {
+    try {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) return res.status(400).json({ error: 'Image data required' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ parts: [
+                { text: `Analyze this person's facial expression and body language. Determine their current emotional state.\n\nReturn a JSON object:\n{\n  "detectedMood": "Primary detected mood in 2 words (e.g., 'Happy Energetic', 'Calm Tired', 'Sad Reflective')",\n  "confidence": "High/Medium/Low",\n  "moodEmoji": "2 emojis for the mood",\n  "moodMessage": "A friendly 1-sentence observation about their mood",\n  "musicRecommendation": "Why this music fits their current state in 1 sentence",\n  "searchQuery": "A 2-3 word JioSaavn search query perfectly matching their mood"\n}\nReturn ONLY valid JSON.` },
+                { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
+            ]}]
+        });
+        let emotionData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            emotionData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to analyze image' }); }
+        const searchData = await jiosaavnRequest({ __call: 'search.getResults', q: emotionData.searchQuery, n: '12' });
+        const tracks = (searchData.results || []).map(formatSong);
+        res.json({ emotion: emotionData, tracks });
+    } catch (error) {
+        console.error('Emotion Mirror Error:', error);
+        res.status(500).json({ error: 'Emotion detection failed' });
+    }
+});
+
+// 5. HUM SEARCH — Audio base64 → Gemini identifies the song → search
+app.post('/api/ai/hum-search', async (req, res) => {
+    try {
+        const { audioBase64, mimeType } = req.body;
+        if (!audioBase64) return res.status(400).json({ error: 'Audio data required' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ parts: [
+                { text: `Listen to this audio carefully. The person is humming, singing, or whistling a song. Try to identify what song it might be.\n\nReturn a JSON object:\n{\n  "identified": true or false,\n  "songName": "Name of the song if identified, else null",\n  "artist": "Artist name if identified, else null",\n  "confidence": "High/Medium/Low",\n  "searchQuery": "Best 2-4 word JioSaavn search query to find this song",\n  "message": "A friendly message about what you heard"\n}\nReturn ONLY valid JSON.` },
+                { inlineData: { mimeType: mimeType || 'audio/webm', data: base64Data } }
+            ]}]
+        });
+        let humData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            humData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to process audio' }); }
+        const searchData = await jiosaavnRequest({ __call: 'search.getResults', q: humData.searchQuery || 'popular songs', n: '10' });
+        const tracks = (searchData.results || []).map(formatSong);
+        res.json({ result: humData, tracks });
+    } catch (error) {
+        console.error('Hum Search Error:', error);
+        res.status(500).json({ error: 'Hum search failed' });
+    }
+});
+
+// 6. COLLAB PLAYLIST — Two users' song lists → Gemini merges → shared playlist
+app.post('/api/ai/collab', async (req, res) => {
+    try {
+        const { person1Songs, person2Songs, person1Name, person2Name } = req.body;
+        if (!person1Songs || !person2Songs) return res.status(400).json({ error: 'Both song lists required' });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const p1List = person1Songs.slice(0, 15).map(s => `${s.name} by ${s.artist}`).join(', ');
+        const p2List = person2Songs.slice(0, 15).map(s => `${s.name} by ${s.artist}`).join(', ');
+        const prompt = `You are a musical matchmaker. Two people want to create a shared playlist.\n\n${person1Name || 'Person 1'} likes: ${p1List}\n${person2Name || 'Person 2'} likes: ${p2List}\n\nReturn a JSON object:\n{\n  "playlistName": "A creative name for their shared playlist",\n  "compatibilityScore": "A percentage like '78%'",\n  "compatibilityMessage": "A fun 1-2 sentence analysis of their musical chemistry",\n  "commonGround": "What they both love in 1 sentence",\n  "surpriseFactor": "Something surprising about their combined taste",\n  "searchQueries": ["query1", "query2", "query3"]\n}\nReturn ONLY valid JSON.`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        let collabData;
+        try {
+            const cleaned = response.text.trim().replace(/```json|```/g, '').trim();
+            collabData = JSON.parse(cleaned);
+        } catch(e) { return res.status(500).json({ error: 'Failed to parse AI response' }); }
+        const allTracks = [];
+        for (const q of (collabData.searchQueries || [])) {
+            try {
+                const data = await jiosaavnRequest({ __call: 'search.getResults', q, n: '5' });
+                allTracks.push(...(data.results || []).map(formatSong));
+            } catch {}
+        }
+        res.json({ collab: collabData, tracks: allTracks });
+    } catch (error) {
+        console.error('Collab Error:', error);
+        res.status(500).json({ error: 'Collab generation failed' });
     }
 });
 

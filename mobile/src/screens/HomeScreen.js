@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
     View, Text, ScrollView, FlatList, Image, TouchableOpacity,
     StyleSheet, StatusBar, Dimensions, Animated, ImageBackground,
@@ -16,6 +16,7 @@ import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../compon
 import SongOptionsSheet from '../components/SongOptionsSheet';
 import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 import API_BASE_URL from '../config';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -63,21 +64,25 @@ const HomeScreen = ({ navigation }) => {
             }
         };
         checkRatingStatus();
+    }, []);
 
-        const backAction = () => {
-            if (hasRated) {
-                // If they already rated, just exit directly
-                BackHandler.exitApp();
-                return true;
-            }
-            // Otherwise show exit modal
-            setExitModalVisible(true);
-            return true; // Prevent default behavior (exit app)
-        };
+    useFocusEffect(
+        useCallback(() => {
+            const backAction = () => {
+                if (hasRated) {
+                    // If they already rated, just exit directly
+                    BackHandler.exitApp();
+                    return true;
+                }
+                // Otherwise show exit modal
+                setExitModalVisible(true);
+                return true; // Prevent default behavior (exit app)
+            };
 
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-        return () => backHandler.remove();
-    }, [hasRated]);
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+            return () => backHandler.remove();
+        }, [hasRated])
+    );
 
     const handleExitApp = () => {
         setExitModalVisible(false);

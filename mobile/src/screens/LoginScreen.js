@@ -201,7 +201,9 @@ const LoginScreen = ({ navigation }) => {
             </KeyboardAvoidingView>
 
             {/* Phone Login Modal */}
-            <Modal visible={showPhoneModal} animationType="slide" transparent>
+            <Modal visible={showPhoneModal} animationType="slide" transparent
+                onRequestClose={() => { setShowPhoneModal(false); setOtpSent(false); }}
+            >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
                         <TouchableOpacity 

@@ -123,7 +123,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
         if (!isSliding) {
             setSliderValue(currentTime);
         }
-    }, [currentTime]);
+    }, [currentTime, isSliding]);
 
     const handleSeek = async (event) => {
         if (!duration || progressBarWidth <= 0) return;
@@ -140,6 +140,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
             <Modal visible={visible} animationType="fade" statusBarTranslucent
                 presentationStyle="fullScreen"
                 hardwareAccelerated
+                onRequestClose={handleMinimize}
             >
                 <View style={styles.fullVideoContainer}>
                     <StatusBar hidden={true} />
@@ -182,7 +183,6 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                                 }}
                                 onChangeState={(state) => {
                                     if (state === 'ended') setVideoPlaying(false);
-                                    if (state === 'paused') setVideoPlaying(false);
                                     if (state === 'playing') setVideoPlaying(true);
                                 }}
                                 onReady={() => {
@@ -219,7 +219,8 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     // Standard AUDIO View
     // ─────────────────────────────────────────────────────────
     return (
-        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent>
+        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent
+            onRequestClose={handleMinimize}>
             <StatusBar hidden={false} barStyle="light-content" backgroundColor="#0b0b12" translucent />
 
             {/* Gradient Background */}

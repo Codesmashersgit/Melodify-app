@@ -16,7 +16,8 @@ dotenv.config();
 
 const app = express();
 const allowedOrigins = [
-    'http://localhost:5173', 
+    'http://localhost:5173',
+    'http://localhost:5174',
     process.env.CLIENT_URL,
     'https://melodifynew.netlify.app'
 ].filter(Boolean);
@@ -36,9 +37,6 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
-// Mount User & DB routes
-app.use('/api/user', userRoutes);
-
 // Prevent silent crashes
 process.on('uncaughtException', (err) => {
     console.error('💥 Uncaught Exception:', err);
@@ -49,6 +47,22 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const JIOSAAVN_BASE = process.env.JIOSAAVN_API_URL || 'https://www.jiosaavn.com/api.php';
+let BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+
+// Dynamic BASE_URL middleware to support both localhost and production transparently
+app.use((req, res, next) => {
+    const host = req.headers.host || '';
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        BASE_URL = `http://${host}`;
+    } else {
+        const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+        BASE_URL = `${protocol}://${host}`;
+    }
+    next();
+});
+
+// Mount User & DB routes
+app.use('/api/user', userRoutes);
 
 // =================== DES DECRYPTION (JioSaavn encrypted_media_url) ===================
 // JioSaavn encrypts the actual download URL using DES-ECB with a known key
@@ -278,6 +292,32 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
 
     console.log(`🔍 Resolving full URL for: ${songName || songId}`);
 
+    // STRATEGY 0: Use saavn.dev (third-party API — works from cloud servers like Render)
+    // This is the most reliable in production since official JioSaavn blocks cloud IPs
+    try {
+        console.log(`🌐 Strategy 0 (saavn.dev): Fetching song ${songId}`);
+        const hqData = await fetchJson(`https://saavn.dev/api/songs/${songId}`, 8000);
+        let song = null;
+        if (hqData.data && Array.isArray(hqData.data)) song = hqData.data[0];
+        else if (hqData.data && hqData.data.id) song = hqData.data;
+
+        if (song) {
+            const downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
+            if (downloadUrls && Array.isArray(downloadUrls)) {
+                const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') || downloadUrls[downloadUrls.length - 1];
+                const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
+                if (link) {
+                    console.log(`✅ Strategy 0 (saavn.dev) SUCCESS for ${songId}`);
+                    hqUrlCache.set(songId, link);
+                    saveCache();
+                    return link;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn(`⚠️ Strategy 0 (saavn.dev) failed for ${songId}:`, e.message);
+    }
+
     console.log("--- STRATEGY 1 START ---");
     // STRATEGY 1: Use JioSaavn's own song.getDetails API to get encrypted_media_url
     try {
@@ -441,8 +481,7 @@ const formatSong = (song) => {
         artist = cleanText(song.album || info.album) || 'Melodify Artist';
     }
 
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-    const preview = songId ? `${baseUrl}/api/stream?id=${songId}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}` : '';
+    const preview = songId ? `${BASE_URL}/api/stream?id=${songId}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}` : '';
 
     return {
         id: songId,
@@ -533,27 +572,78 @@ const apiCache = new Map();
 // Clear cache every 1 hour to prevent memory bloat
 setInterval(() => apiCache.clear(), 60 * 60 * 1000);
 
-// Search songs
+// Search songs — tries multiple APIs for maximum production compatibility
+// Priority: saavn.dev → official JioSaavn
 app.get('/api/search', async (req, res) => {
     const { query } = req.query;
+    if (!query) return res.json([]);
     const cacheKey = `search_${query}`;
-    if (apiCache.has(cacheKey)) {
-        return res.json(apiCache.get(cacheKey));
+    if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
+
+    // Helper: parse saavn.dev/saavnapi-style response
+    const parseSaavnDevResults = (data) => {
+        const results = data?.data?.results || data?.results || [];
+        if (!Array.isArray(results) || results.length === 0) return null;
+        return results.map(song => {
+            const name = song.name || song.title || 'Unknown';
+            const artist = song.artists?.primary?.map(a => a.name).join(', ')
+                        || song.primaryArtists || song.singers || 'Unknown';
+            const imgArr = song.image;
+            const image = Array.isArray(imgArr)
+                ? (imgArr.find(i => i.quality === '500x500' || i.quality === '150x150')?.link || imgArr[imgArr.length - 1]?.link || '')
+                : (imgArr || '');
+            const dlArr = song.downloadUrl;
+            const downloadUrl = Array.isArray(dlArr)
+                ? (dlArr.find(d => d.quality === '320kbps')?.link || dlArr[dlArr.length - 1]?.link)
+                : null;
+            return {
+                id: song.id,
+                name,
+                artist,
+                image,
+                preview_url: downloadUrl || `${BASE_URL}/api/stream?id=${song.id}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
+                duration_ms: (parseInt(song.duration) || 0) * 1000,
+                album: song.album?.name || song.album || '',
+                playCount: song.playCount || '0',
+            };
+        });
+    };
+
+    // --- CLOUD-FRIENDLY APIs (work from Render) ---
+    const cloudApis = [
+        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=20`,
+        `https://jiosaavn.me/api/search?query=${encodeURIComponent(query)}&limit=20`,
+    ];
+
+    for (const apiUrl of cloudApis) {
+        try {
+            console.log(`[search] Trying: ${apiUrl.slice(0, 60)}...`);
+            const data = await fetchJson(apiUrl, 7000);
+            const tracks = parseSaavnDevResults(data);
+            if (tracks && tracks.length > 0) {
+                console.log(`[search] SUCCESS from ${apiUrl.slice(8, 30)} — ${tracks.length} results`);
+                apiCache.set(cacheKey, tracks);
+                return res.json(tracks);
+            }
+        } catch (err) {
+            console.warn(`[search] ${apiUrl.slice(8, 30)} failed:`, err.message);
+        }
     }
 
+    // --- FALLBACK: official JioSaavn (works locally, may be blocked on cloud) ---
     try {
-        const data = await jiosaavnRequest({
-            __call: 'search.getResults',
-            q: query || 'Bollywood hits',
-            n: '20',
-        });
+        console.log(`[search] Trying official JioSaavn for: ${query}`);
+        const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: '20' });
         const tracks = (data.results || []).map(formatSong);
-        apiCache.set(cacheKey, tracks);
-        res.json(tracks);
+        if (tracks.length > 0) {
+            apiCache.set(cacheKey, tracks);
+            return res.json(tracks);
+        }
     } catch (err) {
-        console.error('Search error:', err.message);
-        res.status(500).json({ error: 'Failed to search tracks', details: err.message });
+        console.error('[search] Official JioSaavn also failed:', err.message);
     }
+
+    res.status(500).json({ error: 'Search unavailable. All APIs failed.', query });
 });
 
 // Get trending/popular songs for home page (Top Hits)

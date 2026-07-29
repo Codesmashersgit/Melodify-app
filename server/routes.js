@@ -10,7 +10,9 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'melodify_super_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) console.warn('âš ï¸  JWT_SECRET not set in env â€” using insecure fallback!');
+const _JWT_SECRET = JWT_SECRET || 'melodify_super_secret_key_123';
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -18,7 +20,7 @@ const authenticateToken = (req, res, next) => {
     
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, _JWT_SECRET, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
@@ -33,7 +35,7 @@ const authenticateAdmin = (req, res, next) => {
 
     if (!token) return res.status(401).json({ error: 'Admin token required' });
 
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, _JWT_SECRET, (err, decoded) => {
         if (err || !decoded || decoded.role !== 'admin') return res.status(403).json({ error: 'Admin access denied' });
         req.user = decoded;
         next();
@@ -116,7 +118,7 @@ router.post('/phone/send-otp', async (req, res) => {
     phoneOtpStore.set(phone, { otp: generatedOtp, expiry });
 
     console.log(`\n==========================================`);
-    console.log(`📱 [MELODIFY FREE OTP LOG]`);
+    console.log(`ðŸ“± [MELODIFY FREE OTP LOG]`);
     console.log(`Mobile Number: +91 ${phone}`);
     console.log(`Generated OTP Code: ${generatedOtp}`);
     console.log(`==========================================\n`);
@@ -196,25 +198,45 @@ router.post('/phone/verify-otp', async (req, res) => {
 });
 
 router.post('/google-auth', async (req, res) => {
-    const { idToken, credential, name, email, platform } = req.body;
+    const { idToken, credential, accessToken, name, email, platform } = req.body;
     let userEmail = email;
     let userName = name;
     const userPlatform = platform === 'apk' ? 'apk' : 'web';
 
-    // If Google ID Token is passed from Google OAuth client
     const tokenToVerify = idToken || credential;
-    if (tokenToVerify) {
+
+    // Verify token or accessToken to ensure authenticity
+    if (accessToken) {
+        try {
+            const axios = require('axios');
+            const googleRes = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (googleRes.data && googleRes.data.email) {
+                userEmail = googleRes.data.email;
+                userName = googleRes.data.name || googleRes.data.given_name || userName;
+                console.log(`✅ Verified Google Access Token for ${userEmail}`);
+            }
+        } catch (vErr) {
+            console.error('Google Access Token verification failed:', vErr.message);
+            return res.status(401).json({ error: 'Invalid Google access token' });
+        }
+    } else if (tokenToVerify) {
         try {
             const axios = require('axios');
             const googleRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${tokenToVerify}`);
             if (googleRes.data && googleRes.data.email) {
                 userEmail = googleRes.data.email;
-                userName = googleRes.data.name || name || 'Google User';
+                userName = googleRes.data.name || userName;
                 console.log(`✅ Verified Google ID Token for ${userEmail}`);
             }
         } catch (vErr) {
-            console.warn('Google Token verification note:', vErr.message);
+            console.error('Google ID Token verification failed:', vErr.message);
+            return res.status(401).json({ error: 'Invalid Google ID token' });
         }
+    } else if (process.env.NODE_ENV === 'production') {
+        // Enforce Google token verification in production for security!
+        return res.status(400).json({ error: 'Google login token is required in production' });
     }
 
     if (!userEmail) userEmail = `google_user_${Date.now()}@gmail.com`;
@@ -222,7 +244,7 @@ router.post('/google-auth', async (req, res) => {
 
     db.get(`SELECT * FROM users WHERE email = ?`, [userEmail], async (err, existingUser) => {
         if (existingUser) {
-            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, _JWT_SECRET, { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
             
             let parsedPreferences = null;
@@ -245,7 +267,7 @@ router.post('/google-auth', async (req, res) => {
                     if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
 
                     const userId = this.lastID;
-                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, JWT_SECRET, { expiresIn: '7d' });
+                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, _JWT_SECRET, { expiresIn: '7d' });
                     res.cookie('melodify_token', token, cookieOptions);
 
                     return res.json({
@@ -328,8 +350,8 @@ router.get('/me', authenticateToken, (req, res) => {
                 });
             }
 
-            // null = never set preferences (new user) → redirect to preferences page
-            // '[]' or populated = preferences set (even if empty) → don't redirect
+            // null = never set preferences (new user) â†’ redirect to preferences page
+            // '[]' or populated = preferences set (even if empty) â†’ don't redirect
             if (user.preferences !== null && user.preferences !== undefined) {
                 try {
                     user.preferences = JSON.parse(user.preferences);
@@ -525,7 +547,7 @@ router.delete('/playlists/:id/songs/:songId', authenticateToken, (req, res) => {
 
 // --- PASSWORD RESET ---
 
-// Email Transporter — Production-ready config
+// Email Transporter â€” Production-ready config
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -542,9 +564,9 @@ const transporter = nodemailer.createTransport({
 // Verify SMTP connection at startup so we catch mis-configs early
 transporter.verify((error) => {
     if (error) {
-        console.error('❌ SMTP connection failed:', error.message);
+        console.error('âŒ SMTP connection failed:', error.message);
     } else {
-        console.log('✅ SMTP server is ready to send emails');
+        console.log('âœ… SMTP server is ready to send emails');
     }
 });
 
@@ -553,7 +575,7 @@ router.post('/forgot-password', (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    // Normalize email — trim whitespace and lowercase for consistent matching
+    // Normalize email â€” trim whitespace and lowercase for consistent matching
     const normalizedEmail = email.trim().toLowerCase();
 
     db.get(`SELECT id FROM users WHERE LOWER(email) = ?`, [normalizedEmail], (err, user) => {
@@ -562,7 +584,7 @@ router.post('/forgot-password', (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
 
-        // Always return success to avoid user enumeration — but only send email if user exists
+        // Always return success to avoid user enumeration â€” but only send email if user exists
         if (!user) {
             console.log(`[forgot-password] No user found for: ${normalizedEmail}`);
             return res.json({ success: true, message: 'If an account exists, an OTP was sent.' });
@@ -671,7 +693,7 @@ router.post('/verify-otp', (req, res) => {
     const { email, token } = req.body;
     if (!email || !token) return res.status(400).json({ error: 'Email and OTP are required' });
 
-    // Normalize — trim whitespace, lowercase email, strip non-digits from OTP
+    // Normalize â€” trim whitespace, lowercase email, strip non-digits from OTP
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedToken = token.toString().trim().replace(/\D/g, '');
 
@@ -719,7 +741,7 @@ router.post('/reset-password', async (req, res) => {
                 return res.status(400).json({ error: 'Invalid OTP or Email. Please check and try again.' });
             }
 
-            // Check expiry — handle both string and Date from PostgreSQL
+            // Check expiry â€” handle both string and Date from PostgreSQL
             const expiry = new Date(user.reset_token_expiry).getTime();
             if (isNaN(expiry) || Date.now() > expiry) {
                 return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
@@ -747,7 +769,8 @@ router.post('/reset-password', async (req, res) => {
 
 router.post('/admin/login', async (req, res) => {
     const { email, password } = req.body;
-    if (email !== 'sudhanshu.ok1802@gmail.com') return res.status(403).json({ error: 'Access denied: Not an admin email' });
+    const adminEmail = process.env.ADMIN_EMAIL || 'sudhanshu.ok1802@gmail.com';
+    if (email !== adminEmail) return res.status(403).json({ error: 'Access denied: Not an admin email' });
     
     db.get(`SELECT * FROM users WHERE email = $1`, [email], async (err, user) => {
         if (err || !user) return res.status(400).json({ error: 'Admin account not found' });
@@ -755,7 +778,7 @@ router.post('/admin/login', async (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
         
-        const adminToken = jwt.sign({ id: user.id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
+        const adminToken = jwt.sign({ id: user.id, role: 'admin' }, _JWT_SECRET, { expiresIn: '1d' });
         res.json({ success: true, token: adminToken });
     });
 });

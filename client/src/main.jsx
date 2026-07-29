@@ -6,7 +6,10 @@ import { PlaybackProvider } from './context/PlaybackContext'
 import { AuthProvider } from './context/AuthContext'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 
-const GOOGLE_CLIENT_ID = "145321546112-8ejiegssa746e3rlnn4ihhhmi69sgqao.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+if (!GOOGLE_CLIENT_ID) {
+  console.warn("⚠️ VITE_GOOGLE_CLIENT_ID is not configured in your client .env file!");
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

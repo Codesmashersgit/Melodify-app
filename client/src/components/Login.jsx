@@ -37,6 +37,7 @@ const Login = () => {
         });
         const userData = await userRes.json();
         const res = await axios.post(`${API_BASE_URL}/api/user/google-auth`, {
+          accessToken: tokenResponse.access_token,
           name: userData.name,
           email: userData.email,
           platform: 'web'

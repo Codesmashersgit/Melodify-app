@@ -346,11 +346,11 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
 
     console.log(`🔍 Resolving full URL for: ${songName || songId}`);
 
-    // STRATEGY 0: Use saavn.dev (third-party API — works from cloud servers like Render)
+    // STRATEGY 0: Use jiosaavn-api-beta.vercel.app (third-party API — works from cloud servers like Render)
     // This is the most reliable in production since official JioSaavn blocks cloud IPs
     try {
-        console.log(`🌐 Strategy 0 (saavn.dev): Fetching song ${songId}`);
-        const hqData = await fetchJson(`https://saavn.dev/api/songs/${songId}`, 8000);
+        console.log(`🌐 Strategy 0 (Vercel API): Fetching song ${songId}`);
+        const hqData = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 8000);
         let song = null;
         if (hqData.data && Array.isArray(hqData.data)) song = hqData.data[0];
         else if (hqData.data && hqData.data.id) song = hqData.data;
@@ -361,7 +361,7 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
                 const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') || downloadUrls[downloadUrls.length - 1];
                 const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
                 if (link) {
-                    console.log(`✅ Strategy 0 (saavn.dev) SUCCESS for ${songId}`);
+                    console.log(`✅ Strategy 0 (Vercel API) SUCCESS for ${songId}`);
                     hqUrlCache.set(songId, link);
                     saveCache();
                     return link;
@@ -369,7 +369,7 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
             }
         }
     } catch (e) {
-        console.warn(`⚠️ Strategy 0 (saavn.dev) failed for ${songId}:`, e.message);
+        console.warn(`⚠️ Strategy 0 (Vercel API) failed for ${songId}:`, e.message);
     }
 
     console.log("--- STRATEGY 1 START ---");
@@ -419,10 +419,10 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
 
     // STRATEGY 2: Use third-party JioSaavn API instances in parallel
     const thirdPartyApis = [
-        `https://saavn.dev/api/songs/${songId}`,
-        `https://jiosaavn-api-privatecvc2.vercel.app/api/songs/${songId}`,
+        `https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`,
+        `https://jiosaavn-api-three.vercel.app/songs?id=${songId}`,
+        `https://jiosaavn-api-beta.vercel.app/api/songs?id=${songId}`,
         `https://jiosaavn-api-ashutosh.vercel.app/api/songs?id=${songId}`,
-        `https://jiosaavn-api-liard.vercel.app/api/songs?id=${songId}`,
     ];
 
     try {
@@ -628,6 +628,8 @@ setInterval(() => apiCache.clear(), 60 * 60 * 1000);
 
 // Search songs — tries multiple APIs for maximum production compatibility
 // Priority: saavn.dev → official JioSaavn
+// Search songs and artists — tries multiple APIs for maximum production compatibility
+// Priority: saavn.dev → official JioSaavn
 app.get('/api/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json([]);
@@ -659,42 +661,87 @@ app.get('/api/search', async (req, res) => {
                 duration_ms: (parseInt(song.duration) || 0) * 1000,
                 album: song.album?.name || song.album || '',
                 playCount: song.playCount || '0',
+                type: 'song'
+            };
+        });
+    };
+
+    // Helper: parse saavn.dev/saavnapi-style artist results
+    const parseSaavnDevArtists = (data) => {
+        const results = data?.data?.results || data?.results || [];
+        if (!Array.isArray(results)) return [];
+        return results.map(artist => {
+            const imgArr = artist.image;
+            const image = Array.isArray(imgArr)
+                ? (imgArr.find(i => i.quality === '150x150' || i.quality === '500x500')?.link || imgArr[imgArr.length - 1]?.link || '')
+                : (imgArr || '');
+            return {
+                id: artist.id,
+                name: artist.name,
+                image: image,
+                type: 'artist'
             };
         });
     };
 
     // --- CLOUD-FRIENDLY APIs (work from Render) ---
     const cloudApis = [
-        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=20`,
-        `https://jiosaavn.me/api/search?query=${encodeURIComponent(query)}&limit=20`,
+        `https://jiosaavn-api-beta.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=20`,
+        `https://jiosaavn-api-three.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=20`,
     ];
 
+    let tracks = [];
     for (const apiUrl of cloudApis) {
         try {
-            console.log(`[search] Trying: ${apiUrl.slice(0, 60)}...`);
+            console.log(`[search] Trying songs: ${apiUrl.slice(0, 60)}...`);
             const data = await fetchJson(apiUrl, 7000);
-            const tracks = parseSaavnDevResults(data);
-            if (tracks && tracks.length > 0) {
-                console.log(`[search] SUCCESS from ${apiUrl.slice(8, 30)} — ${tracks.length} results`);
-                apiCache.set(cacheKey, tracks);
-                return res.json(tracks);
+            const parsed = parseSaavnDevResults(data);
+            if (parsed && parsed.length > 0) {
+                tracks = parsed;
+                break;
             }
         } catch (err) {
-            console.warn(`[search] ${apiUrl.slice(8, 30)} failed:`, err.message);
+            console.warn(`[search] songs failed for ${apiUrl.slice(8, 30)}:`, err.message);
         }
     }
 
-    // --- FALLBACK: official JioSaavn (works locally, may be blocked on cloud) ---
-    try {
-        console.log(`[search] Trying official JioSaavn for: ${query}`);
-        const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: '20' });
-        const tracks = (data.results || []).map(formatSong);
-        if (tracks.length > 0) {
-            apiCache.set(cacheKey, tracks);
-            return res.json(tracks);
+    // Fallback: search official songs if cloud APIs failed
+    if (tracks.length === 0) {
+        try {
+            console.log(`[search] Trying official JioSaavn for songs: ${query}`);
+            const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: '20' });
+            tracks = (data.results || []).map(formatSong).map(t => ({ ...t, type: 'song' }));
+        } catch (err) {
+            console.error('[search] Official JioSaavn songs failed:', err.message);
         }
+    }
+
+    // Fetch artists in parallel/background
+    let artistsResults = [];
+    try {
+        const artistUrl = `https://jiosaavn-api-beta.vercel.app/search/artists?query=${encodeURIComponent(query)}&limit=10`;
+        const artistData = await fetchJson(artistUrl, 5000);
+        artistsResults = parseSaavnDevArtists(artistData);
     } catch (err) {
-        console.error('[search] Official JioSaavn also failed:', err.message);
+        console.warn(`[search] Cloud artists search failed:`, err.message);
+        // Fallback: search official artists
+        try {
+            const artistData = await jiosaavnRequest({ __call: 'search.getArtistResults', q: query, n: '10' });
+            if (artistData && Array.isArray(artistData.results)) {
+                artistsResults = artistData.results.map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    image: a.image,
+                    type: 'artist'
+                }));
+            }
+        } catch (e) {}
+    }
+
+    const combinedResults = [...tracks, ...artistsResults];
+    if (combinedResults.length > 0) {
+        apiCache.set(cacheKey, combinedResults);
+        return res.json(combinedResults);
     }
 
     res.status(500).json({ error: 'Search unavailable. All APIs failed.', query });

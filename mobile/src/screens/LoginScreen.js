@@ -175,18 +175,11 @@ const LoginScreen = ({ navigation }) => {
                             </View>
 
                             <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={handleGoogleLogin} activeOpacity={0.8}>
-                                <Ionicons name="logo-google" size={20} color="#ea4335" />
+                                <Image 
+                                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' }} 
+                                    style={{ width: 20, height: 20, marginRight: 12 }} 
+                                />
                                 <Text style={styles.socialButtonText}>Continue with Google</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleLogin} activeOpacity={0.8}>
-                                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                                <Text style={styles.socialButtonText}>Continue with Apple</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.socialButton, styles.phoneButton]} onPress={() => setShowPhoneModal(true)} activeOpacity={0.8}>
-                                <Ionicons name="call" size={18} color="#1DB954" />
-                                <Text style={[styles.socialButtonText, { color: '#1DB954' }]}>Continue with Mobile No.</Text>
                             </TouchableOpacity>
                         </View>
 

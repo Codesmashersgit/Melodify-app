@@ -144,19 +144,24 @@ const SearchScreen = ({ navigation }) => {
             const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`);
             const allResults = response.data || [];
 
-            // /api/search returns tracks with id field (not preview_url)
-            const songs = allResults.filter(r => r.id);
+            // API now returns combined songs + artists with type field
+            const songs = allResults.filter(r => r.id && r.type !== 'artist');
+            const apiArtists = allResults.filter(r => r.type === 'artist');
             setSongResults(songs);
 
-            // Filter artists from context that match query
-            const matchedArtists = (artists || []).filter(a =>
-                a.name.toLowerCase().includes(query.toLowerCase())
-            );
-            setArtistResults(matchedArtists.slice(0, 5));
+            // Use API artists if available, otherwise filter from context
+            if (apiArtists.length > 0) {
+                setArtistResults(apiArtists);
+            } else {
+                const matchedArtists = (artists || []).filter(a =>
+                    a.name && a.name.toLowerCase().includes(query.toLowerCase())
+                );
+                setArtistResults(matchedArtists.slice(0, 5));
+            }
 
             // Filter albums from context that match query
             const matchedAlbums = (albums || []).filter(a =>
-                a.name.toLowerCase().includes(query.toLowerCase()) ||
+                a.name && a.name.toLowerCase().includes(query.toLowerCase()) ||
                 (a.artist && a.artist.toLowerCase().includes(query.toLowerCase()))
             );
             setAlbumResults(matchedAlbums.slice(0, 5));

@@ -169,7 +169,11 @@ const Signup = () => {
 
           <div className='auth-social-btns'>
             <button type="button" className='btn-social btn-google' id="signup-google-btn" onClick={handleGoogleSignup}>
-              <FaGoogle className="social-icon" style={{ color: '#ea4335' }} /> Sign up with Google
+              <img 
+                src='https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' 
+                alt='Google' 
+                style={{ width: '20px', height: '20px', marginRight: '12px' }} 
+              /> Sign up with Google
             </button>
           </div>
 

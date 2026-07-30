@@ -29,7 +29,33 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const [progressBarWidth, setProgressBarWidth] = useState(0);
     const [isSliding, setIsSliding] = useState(false);
     const [sliderValue, setSliderValue] = useState(0);
+    const [seekHint, setSeekHint] = useState(null); // { direction: 'left'|'right', seconds: 10 }
+    const seekHintTimer = useRef(null);
     const insets = useSafeAreaInsets();
+
+    const handleAlbumArtPress = (event) => {
+        const x = event.nativeEvent.locationX;
+        const artWidth = event.nativeEvent.target;
+        // Use 1/3 zones: left = seek back, right = seek forward, center = toggle play
+        const third = width * 0.8 / 3; // album art is ~80% screen width
+        if (x < third) {
+            // Seek back 10s
+            const newTime = Math.max(0, currentTime - 10);
+            seekTo(newTime);
+            setSeekHint({ direction: 'left', seconds: 10 });
+        } else if (x > third * 2) {
+            // Seek forward 10s
+            const newTime = Math.min(duration, currentTime + 10);
+            seekTo(newTime);
+            setSeekHint({ direction: 'right', seconds: 10 });
+        } else {
+            // Center — toggle play/pause
+            togglePlay();
+            return;
+        }
+        if (seekHintTimer.current) clearTimeout(seekHintTimer.current);
+        seekHintTimer.current = setTimeout(() => setSeekHint(null), 800);
+    };
 
     const handleMinimize = () => {
         if (mode === 'video') {
@@ -260,12 +286,23 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                         </View>
                     </View>
 
-                    {/* ── Album Art ── */}
-                    <View style={styles.albumArtWrapper}>
+                    {/* ── Album Art (tap left/right to seek ±10s, center to play/pause) ── */}
+                    <TouchableOpacity style={styles.albumArtWrapper} onPress={handleAlbumArtPress} activeOpacity={1}>
                         <Animated.View style={[styles.albumArtShadow, { transform: [{ scale: scaleAnim }] }]}>
                             <Image source={{ uri: currentTrack.image }} style={styles.albumArt} />
+                            {/* Seek Hint Overlay */}
+                            {seekHint && (
+                                <View style={[styles.seekHintOverlay, seekHint.direction === 'left' ? styles.seekHintLeft : styles.seekHintRight]}>
+                                    <Ionicons
+                                        name={seekHint.direction === 'left' ? 'play-back' : 'play-forward'}
+                                        size={32}
+                                        color="white"
+                                    />
+                                    <Text style={styles.seekHintText}>{seekHint.direction === 'left' ? '-' : '+'}{seekHint.seconds}s</Text>
+                                </View>
+                            )}
                         </Animated.View>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* ── Track Info + Like ── */}
                     <View style={styles.infoContainer}>
@@ -453,6 +490,29 @@ const styles = StyleSheet.create({
         width: width - 64,
         height: width - 64,
         borderRadius: 16,
+    },
+    seekHintOverlay: {
+        position: 'absolute',
+        top: '35%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        borderRadius: 40,
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        gap: 4,
+    },
+    seekHintLeft: {
+        left: 10,
+    },
+    seekHintRight: {
+        right: 10,
+    },
+    seekHintText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '700',
+        textAlign: 'center',
     },
 
     // Info

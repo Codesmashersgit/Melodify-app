@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -174,18 +174,11 @@ const SignupScreen = ({ navigation }) => {
                             </View>
 
                             <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={handleGoogleSignup} activeOpacity={0.8}>
-                                <Ionicons name="logo-google" size={20} color="#ea4335" />
+                                <Image 
+                                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' }} 
+                                    style={{ width: 20, height: 20, marginRight: 12 }} 
+                                />
                                 <Text style={styles.socialButtonText}>Sign up with Google</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignup} activeOpacity={0.8}>
-                                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                                <Text style={styles.socialButtonText}>Sign up with Apple</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.socialButton, styles.phoneButton]} onPress={() => setShowPhoneModal(true)} activeOpacity={0.8}>
-                                <Ionicons name="call" size={18} color="#1DB954" />
-                                <Text style={[styles.socialButtonText, { color: '#1DB954' }]}>Sign up with Mobile No.</Text>
                             </TouchableOpacity>
                         </View>
 

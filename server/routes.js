@@ -10,9 +10,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) console.warn('âš ï¸  JWT_SECRET not set in env â€” using insecure fallback!');
-const _JWT_SECRET = JWT_SECRET || 'melodify_super_secret_key_123';
+const getJwtSecret = () => process.env.JWT_SECRET || "melodify_super_secret_key_123";
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -20,7 +18,7 @@ const authenticateToken = (req, res, next) => {
     
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, _JWT_SECRET, (err, user) => {
+    jwt.verify(token, getJwtSecret(), (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
@@ -35,7 +33,7 @@ const authenticateAdmin = (req, res, next) => {
 
     if (!token) return res.status(401).json({ error: 'Admin token required' });
 
-    jwt.verify(token, _JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, getJwtSecret(), (err, decoded) => {
         if (err || !decoded || decoded.role !== 'admin') return res.status(403).json({ error: 'Admin access denied' });
         req.user = decoded;
         next();
@@ -66,7 +64,7 @@ router.post('/signup', async (req, res) => {
                 return res.status(500).json({ error: 'Database error' });
             }
             
-            const token = jwt.sign({ id: this.lastID, email, name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ id: this.lastID, email, name }, getJwtSecret(), { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
             res.json({ user: { id: this.lastID, name, email, platform: userPlatform }, token });
         });
@@ -89,7 +87,7 @@ router.post('/login', (req, res) => {
         const userPlatform = req.body.platform === 'apk' ? 'apk' : 'web';
         db.run(`UPDATE users SET last_login_platform = ? WHERE id = ?`, [userPlatform, user.id], () => {});
 
-        const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, getJwtSecret(), { expiresIn: '7d' });
         res.cookie('melodify_token', token, cookieOptions);
         
         let parsedPreferences = null;
@@ -118,7 +116,7 @@ router.post('/phone/send-otp', async (req, res) => {
     phoneOtpStore.set(phone, { otp: generatedOtp, expiry });
 
     console.log(`\n==========================================`);
-    console.log(`ðŸ“± [MELODIFY FREE OTP LOG]`);
+    console.log(`Ã°Å¸â€œÂ± [MELODIFY FREE OTP LOG]`);
     console.log(`Mobile Number: +91 ${phone}`);
     console.log(`Generated OTP Code: ${generatedOtp}`);
     console.log(`==========================================\n`);
@@ -161,7 +159,7 @@ router.post('/phone/verify-otp', async (req, res) => {
 
         if (existingUser) {
             db.run(`UPDATE users SET last_login_platform = ? WHERE id = ?`, [userPlatform, existingUser.id], () => {});
-            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, getJwtSecret(), { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
 
             let parsedPreferences = null;
@@ -183,7 +181,7 @@ router.post('/phone/verify-otp', async (req, res) => {
                     if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
                     
                     const userId = this.lastID;
-                    const token = jwt.sign({ id: userId, email: dummyEmail, name: defaultName }, JWT_SECRET, { expiresIn: '7d' });
+                    const token = jwt.sign({ id: userId, email: dummyEmail, name: defaultName }, getJwtSecret(), { expiresIn: '7d' });
                     res.cookie('melodify_token', token, cookieOptions);
 
                     return res.json({
@@ -215,7 +213,7 @@ router.post('/google-auth', async (req, res) => {
             if (googleRes.data && googleRes.data.email) {
                 userEmail = googleRes.data.email;
                 userName = googleRes.data.name || googleRes.data.given_name || userName;
-                console.log(`✅ Verified Google Access Token for ${userEmail}`);
+                console.log(`âœ… Verified Google Access Token for ${userEmail}`);
             }
         } catch (vErr) {
             console.error('Google Access Token verification failed:', vErr.message);
@@ -228,7 +226,7 @@ router.post('/google-auth', async (req, res) => {
             if (googleRes.data && googleRes.data.email) {
                 userEmail = googleRes.data.email;
                 userName = googleRes.data.name || userName;
-                console.log(`✅ Verified Google ID Token for ${userEmail}`);
+                console.log(`âœ… Verified Google ID Token for ${userEmail}`);
             }
         } catch (vErr) {
             console.error('Google ID Token verification failed:', vErr.message);
@@ -244,7 +242,7 @@ router.post('/google-auth', async (req, res) => {
 
     db.get(`SELECT * FROM users WHERE email = ?`, [userEmail], async (err, existingUser) => {
         if (existingUser) {
-            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, _JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, getJwtSecret(), { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
             
             let parsedPreferences = null;
@@ -267,7 +265,7 @@ router.post('/google-auth', async (req, res) => {
                     if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
 
                     const userId = this.lastID;
-                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, _JWT_SECRET, { expiresIn: '7d' });
+                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, getJwtSecret(), { expiresIn: '7d' });
                     res.cookie('melodify_token', token, cookieOptions);
 
                     return res.json({
@@ -292,7 +290,7 @@ router.post('/apple-auth', async (req, res) => {
 
     db.get(`SELECT * FROM users WHERE email = ?`, [userEmail], async (err, existingUser) => {
         if (existingUser) {
-            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ id: existingUser.id, email: existingUser.email, name: existingUser.name }, getJwtSecret(), { expiresIn: '7d' });
             res.cookie('melodify_token', token, cookieOptions);
             
             let parsedPreferences = null;
@@ -315,7 +313,7 @@ router.post('/apple-auth', async (req, res) => {
                     if (insertErr) return res.status(500).json({ error: 'Failed to create user' });
 
                     const userId = this.lastID;
-                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, JWT_SECRET, { expiresIn: '7d' });
+                    const token = jwt.sign({ id: userId, email: userEmail, name: userName }, getJwtSecret(), { expiresIn: '7d' });
                     res.cookie('melodify_token', token, cookieOptions);
 
                     return res.json({
@@ -329,45 +327,52 @@ router.post('/apple-auth', async (req, res) => {
     });
 });
 
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', (req, res) => {
+    const token = req.cookies?.melodify_token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
+    
+    if (!token) {
+        return res.json({ user: null });
+    }
 
-    db.get(
-        `SELECT id, name, email, platform, preferences 
-         FROM users 
-         WHERE id = ?`,
-        [req.user.id],
-        (err, user) => {
-
-            if (err) {
-                return res.status(500).json({
-                    error: "Database error"
-                });
-            }
-
-            if (!user) {
-                return res.status(404).json({
-                    error: "User not found"
-                });
-            }
-
-            // null = never set preferences (new user) â†’ redirect to preferences page
-            // '[]' or populated = preferences set (even if empty) â†’ don't redirect
-            if (user.preferences !== null && user.preferences !== undefined) {
-                try {
-                    user.preferences = JSON.parse(user.preferences);
-                } catch(e) {
-                    user.preferences = [];
-                }
-            } else {
-                user.preferences = null; // explicitly null = new user, never set
-            }
-
-            res.json({
-                user
-            });
+    jwt.verify(token, getJwtSecret(), (err, decoded) => {
+        if (err || !decoded) {
+            return res.json({ user: null });
         }
-    );
 
+        db.get(
+            `SELECT id, name, email, platform, preferences 
+             FROM users 
+             WHERE id = ?`,
+            [decoded.id],
+            (err, user) => {
+                if (err) {
+                    return res.status(500).json({
+                        error: "Database error"
+                    });
+                }
+
+                if (!user) {
+                    return res.json({ user: null });
+                }
+
+                // null = never set preferences (new user) → redirect to preferences page
+                // '[]' or populated = preferences set (even if empty) → don't redirect
+                if (user.preferences !== null && user.preferences !== undefined) {
+                    try {
+                        user.preferences = JSON.parse(user.preferences);
+                    } catch(e) {
+                        user.preferences = [];
+                    }
+                } else {
+                    user.preferences = null; // explicitly null = new user, never set
+                }
+
+                res.json({
+                    user
+                });
+            }
+        );
+    });
 });
 router.put('/preferences', authenticateToken, (req, res) => {
 
@@ -547,7 +552,7 @@ router.delete('/playlists/:id/songs/:songId', authenticateToken, (req, res) => {
 
 // --- PASSWORD RESET ---
 
-// Email Transporter â€” Production-ready config
+// Email Transporter Ã¢â‚¬â€ Production-ready config
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -564,9 +569,9 @@ const transporter = nodemailer.createTransport({
 // Verify SMTP connection at startup so we catch mis-configs early
 transporter.verify((error) => {
     if (error) {
-        console.error('âŒ SMTP connection failed:', error.message);
+        console.error('Ã¢ÂÅ’ SMTP connection failed:', error.message);
     } else {
-        console.log('âœ… SMTP server is ready to send emails');
+        console.log('Ã¢Å“â€¦ SMTP server is ready to send emails');
     }
 });
 
@@ -575,7 +580,7 @@ router.post('/forgot-password', (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    // Normalize email â€” trim whitespace and lowercase for consistent matching
+    // Normalize email Ã¢â‚¬â€ trim whitespace and lowercase for consistent matching
     const normalizedEmail = email.trim().toLowerCase();
 
     db.get(`SELECT id FROM users WHERE LOWER(email) = ?`, [normalizedEmail], (err, user) => {
@@ -584,7 +589,7 @@ router.post('/forgot-password', (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
 
-        // Always return success to avoid user enumeration â€” but only send email if user exists
+        // Always return success to avoid user enumeration Ã¢â‚¬â€ but only send email if user exists
         if (!user) {
             console.log(`[forgot-password] No user found for: ${normalizedEmail}`);
             return res.json({ success: true, message: 'If an account exists, an OTP was sent.' });
@@ -693,7 +698,7 @@ router.post('/verify-otp', (req, res) => {
     const { email, token } = req.body;
     if (!email || !token) return res.status(400).json({ error: 'Email and OTP are required' });
 
-    // Normalize â€” trim whitespace, lowercase email, strip non-digits from OTP
+    // Normalize Ã¢â‚¬â€ trim whitespace, lowercase email, strip non-digits from OTP
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedToken = token.toString().trim().replace(/\D/g, '');
 
@@ -741,7 +746,7 @@ router.post('/reset-password', async (req, res) => {
                 return res.status(400).json({ error: 'Invalid OTP or Email. Please check and try again.' });
             }
 
-            // Check expiry â€” handle both string and Date from PostgreSQL
+            // Check expiry Ã¢â‚¬â€ handle both string and Date from PostgreSQL
             const expiry = new Date(user.reset_token_expiry).getTime();
             if (isNaN(expiry) || Date.now() > expiry) {
                 return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
@@ -778,7 +783,7 @@ router.post('/admin/login', async (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
         
-        const adminToken = jwt.sign({ id: user.id, role: 'admin' }, _JWT_SECRET, { expiresIn: '1d' });
+        const adminToken = jwt.sign({ id: user.id, role: 'admin' }, getJwtSecret(), { expiresIn: '1d' });
         res.json({ success: true, token: adminToken });
     });
 });
@@ -829,3 +834,4 @@ router.delete('/admin/users/:id', authenticateAdmin, (req, res) => {
 });
 
 module.exports = router;
+

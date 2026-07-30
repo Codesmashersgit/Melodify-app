@@ -37,6 +37,60 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
+// =================== SECURITY ENHANCEMENTS ===================
+
+// 1. Basic Security Headers (OWASP Mitigation)
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; media-src 'self' data: https:; connect-src 'self' https:;");
+    next();
+});
+
+// 2. Lightweight Rate Limiter for Auth Routes
+const rateLimitStore = new Map();
+const authRateLimiter = (req, res, next) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+    const limitWindow = 15 * 60 * 1000; // 15 minutes
+    const maxRequests = 100; // Max 100 requests per IP per window
+
+    const clientHistory = rateLimitStore.get(ip) || [];
+    // Filter out requests older than the limit window
+    const activeRequests = clientHistory.filter(timestamp => now - timestamp < limitWindow);
+
+    if (activeRequests.length >= maxRequests) {
+        return res.status(429).json({ error: 'Too many requests. Please try again after 15 minutes.' });
+    }
+
+    activeRequests.push(now);
+    rateLimitStore.set(ip, activeRequests);
+    next();
+};
+
+// Clean rateLimitStore periodically (every 1 hour) to save memory
+setInterval(() => {
+    const now = Date.now();
+    const limitWindow = 15 * 60 * 1000;
+    for (const [ip, history] of rateLimitStore.entries()) {
+        const filtered = history.filter(timestamp => now - timestamp < limitWindow);
+        if (filtered.length === 0) {
+            rateLimitStore.delete(ip);
+        } else {
+            rateLimitStore.set(ip, filtered);
+        }
+    }
+}, 60 * 60 * 1000);
+
+// Apply rate limiting to all auth endpoints
+app.use('/api/user/login', authRateLimiter);
+app.use('/api/user/signup', authRateLimiter);
+app.use('/api/user/forgot-password', authRateLimiter);
+app.use('/api/user/reset-password', authRateLimiter);
+app.use('/api/user/verify-otp', authRateLimiter);
+
 // Prevent silent crashes
 process.on('uncaughtException', (err) => {
     console.error('💥 Uncaught Exception:', err);

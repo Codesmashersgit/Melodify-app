@@ -261,6 +261,31 @@ const fetchJson = (url, timeoutMs = 8000) => {
     });
 };
 
+const verifyAudioUrl = async (url) => {
+    if (!url || !/^https?:\/\//i.test(url)) return null;
+
+    return new Promise((resolve) => {
+        const lib = url.startsWith('https') ? https : http;
+        const req = lib.request(url, {
+            method: 'HEAD',
+            timeout: 8000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
+                'Range': 'bytes=0-0'
+            }
+        }, (res) => {
+            const status = res.statusCode || 0;
+            res.resume();
+            resolve(status >= 200 && status < 400 ? url : null);
+        });
+
+        req.on('error', () => resolve(null));
+        req.on('timeout', () => { req.destroy(); resolve(null); });
+        req.end();
+    });
+};
+
 // Helper to make JioSaavn API calls
 const jiosaavnRequest = (params, version = '4') => {
     return new Promise((resolve, reject) => {
@@ -317,28 +342,22 @@ const hdImage = (url) => url ? url.replace(/150x150|50x50/, '500x500') : '';
 // =================== RESOLVE FULL SONG URL ===================
 // This is the core function that resolves a full-length HQ URL from a song ID
 
-const cacheFile = path.join(__dirname, 'hq_url_cache.json');
-// In-memory cache for resolved HQ URLs (songId -> url)
+// JioSaavn CDN URLs expire quickly — DO NOT cache to disk.
+// Only keep a short in-memory cache (5 min) to avoid hammering APIs on rapid play
 let hqUrlCache = new Map();
-try {
-    if (fs.existsSync(cacheFile)) {
-        const data = fs.readFileSync(cacheFile, 'utf8');
-        hqUrlCache = new Map(Object.entries(JSON.parse(data)));
-    }
-} catch (err) {
-    console.error('Error loading cache file:', err);
-}
+// Clear URL cache every 5 minutes so we always get fresh (non-expired) CDN URLs
+setInterval(() => { hqUrlCache.clear(); console.log('🗑️ HQ URL cache cleared'); }, 5 * 60 * 1000);
 
-function saveCache() {
-    try {
-        fs.writeFileSync(cacheFile, JSON.stringify(Object.fromEntries(hqUrlCache)));
-    } catch (err) {
-        console.error('Error saving cache file:', err);
-    }
-}
+// Delete old stale disk cache if it exists
+try {
+    const cacheFile = path.join(__dirname, 'hq_url_cache.json');
+    if (fs.existsSync(cacheFile)) { fs.unlinkSync(cacheFile); console.log('🗑️ Deleted stale disk cache'); }
+} catch (_) {}
+
+function saveCache() { /* no-op: disk cache disabled - CDN URLs expire */ }
 
 async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
-    // Check cache first
+    // Short in-memory cache hit
     if (hqUrlCache.has(songId)) {
         console.log(`🎵 Cache hit for song ${songId}`);
         return hqUrlCache.get(songId);
@@ -358,13 +377,15 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
         if (song) {
             const downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
             if (downloadUrls && Array.isArray(downloadUrls)) {
-                const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') || downloadUrls[downloadUrls.length - 1];
-                const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
-                if (link) {
-                    console.log(`✅ Strategy 0 (Vercel API) SUCCESS for ${songId}`);
-                    hqUrlCache.set(songId, link);
-                    saveCache();
-                    return link;
+                for (const candidate of downloadUrls) {
+                    const link = candidate?.link || candidate?.url || (typeof candidate === 'string' ? candidate : null);
+                    const verified = await verifyAudioUrl(link);
+                    if (verified) {
+                        console.log(`✅ Strategy 0 (Vercel API) SUCCESS for ${songId}`);
+                        hqUrlCache.set(songId, verified);
+                        saveCache();
+                        return verified;
+                    }
                 }
             }
         }
@@ -439,12 +460,16 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
                 if (song) {
                     let downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
                     if (downloadUrls && Array.isArray(downloadUrls)) {
-                        const hq = downloadUrls.find(d => d.quality === '320kbps' || d.quality === '320') || downloadUrls[downloadUrls.length - 1];
-                        const link = hq?.link || hq?.url || (typeof hq === 'string' ? hq : null);
-                        if (link) return resolve({link, api});
+                        for (const candidate of downloadUrls) {
+                            const link = candidate?.link || candidate?.url || (typeof candidate === 'string' ? candidate : null);
+                            if (!link) continue;
+                            const verified = await verifyAudioUrl(link);
+                            if (verified) return resolve({ link: verified, api });
+                        }
                     }
                     if (song.url && typeof song.url === 'string' && song.url.includes('saavncdn')) {
-                        return resolve({link: song.url, api});
+                        const verified = await verifyAudioUrl(song.url);
+                        if (verified) return resolve({ link: verified, api });
                     }
                 }
                 reject(new Error("No valid URL found"));
@@ -561,14 +586,52 @@ app.get('/api/stream', async (req, res) => {
 
     try {
         const resolvedUrl = await resolveFullSongUrl(id, name, artist);
-        if (resolvedUrl) {
-            // Redirect client directly to CDN — no proxy overhead
-            return res.redirect(302, resolvedUrl);
+        if (!resolvedUrl) {
+            return res.status(404).send('Could not resolve song URL');
         }
-        return res.status(404).send('Could not resolve song URL');
+
+        // ✅ PROXY the audio through our server instead of redirecting
+        // This is required because JioSaavn CDN URLs expire within seconds
+        // and browsers cannot directly fetch them after that.
+        const rangeHeader = req.headers['range'];
+        const fetchHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.jiosaavn.com/',
+            'Origin': 'https://www.jiosaavn.com',
+            'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
+        };
+        if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
+
+        const cdnResponse = await axios({
+            method: 'GET',
+            url: resolvedUrl,
+            responseType: 'stream',
+            maxRedirects: 10,
+            timeout: 30000,
+            headers: fetchHeaders,
+        });
+
+        // Forward relevant headers to client
+        const status = cdnResponse.status === 206 ? 206 : 200;
+        res.status(status);
+        res.setHeader('Content-Type', cdnResponse.headers['content-type'] || 'audio/mpeg');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Accept-Ranges', 'bytes');
+        if (cdnResponse.headers['content-length']) {
+            res.setHeader('Content-Length', cdnResponse.headers['content-length']);
+        }
+        if (cdnResponse.headers['content-range']) {
+            res.setHeader('Content-Range', cdnResponse.headers['content-range']);
+        }
+
+        cdnResponse.data.pipe(res);
+        cdnResponse.data.on('error', (err) => {
+            console.error('Stream pipe error:', err.message);
+            if (!res.headersSent) res.status(500).send('Stream pipe failed');
+        });
     } catch (err) {
-        console.error('Stream resolve error:', err.message);
-        return res.status(500).send('Stream failed');
+        console.error('Stream error:', err.message);
+        if (!res.headersSent) return res.status(500).send('Stream failed');
     }
 });
 
@@ -648,16 +711,12 @@ app.get('/api/search', async (req, res) => {
             const image = Array.isArray(imgArr)
                 ? (imgArr.find(i => i.quality === '500x500' || i.quality === '150x150')?.link || imgArr[imgArr.length - 1]?.link || '')
                 : (imgArr || '');
-            const dlArr = song.downloadUrl;
-            const downloadUrl = Array.isArray(dlArr)
-                ? (dlArr.find(d => d.quality === '320kbps')?.link || dlArr[dlArr.length - 1]?.link)
-                : null;
             return {
                 id: song.id,
                 name,
                 artist,
                 image,
-                preview_url: downloadUrl || `${BASE_URL}/api/stream?id=${song.id}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
+                preview_url: `${BASE_URL}/api/stream?id=${song.id}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
                 duration_ms: (parseInt(song.duration) || 0) * 1000,
                 album: song.album?.name || song.album || '',
                 playCount: song.playCount || '0',
@@ -673,12 +732,14 @@ app.get('/api/search', async (req, res) => {
         return results.map(artist => {
             const imgArr = artist.image;
             const image = Array.isArray(imgArr)
-                ? (imgArr.find(i => i.quality === '150x150' || i.quality === '500x500')?.link || imgArr[imgArr.length - 1]?.link || '')
+                ? (imgArr.find(i => i.quality === '500x500' || i.quality === '500')?.link
+                    || imgArr.find(i => i.quality === '150x150' || i.quality === '150')?.link
+                    || imgArr[imgArr.length - 1]?.link || '')
                 : (imgArr || '');
             return {
                 id: artist.id,
                 name: artist.name,
-                image: image,
+                image: hdImage(image),
                 type: 'artist'
             };
         });

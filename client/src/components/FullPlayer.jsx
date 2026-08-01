@@ -23,6 +23,28 @@ const FullPlayer = () => {
 
     const progressPercentage = (currentTime / duration) * 100 || 0;
 
+    const fetchVideoForTrack = useCallback(async (track) => {
+        if (!track) return null;
+        const q = `${track.name} ${track.artist}`;
+        try {
+            const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
+            if (res.data?.videoId) {
+                setVideoId(res.data.videoId);
+                setVideoError(null);
+                return res.data.videoId;
+            }
+        } catch (e) {
+            console.log('Prefetch video failed', e);
+        }
+        return null;
+    }, []);
+
+    const requestVideoFullscreen = useCallback(() => {
+        if (videoContainerRef.current?.requestFullscreen) {
+            videoContainerRef.current.requestFullscreen().catch(() => {});
+        }
+    }, []);
+
     const handleSeek = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -38,23 +60,27 @@ const FullPlayer = () => {
     useEffect(() => {
         if (!currentTrack) return;
         let isMounted = true;
-        
+
         const fetchVideo = async () => {
-            try {
-                const q = `${currentTrack.name} ${currentTrack.artist}`;
-                const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
-                if (isMounted && res.data.videoId) {
-                    setVideoId(res.data.videoId);
-                }
-            } catch (e) {
-                console.log('Prefetch video failed', e);
+            const videoIdFromApi = await fetchVideoForTrack(currentTrack);
+            if (!isMounted) return;
+            if (videoIdFromApi) {
+                setVideoId(videoIdFromApi);
             }
         };
-        
+
         fetchVideo();
-        
+
         return () => { isMounted = false; };
-    }, [currentTrack]);
+    }, [currentTrack, fetchVideoForTrack]);
+
+    useEffect(() => {
+        if (mode === 'video' && videoId && videoContainerRef.current) {
+            requestAnimationFrame(() => {
+                requestVideoFullscreen();
+            });
+        }
+    }, [mode, videoId, requestVideoFullscreen]);
 
     const switchMode = async (newMode) => {
         if (newMode === mode) return;
@@ -64,18 +90,19 @@ const FullPlayer = () => {
             setVideoStartTime(startPos);
             setVideoSwitchTimestamp(Date.now());
 
-            // Pause audio first
             if (isPlaying) togglePlay();
 
             setMode('video');
             setVideoError(null);
-            
+
             if (!videoId) {
                 setVideoLoading(true);
                 try {
-                    const q = `${currentTrack.name} ${currentTrack.artist}`;
-                    const res = await axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`);
-                    setVideoId(res.data.videoId);
+                    const fetchedVideoId = await fetchVideoForTrack(currentTrack);
+                    if (!fetchedVideoId) {
+                        setVideoError('Music video nahi mila 😔');
+                        setMode('audio');
+                    }
                 } catch (e) {
                     setVideoError('Music video nahi mila 😔');
                     setMode('audio');
@@ -84,13 +111,10 @@ const FullPlayer = () => {
                 }
             }
 
-            // Request true browser fullscreen after video is ready
-            setTimeout(() => {
-                if (videoContainerRef.current?.requestFullscreen) {
-                    videoContainerRef.current.requestFullscreen().catch(() => {});
-                }
-            }, 300);
-            
+            requestAnimationFrame(() => {
+                requestVideoFullscreen();
+            });
+
         } else {
             // Video -> Audio switch
             const elapsed = (Date.now() - (videoSwitchTimestamp || Date.now())) / 1000;

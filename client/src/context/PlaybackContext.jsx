@@ -84,8 +84,8 @@ export const PlaybackProvider = ({ children }) => {
     }, [currentTrack]);
 
     const playTrack = useCallback(async (track, newPlaylist = null) => {
-        if (!track || !track.preview_url) {
-            console.error("Cannot play track: No preview URL found", track);
+        if (!track || !track.id) {
+            console.error("Cannot play track: Missing track ID", track);
             return;
         }
 
@@ -95,22 +95,41 @@ export const PlaybackProvider = ({ children }) => {
 
         if (currentTrack?.id === track.id) {
             togglePlay();
-        } else {
-            audioRef.current.pause();
+            return;
+        }
 
-            // Check if track is saved offline (IndexedDB)
-            const blobUrl = await getTrackBlobUrl(track.id);
-            const audioSrc = blobUrl || track.preview_url;
+        audioRef.current.pause();
 
-            audioRef.current.src = audioSrc;
+        const fallbackStreamUrl = `${API_BASE_URL}/api/stream?id=${track.id}&name=${encodeURIComponent(track.name || '')}&artist=${encodeURIComponent(track.artist || '')}`;
+        const rawAudioSrc = (typeof track.preview_url === 'string' && track.preview_url.includes('saavncdn.com'))
+            ? fallbackStreamUrl
+            : track.preview_url || fallbackStreamUrl;
+        const audioSrc = typeof rawAudioSrc === 'string' && window.location.protocol === 'https:'
+            ? rawAudioSrc.replace(/^http:\/\//i, 'https://')
+            : rawAudioSrc;
+
+        audioRef.current.src = audioSrc;
+        audioRef.current.load();
+
+        setCurrentTrack(track);
+        setIsPlaying(true);
+
+        const playPromise = audioRef.current.play().catch(e => {
+            console.warn('Autoplay blocked or stream interrupted:', e.message);
+            try {
+                audioRef.current.src = fallbackStreamUrl;
+                audioRef.current.load();
+                audioRef.current.play().catch(() => {});
+            } catch (_) {}
+        });
+
+        const blobUrlPromise = getTrackBlobUrl(track.id);
+        const blobUrl = await blobUrlPromise;
+        if (blobUrl && audioRef.current.src !== blobUrl) {
+            audioRef.current.src = blobUrl;
             audioRef.current.load();
-
-            setCurrentTrack(track);
-            setIsPlaying(true);
-
-            audioRef.current.play().catch(e => {
-                console.warn('Autoplay blocked or stream interrupted:', e.message);
-            });
+            await playPromise.catch(() => {});
+            audioRef.current.play().catch(() => {});
         }
     }, [currentTrack, togglePlay]);
 

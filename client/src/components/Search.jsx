@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaPlay, FaPause, FaSearch, FaMicrophone, FaArrowLeft, FaTimes } from 'react-icons/fa';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
@@ -25,6 +26,44 @@ const categories = [
     { name: 'Sufi', color: 'linear-gradient(135deg, #6A1B9A, #38006B)', query: 'sufi qawwali hindi', icon: '🕌' },
 ];
 
+const SEARCH_STATE_KEY = 'melodify_search_state';
+const normalizeArtistName = (name = '') => String(name).toLowerCase().trim();
+const toHdImage = (url = '') => String(url || '').replace(/(?:150|50|300)x(?:150|50|300)/gi, '500x500').replace(/(?:_150x150|_50x50|_300x300)/gi, '_500x500');
+const matchesArtist = (trackArtist = '', artistName = '') => {
+    const trackArtists = String(trackArtist)
+        .split(',')
+        .map(part => normalizeArtistName(part))
+        .filter(Boolean);
+    const target = normalizeArtistName(artistName);
+
+    return trackArtists.some(part => part.includes(target) || target.includes(part));
+};
+
+const readSearchState = () => {
+    try {
+        const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
+const writeSearchState = (state) => {
+    try {
+        sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(state));
+    } catch {
+        // ignore storage failures
+    }
+};
+
+const clearSearchState = () => {
+    try {
+        sessionStorage.removeItem(SEARCH_STATE_KEY);
+    } catch {
+        // ignore storage failures
+    }
+};
+
 const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togglePlay, onAddToPlaylist }) => {
     const isCurrent = currentTrack?.id === track.id;
     return (
@@ -50,10 +89,10 @@ const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togg
     >
         {index !== undefined && (
             <span style={{ color: isCurrent ? '#1DB954' : 'var(--melodify-dim-white)', fontSize: '0.82rem', width: '20px', textAlign: 'right', flexShrink: 0 }}>
-                {isCurrent && isPlaying ? <div className="bars-equalizer" style={{ display: 'inline-block', width: '12px', height: '12px', backgroundImage: 'url(https://open.spotifycdn.com/cdn/images/equaliser-animated-green.f93a2ef4.gif)', backgroundSize: 'cover' }}></div> : (index + 1)}
+                {isCurrent && isPlaying ? <span style={{ color: '#1DB954', fontSize: '0.8rem' }}>♫</span> : (index + 1)}
             </span>
         )}
-        <img src={track.image} alt={track.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
+        <img src={toHdImage(track.image)} alt={track.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
             <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isCurrent ? '#1DB954' : 'white' }}>{track.name}</h4>
             <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
@@ -74,6 +113,7 @@ const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togg
 )};
 
 const Search = () => {
+    const navigate = useNavigate();
     const { albums, artists, playTrack, currentTrack, isPlaying, togglePlay } = usePlayback();
     const [searchQuery, setSearchQuery] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
@@ -99,6 +139,33 @@ const Search = () => {
         setSelectedTrack(track);
         setIsPlaylistModalOpen(true);
     };
+
+    useEffect(() => {
+        const savedState = readSearchState();
+        if (savedState?.searchQuery) {
+            setSearchQuery(savedState.searchQuery || '');
+            setHasSearched(Boolean(savedState.hasSearched));
+            setSongResults(savedState.songResults || []);
+            setArtistResults(savedState.artistResults || []);
+            setAlbumResults(savedState.albumResults || []);
+            setAiMoodKeywords(savedState.aiMoodKeywords || '');
+            setCategoryResults(savedState.categoryResults || null);
+            setActiveCategory(savedState.activeCategory || null);
+        }
+    }, []);
+
+    useEffect(() => {
+        writeSearchState({
+            searchQuery,
+            hasSearched,
+            songResults,
+            artistResults,
+            albumResults,
+            aiMoodKeywords,
+            categoryResults,
+            activeCategory,
+        });
+    }, [searchQuery, hasSearched, songResults, artistResults, albumResults, aiMoodKeywords, categoryResults, activeCategory]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -141,22 +208,21 @@ const Search = () => {
             const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`);
             const allResults = response.data || [];
             
-            // API now returns combined songs + artists with type field
             const songs = allResults.filter(r => r.id && r.type !== 'artist');
-            const apiArtists = allResults.filter(r => r.type === 'artist');
+            const apiArtists = allResults
+                .filter(r => r.type === 'artist')
+                .map(artist => ({ ...artist, image: toHdImage(artist.image) }))
+                .filter(artist => songs.some(track => matchesArtist(track.artist, artist.name)));
+            const normalizedQuery = normalizeArtistName(query);
+            const contextArtistMatches = (artists || [])
+                .filter(a => a.name && normalizeArtistName(a.name).includes(normalizedQuery))
+                .slice(0, 5)
+                .map(artist => ({ ...artist, image: toHdImage(artist.image) }))
+                .filter(artist => songs.some(track => matchesArtist(track.artist, artist.name)));
             
             setSongResults(songs);
-            
-            // Use API artists if available, otherwise fall back to context match
-            if (apiArtists.length > 0) {
-                setArtistResults(apiArtists);
-            } else {
-                const q = query.toLowerCase();
-                const matchedArtists = (artists || []).filter(a => a.name && a.name.toLowerCase().includes(q)).slice(0, 5);
-                setArtistResults(matchedArtists);
-            }
+            setArtistResults(apiArtists.length > 0 ? apiArtists.slice(0, 5) : contextArtistMatches);
 
-            // Match albums from context
             const q = query.toLowerCase();
             const matchedAlbums = (albums || []).filter(a => a.name && a.name.toLowerCase().includes(q)).slice(0, 5);
             setAlbumResults(matchedAlbums);
@@ -289,6 +355,7 @@ const Search = () => {
         setCategoryResults(null);
         setActiveCategory(null);
         aiModeRef.current = false;
+        clearSearchState();
         inputRef.current?.focus();
     };
 
@@ -412,6 +479,46 @@ const Search = () => {
                             </div>
                         ) : (
                             <>
+                                {/* Artists */}
+                                {artistResults.length > 0 && (
+                                    <section style={{ marginBottom: '28px' }}>
+                                        <h2 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '12px' }}>Artists</h2>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            {artistResults.map(artist => (
+                                                <div
+                                                    key={artist.id}
+                                                    onClick={() => navigate(`/artist/${artist.id}`)}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '14px',
+                                                        padding: '12px 16px',
+                                                        borderRadius: '14px',
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                        cursor: 'pointer',
+                                                        transition: 'background 0.15s, transform 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => {
+                                                        e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                    }}
+                                                    onMouseLeave={e => {
+                                                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                    }}
+                                                >
+                                                    <img src={artist.image} alt={artist.name} style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #1DB954', flexShrink: 0 }} />
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600' }}>{artist.name}</h4>
+                                                        <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+
                                 {/* Songs */}
                                 {songResults.length > 0 && (
                                     <section style={{ marginBottom: '28px' }}>
@@ -421,29 +528,6 @@ const Search = () => {
                                         {songResults.map((track, i) => (
                                             <SongRow key={track.id} track={track} index={i} queue={songResults} playTrack={playTrack} currentTrack={currentTrack} isPlaying={isPlaying} togglePlay={togglePlay} onAddToPlaylist={handleOpenPlaylistModal} />
                                         ))}
-                                    </section>
-                                )}
-
-                                {/* Artists */}
-                                {artistResults.length > 0 && (
-                                    <section style={{ marginBottom: '28px' }}>
-                                        <h2 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '12px' }}>Artists</h2>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            {artistResults.map(artist => (
-                                                <div
-                                                    key={artist.id}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.15s' }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                >
-                                                    <img src={artist.image} alt={artist.name} style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #1DB954', flexShrink: 0 }} />
-                                                    <div>
-                                                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600' }}>{artist.name}</h4>
-                                                        <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
                                     </section>
                                 )}
 

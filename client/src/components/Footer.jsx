@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 const Footer = () => {
   const {
     currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded
+    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded, isTrackLoading
   } = usePlayback();
   const { user } = useAuth();
 
@@ -19,6 +19,8 @@ const Footer = () => {
   const navigate = useNavigate();
 
   if (!currentTrack || isExpanded) return null;
+
+  const showLoadingState = isTrackLoading;
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -89,8 +91,18 @@ const Footer = () => {
               src={currentTrack.image}
               alt={currentTrack.name}
               className='track-img'
-              style={{ transition: 'transform 0.3s ease' }}
+              style={{ transition: 'transform 0.3s ease', opacity: showLoadingState ? 0.75 : 1 }}
             />
+            {showLoadingState && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.55)',
+                color: '#1DB954', fontSize: '12px', fontWeight: 700
+              }}>
+                Loading...
+              </div>
+            )}
           </div>
           <div className='track-details' style={{ maxWidth: '200px' }}>
             <h5 style={{
@@ -100,7 +112,7 @@ const Footer = () => {
               overflow: 'hidden',
               textOverflow: 'ellipsis'
             }} title={currentTrack.name}>
-              {currentTrack.name}
+              {showLoadingState ? `${currentTrack.name} • preparing` : currentTrack.name}
             </h5>
             <p style={{
               opacity: 0.7,
@@ -109,25 +121,27 @@ const Footer = () => {
               textOverflow: 'ellipsis',
               fontSize: '11px'
             }} title={currentTrack.artist}>
-              {currentTrack.artist.split(',').length > 3
+              {showLoadingState ? 'Fetching audio...' : (currentTrack.artist.split(',').length > 3
                 ? currentTrack.artist.split(',').slice(0, 3).join(', ') + " & more"
-                : currentTrack.artist}
+                : currentTrack.artist)}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '12px' }}>
-            <FaHeart
-              style={{ color: liked ? '#1DB954' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '14px', transition: 'color 0.2s, transform 0.2s', transform: liked ? 'scale(1.3)' : 'scale(1)' }}
-              onClick={handleLike}
-              title="Like song"
-            />
-            <FaPlus
-              style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '14px', transition: 'color 0.2s' }}
-              onClick={handleShowPlaylistModal}
-              title="Add to playlist"
-              onMouseEnter={e => e.target.style.color = 'white'}
-              onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
-            />
-          </div>
+          {!showLoadingState && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '12px' }}>
+              <FaHeart
+                style={{ color: liked ? '#1DB954' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '14px', transition: 'color 0.2s, transform 0.2s', transform: liked ? 'scale(1.3)' : 'scale(1)' }}
+                onClick={handleLike}
+                title="Like song"
+              />
+              <FaPlus
+                style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '14px', transition: 'color 0.2s' }}
+                onClick={handleShowPlaylistModal}
+                title="Add to playlist"
+                onMouseEnter={e => e.target.style.color = 'white'}
+                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
+              />
+            </div>
+          )}
         </div>
 
         {/* Middle: Controls */}
@@ -136,12 +150,14 @@ const Footer = () => {
             <FaRandom className='control-icon' title="Shuffle" style={{ fontSize: '12px' }} />
             <FaStepBackward className='control-icon main-icon' onClick={handlePrev} title="Previous" />
             <div
-              onClick={togglePlay}
+              onClick={showLoadingState ? undefined : togglePlay}
               className='play-pause-btn'
-              title={isPlaying ? "Pause" : "Play"}
-              style={{ width: '32px', height: '32px' }}
+              title={showLoadingState ? "Preparing track..." : (isPlaying ? "Pause" : "Play")}
+              style={{ width: '32px', height: '32px', opacity: showLoadingState ? 0.65 : 1, cursor: showLoadingState ? 'wait' : 'pointer' }}
             >
-              {isPlaying ? (
+              {showLoadingState ? (
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid black', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+              ) : isPlaying ? (
                 <FaPause style={{ color: 'black', fontSize: '12px' }} />
               ) : (
                 <FaPlay style={{ color: 'black', fontSize: '12px', marginLeft: '1px' }} />
@@ -152,15 +168,16 @@ const Footer = () => {
           </div>
 
           <div className='progress-bar-container'>
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(showLoadingState ? 0 : currentTime)}</span>
             <div
               className='progress-bar'
-              onClick={handleSeek}
+              onClick={showLoadingState ? undefined : handleSeek}
+              style={{ cursor: showLoadingState ? 'wait' : 'pointer' }}
             >
-              <div className='progress-fill' style={{ width: `${progressPercentage}%` }}></div>
-              <div className='progress-knob' style={{ left: `${progressPercentage}%` }}></div>
+              <div className='progress-fill' style={{ width: `${showLoadingState ? 0 : progressPercentage}%` }}></div>
+              <div className='progress-knob' style={{ left: `${showLoadingState ? 0 : progressPercentage}%` }}></div>
             </div>
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(showLoadingState ? 0 : duration)}</span>
           </div>
         </div>
 

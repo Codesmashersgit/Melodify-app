@@ -15,6 +15,7 @@ export const PlaybackProvider = ({ children }) => {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const [isTrackLoading, setIsTrackLoading] = useState(false);
     const [albums, setAlbums] = useState([]);
     const [artists, setArtists] = useState([]);
     const [selectedAlbum, setSelectedAlbum] = useState(null);
@@ -98,6 +99,7 @@ export const PlaybackProvider = ({ children }) => {
             return;
         }
 
+        setIsTrackLoading(true);
         audioRef.current.pause();
 
         const fallbackStreamUrl = `${API_BASE_URL}/api/stream?id=${track.id}&name=${encodeURIComponent(track.name || '')}&artist=${encodeURIComponent(track.artist || '')}`;
@@ -114,22 +116,26 @@ export const PlaybackProvider = ({ children }) => {
         setCurrentTrack(track);
         setIsPlaying(true);
 
-        const playPromise = audioRef.current.play().catch(e => {
-            console.warn('Autoplay blocked or stream interrupted:', e.message);
-            try {
-                audioRef.current.src = fallbackStreamUrl;
-                audioRef.current.load();
-                audioRef.current.play().catch(() => {});
-            } catch (_) {}
-        });
+        try {
+            const playPromise = audioRef.current.play().catch(e => {
+                console.warn('Autoplay blocked or stream interrupted:', e.message);
+                try {
+                    audioRef.current.src = fallbackStreamUrl;
+                    audioRef.current.load();
+                    audioRef.current.play().catch(() => {});
+                } catch (_) {}
+            });
 
-        const blobUrlPromise = getTrackBlobUrl(track.id);
-        const blobUrl = await blobUrlPromise;
-        if (blobUrl && audioRef.current.src !== blobUrl) {
-            audioRef.current.src = blobUrl;
-            audioRef.current.load();
-            await playPromise.catch(() => {});
-            audioRef.current.play().catch(() => {});
+            const blobUrlPromise = getTrackBlobUrl(track.id);
+            const blobUrl = await blobUrlPromise;
+            if (blobUrl && audioRef.current.src !== blobUrl) {
+                audioRef.current.src = blobUrl;
+                audioRef.current.load();
+                await playPromise.catch(() => {});
+                audioRef.current.play().catch(() => {});
+            }
+        } finally {
+            setIsTrackLoading(false);
         }
     }, [currentTrack, togglePlay]);
 
@@ -235,7 +241,7 @@ export const PlaybackProvider = ({ children }) => {
 
     return (
         <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isExpanded, queue,
+            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isTrackLoading, isExpanded, queue,
             playTrack, playArtistTracks, togglePlay, toggleRepeat, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand, addToQueue, playNextInQueue, setQueue,
             albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults
         }}>

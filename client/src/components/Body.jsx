@@ -34,8 +34,13 @@ const Body = () => {
             }
             setPreferencesLoading(true);
             const newPrefs = {};
+            const hiddenPrefs = new Set(['hindi', 'english']);
             try {
                 await Promise.all(user.preferences.map(async (pref) => {
+                    const normalizedPref = pref?.toLowerCase?.();
+                    if (hiddenPrefs.has(normalizedPref)) {
+                        return;
+                    }
                     const res = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
                     const prefTracks = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
                     if (prefTracks.length > 0) {
@@ -140,6 +145,38 @@ const Body = () => {
                 </section>
             ))}
 
+            {/* ── Popular Albums ── */}
+            <section className='section-container'>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h2 className='section-title' style={{ margin: 0 }}>Popular albums</h2>
+                    <Link to="/show-all/albums" style={{ textDecoration: 'none' }}>
+                        <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
+                    </Link>
+                </div>
+                {isLoading || albums.length === 0 ? (
+                    <AlbumSkeletonRow count={12} />
+                ) : (
+                    <div className='grid-container'>
+                        {albums.map(album => (
+                            <div key={album.id} className='card' onClick={() => navigate(`/album/${album.id}`)}>
+                                <div style={{ position: 'relative' }}>
+                                    <img src={album.image} alt={album.name} className='card-image' />
+                                    <div className='play-button-overlay' onClick={(e) => handlePlayAlbum(album.id, e)} style={{ bottom: '8px', right: '8px' }}>
+                                        {loadingAlbumId === album.id ? (
+                                            <div style={{ width: '16px', height: '16px', border: '2px solid black', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                        ) : (
+                                            <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                        )}
+                                    </div>
+                                </div>
+                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.name}</h4>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.artist}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
             {/* ── Popular Artists ── */}
             <section className='section-container'>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
@@ -180,38 +217,6 @@ const Body = () => {
                         </div>
                     ))}
                 </div>
-            </section>
-
-            {/* ── Popular Albums ── */}
-            <section className='section-container'>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <h2 className='section-title' style={{ margin: 0 }}>Popular albums</h2>
-                    <Link to="/show-all/albums" style={{ textDecoration: 'none' }}>
-                        <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
-                    </Link>
-                </div>
-                {isLoading || albums.length === 0 ? (
-                    <AlbumSkeletonRow count={12} />
-                ) : (
-                    <div className='grid-container'>
-                        {albums.map(album => (
-                            <div key={album.id} className='card' onClick={() => navigate(`/album/${album.id}`)}>
-                                <div style={{ position: 'relative' }}>
-                                    <img src={album.image} alt={album.name} className='card-image' />
-                                    <div className='play-button-overlay' onClick={(e) => handlePlayAlbum(album.id, e)} style={{ bottom: '8px', right: '8px' }}>
-                                        {loadingAlbumId === album.id ? (
-                                            <div style={{ width: '16px', height: '16px', border: '2px solid black', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                                        ) : (
-                                            <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
-                                        )}
-                                    </div>
-                                </div>
-                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.name}</h4>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.artist}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
             </section>
 
             {/* ── Top Hits ── */}

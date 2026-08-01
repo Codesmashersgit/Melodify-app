@@ -123,12 +123,15 @@ const HomeScreen = ({ navigation }) => {
             }
             setPreferencesLoading(true);
             const newPrefs = {};
+            const hiddenPrefs = new Set(['hindi', 'english']);
             try {
-                // Fetch tracks for all preferences in parallel
                 await Promise.all(user.preferences.map(async (pref) => {
+                    const normalizedPref = pref?.toLowerCase?.();
+                    if (hiddenPrefs.has(normalizedPref)) {
+                        return;
+                    }
                     const response = await fetch(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
                     const data = await response.json();
-                    // /api/search returns a direct array of tracks
                     const tracks = Array.isArray(data) ? data : (data.tracks || []);
                     if (tracks.length > 0) {
                         newPrefs[pref] = tracks.filter(t => t.id);
@@ -445,6 +448,25 @@ const HomeScreen = ({ navigation }) => {
                     })
                 )}
 
+                {/* ── Popular Albums ── */}
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <Text style={styles.sectionTitle}>💿 Popular Albums</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Popular Albums' })} style={styles.seeAllBtn}>
+                            <Text style={styles.seeAll}>See all</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {isLoading ? <AlbumSkeletonRow /> : (
+                        <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={albums || []}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderAlbumCard}
+                            contentContainerStyle={styles.horizontalList}
+                        />
+                    )}
+                </View>
                 {/* ── Popular Artists ── */}
                 <View style={styles.sectionContainer}>
                     <View style={styles.sectionRow}>
@@ -467,25 +489,6 @@ const HomeScreen = ({ navigation }) => {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                    )}
-                </View>
-                {/* ── Popular Albums ── */}
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>💿 Popular Albums</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'albums', title: 'Popular Albums' })} style={styles.seeAllBtn}>
-                            <Text style={styles.seeAll}>See all</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {isLoading ? <AlbumSkeletonRow /> : (
-                        <FlatList
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            data={albums || []}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={renderAlbumCard}
-                            contentContainerStyle={styles.horizontalList}
-                        />
                     )}
                 </View>
 

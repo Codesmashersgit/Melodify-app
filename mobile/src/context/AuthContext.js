@@ -15,6 +15,17 @@ export const AuthProvider = ({ children }) => {
         checkSession();
     }, []);
 
+    const persistAuthSession = async (token, userData) => {
+        if (token) {
+            await AsyncStorage.setItem('melodify_token', token);
+        }
+
+        const prefsStr = await AsyncStorage.getItem('melodify_preferences');
+        const preferences = prefsStr ? JSON.parse(prefsStr) : (userData?.preferences ?? null);
+        setUser({ ...userData, preferences });
+        return { success: true };
+    };
+
     const checkSession = async () => {
         try {
             const token = await AsyncStorage.getItem('melodify_token');
@@ -46,11 +57,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await axios.post(`${API_BASE_URL}/api/user/login`, { email, password });
             if (response.data.token) {
-                await AsyncStorage.setItem('melodify_token', response.data.token);
+                return await persistAuthSession(response.data.token, response.data.user);
             }
-            const prefsStr = await AsyncStorage.getItem('melodify_preferences');
-            const preferences = prefsStr ? JSON.parse(prefsStr) : null;
-            setUser({ ...response.data.user, preferences });
             return { success: true };
         } catch (error) {
             return { 
@@ -64,15 +72,28 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await axios.post(`${API_BASE_URL}/api/user/signup`, { name, email, password, platform: 'apk' });
             if (response.data.token) {
-                await AsyncStorage.setItem('melodify_token', response.data.token);
+                return await persistAuthSession(response.data.token, response.data.user);
             }
-            // New signup has no local preferences yet
-            setUser({ ...response.data.user, preferences: null });
             return { success: true };
         } catch (error) {
             return { 
                 success: false, 
                 error: error.response?.data?.error || 'Signup failed' 
+            };
+        }
+    };
+
+    const socialAuth = async (payload) => {
+        try {
+            const response = await axios.post(`${API_BASE_URL}/api/user/google-auth`, payload);
+            if (response.data.token) {
+                return await persistAuthSession(response.data.token, response.data.user);
+            }
+            return { success: false, error: 'Google authentication failed' };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.error || 'Google authentication failed'
             };
         }
     };
@@ -101,7 +122,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout, updatePreferences }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, socialAuth, logout, updatePreferences }}>
             {children}
         </AuthContext.Provider>
     );

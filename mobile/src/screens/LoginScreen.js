@@ -1,15 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 
 const LoginScreen = ({ navigation }) => {
-    const { login } = useAuth();
+    const { login, socialAuth } = useAuth();
     const insets = useSafeAreaInsets();
+    const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '';
+    const redirectUri = makeRedirectUri({ useProxy: true });
+
+    const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+    };
+
+    const [request, promptAsync] = Google.useAuthRequest({
+        clientId: GOOGLE_CLIENT_ID,
+        redirectUri,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: 'token',
+    }, discovery);
+
+    useEffect(() => {
+        WebBrowser.maybeCompleteAuthSession();
+    }, []);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -38,14 +59,37 @@ const LoginScreen = ({ navigation }) => {
     };
 
     const handleGoogleLogin = async () => {
+        if (!request || !GOOGLE_CLIENT_ID) {
+            Alert.alert('Google Sign-in Not Configured', 'Add EXPO_PUBLIC_GOOGLE_CLIENT_ID in your mobile env to enable Google login.');
+            return;
+        }
+
         try {
-            const res = await axios.post(`${API_BASE_URL}/api/user/google-auth`, { name: 'Google User', email: 'user.google@melodify.com', platform: 'apk' });
-            if (res.data.token) {
-                await AsyncStorage.setItem('melodify_token', res.data.token);
+            const result = await promptAsync();
+            if (result?.type !== 'success' || !result?.params?.access_token) {
+                Alert.alert('Google Login Cancelled', 'Google sign-in was cancelled.');
+                return;
+            }
+
+            const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${result.params.access_token}` }
+            });
+            const userData = await userRes.json();
+
+            const authResult = await socialAuth({
+                accessToken: result.params.access_token,
+                name: userData.name,
+                email: userData.email,
+                platform: 'apk'
+            });
+
+            if (authResult.success) {
                 navigation.replace('Main');
+            } else {
+                Alert.alert('Google Login Error', authResult.error || 'Google login failed');
             }
         } catch (err) {
-            Alert.alert("Google Login Error", err.response?.data?.error || "Google login failed");
+            Alert.alert('Google Login Error', err?.message || 'Google login failed');
         }
     };
 

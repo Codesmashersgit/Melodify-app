@@ -151,11 +151,9 @@ const FullPlayerScreen = ({ visible, onClose }) => {
         }
     }, [currentTime, isSliding]);
 
-    const handleSeek = async (event) => {
-        if (!duration || progressBarWidth <= 0) return;
-        const offset = event.nativeEvent.locationX;
-        const percent = Math.max(0, Math.min(1, offset / progressBarWidth));
-        await seekTo(duration * percent);
+    const handleSeek = async (value) => {
+        if (!duration || Number.isNaN(value)) return;
+        await seekTo(value);
     };
 
     // ─────────────────────────────────────────────────────────
@@ -343,7 +341,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             }}
                             onSlidingComplete={async (value) => {
                                 setIsSliding(false);
-                                await seekTo(value);
+                                await handleSeek(value);
                             }}
                             minimumTrackTintColor="#1DB954"
                             maximumTrackTintColor="rgba(255,255,255,0.15)"

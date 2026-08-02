@@ -205,7 +205,7 @@ const Search = () => {
         setCategoryResults(null);
         setActiveCategory(null);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`);
+            const response = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(query)}`, { timeout: 15000 });
             const allResults = response.data || [];
             
             const songs = allResults.filter(r => r.id && r.type !== 'artist');

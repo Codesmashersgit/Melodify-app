@@ -5,6 +5,7 @@ import { getTrackBlobUrl } from '../services/WebDownloadService';
 const PlaybackContext = createContext();
 import API_BASE_URL from '../config';
 
+const REQUEST_TIMEOUT_MS = 15000;
 
 export const PlaybackProvider = ({ children }) => {
     const [tracks, setTracks] = useState([]);
@@ -29,17 +30,24 @@ export const PlaybackProvider = ({ children }) => {
         // Fetch initial tracks, albums and artists
         const fetchInitialData = async () => {
             try {
-                const [tracksResponse, albumsResponse, artistsResponse] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/top-tracks`),
-                    axios.get(`${API_BASE_URL}/api/recommendations`),
-                    axios.get(`${API_BASE_URL}/api/artists`)
+                const [tracksResponse, albumsResponse, artistsResponse] = await Promise.allSettled([
+                    axios.get(`${API_BASE_URL}/api/top-tracks`, { timeout: REQUEST_TIMEOUT_MS }),
+                    axios.get(`${API_BASE_URL}/api/recommendations`, { timeout: REQUEST_TIMEOUT_MS }),
+                    axios.get(`${API_BASE_URL}/api/artists`, { timeout: REQUEST_TIMEOUT_MS })
                 ]);
 
+                const tracksResult = tracksResponse.status === 'fulfilled' ? tracksResponse.value : null;
+                const albumsResult = albumsResponse.status === 'fulfilled' ? albumsResponse.value : null;
+                const artistsResult = artistsResponse.status === 'fulfilled' ? artistsResponse.value : null;
 
-                // All Jamendo tracks have full audio (not just preview)
-                setTracks(tracksResponse.data);
-                setAlbums(albumsResponse.data);
-                setArtists(artistsResponse.data);
+                if (tracksResult) setTracks(tracksResult.data);
+                if (albumsResult) setAlbums(albumsResult.data);
+                if (artistsResult) setArtists(artistsResult.data);
+
+                const failedRequests = [tracksResponse, albumsResponse, artistsResponse].filter(result => result.status === 'rejected');
+                if (failedRequests.length > 0) {
+                    console.error("Error fetching initial data:", failedRequests.map(result => result.reason?.message || result.reason));
+                }
             } catch (error) {
                 console.error("Error fetching initial data:", error);
             } finally {
@@ -188,8 +196,8 @@ export const PlaybackProvider = ({ children }) => {
     const playArtistTracks = useCallback(async (artistId) => {
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/artist/${artistId}/tracks`);
-            const playableTracks = response.data.tracks.filter(t => t.preview_url);
+            const response = await axios.get(`${API_BASE_URL}/api/artist/${artistId}/tracks`, { timeout: REQUEST_TIMEOUT_MS });
+            const playableTracks = Array.isArray(response.data?.tracks) ? response.data.tracks.filter(t => t.preview_url) : [];
             if (playableTracks.length > 0) {
                 playTrack(playableTracks[0], playableTracks);
             }
@@ -204,11 +212,11 @@ export const PlaybackProvider = ({ children }) => {
         if (!query) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/search?query=${query}`);
-            const playableTracks = response.data.filter(t => t.preview_url);
+            const response = await axios.get(`${API_BASE_URL}/api/search?query=${query}`, { timeout: REQUEST_TIMEOUT_MS });
+            const playableTracks = Array.isArray(response.data) ? response.data.filter(t => t.preview_url) : [];
             setSearchResults(playableTracks);
             // We set current tracks list for seamless play-next in search results
-            setTracks(playableTracks); 
+            setTracks(playableTracks);
         } catch (error) {
             console.error("Search failed:", error);
         } finally {

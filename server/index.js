@@ -336,8 +336,21 @@ const jiosaavnRequest = (params, version = '4') => {
     });
 };
 
-// Helper to upgrade image quality (150x150 -> 500x500)
-const hdImage = (url) => url ? url.replace(/150x150|50x50/, '500x500') : '';
+// Helper to upgrade image quality (50x50/150x150 -> 500x500)
+const hdImage = (url) => {
+    if (!url) return '';
+    if (Array.isArray(url)) {
+        // Pick highest quality from array
+        const sorted = [...url].sort((a, b) => {
+            const qa = parseInt((a.quality || a.link || '').match(/(\d+)x/)?.[1] || '0');
+            const qb = parseInt((b.quality || b.link || '').match(/(\d+)x/)?.[1] || '0');
+            return qb - qa;
+        });
+        const best = sorted[0]?.link || sorted[0]?.url || '';
+        return best.replace(/50x50|150x150/g, '500x500');
+    }
+    return url.replace(/50x50|150x150/g, '500x500');
+};
 
 // =================== RESOLVE FULL SONG URL ===================
 // This is the core function that resolves a full-length HQ URL from a song ID
@@ -708,9 +721,20 @@ app.get('/api/search', async (req, res) => {
             const artist = song.artists?.primary?.map(a => a.name).join(', ')
                         || song.primaryArtists || song.singers || 'Unknown';
             const imgArr = song.image;
-            const image = Array.isArray(imgArr)
-                ? (imgArr.find(i => i.quality === '500x500' || i.quality === '150x150')?.link || imgArr[imgArr.length - 1]?.link || '')
-                : (imgArr || '');
+            let image = '';
+            if (Array.isArray(imgArr)) {
+                // Sort by resolution descending, pick highest
+                const sorted = [...imgArr].sort((a, b) => {
+                    const qa = parseInt((a.quality || '').replace(/[^\d]/g, '') || '0');
+                    const qb = parseInt((b.quality || '').replace(/[^\d]/g, '') || '0');
+                    return qb - qa;
+                });
+                image = sorted[0]?.link || imgArr[imgArr.length - 1]?.link || '';
+            } else {
+                image = imgArr || '';
+            }
+            // Always upgrade to 500x500
+            image = image.replace(/50x50|150x150/g, '500x500');
             return {
                 id: song.id,
                 name,
@@ -729,17 +753,24 @@ app.get('/api/search', async (req, res) => {
     const parseSaavnDevArtists = (data) => {
         const results = data?.data?.results || data?.results || [];
         if (!Array.isArray(results)) return [];
-        return results.map(artist => {
+        return results.filter(a => a && a.id).map(artist => {
             const imgArr = artist.image;
-            const image = Array.isArray(imgArr)
-                ? (imgArr.find(i => i.quality === '500x500' || i.quality === '500')?.link
-                    || imgArr.find(i => i.quality === '150x150' || i.quality === '150')?.link
-                    || imgArr[imgArr.length - 1]?.link || '')
-                : (imgArr || '');
+            let image = '';
+            if (Array.isArray(imgArr)) {
+                const sorted = [...imgArr].sort((a, b) => {
+                    const qa = parseInt((a.quality || '').replace(/[^\d]/g, '') || '0');
+                    const qb = parseInt((b.quality || '').replace(/[^\d]/g, '') || '0');
+                    return qb - qa;
+                });
+                image = sorted[0]?.link || imgArr[imgArr.length - 1]?.link || '';
+            } else {
+                image = imgArr || '';
+            }
+            image = image.replace(/50x50|150x150/g, '500x500');
             return {
                 id: artist.id,
                 name: artist.name,
-                image: hdImage(image),
+                image,
                 type: 'artist'
             };
         });
@@ -748,56 +779,51 @@ app.get('/api/search', async (req, res) => {
     // --- CLOUD-FRIENDLY APIs (work from Render) ---
     const cloudApis = [
         `https://jiosaavn-api-beta.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=20`,
-        `https://jiosaavn-api-three.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=20`,
     ];
 
-    let tracks = [];
-    for (const apiUrl of cloudApis) {
-        try {
-            console.log(`[search] Trying songs: ${apiUrl.slice(0, 60)}...`);
-            const data = await fetchJson(apiUrl, 7000);
-            const parsed = parseSaavnDevResults(data);
-            if (parsed && parsed.length > 0) {
-                tracks = parsed;
-                break;
+    // Fetch songs and artists IN PARALLEL for speed
+    const [songsSettled, artistsSettled] = await Promise.allSettled([
+        // Songs: try Vercel wrapper, fallback to official API
+        (async () => {
+            for (const apiUrl of cloudApis) {
+                try {
+                    console.log(`[search] Trying songs: ${apiUrl.slice(0, 60)}...`);
+                    const data = await fetchJson(apiUrl, 7000);
+                    const parsed = parseSaavnDevResults(data);
+                    if (parsed && parsed.length > 0) { console.log(`[search] SUCCESS: ${parsed.length} songs`); return parsed; }
+                } catch (err) {
+                    console.warn(`[search] songs failed:`, err.message);
+                }
             }
-        } catch (err) {
-            console.warn(`[search] songs failed for ${apiUrl.slice(8, 30)}:`, err.message);
-        }
-    }
-
-    // Fallback: search official songs if cloud APIs failed
-    if (tracks.length === 0) {
-        try {
-            console.log(`[search] Trying official JioSaavn for songs: ${query}`);
+            // Fallback to official JioSaavn
+            console.log(`[search] Falling back to official JioSaavn for songs`);
             const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: '20' });
-            tracks = (data.results || []).map(formatSong).map(t => ({ ...t, type: 'song' }));
-        } catch (err) {
-            console.error('[search] Official JioSaavn songs failed:', err.message);
-        }
-    }
-
-    // Fetch artists in parallel/background
-    let artistsResults = [];
-    try {
-        const artistUrl = `https://jiosaavn-api-beta.vercel.app/search/artists?query=${encodeURIComponent(query)}&limit=10`;
-        const artistData = await fetchJson(artistUrl, 5000);
-        artistsResults = parseSaavnDevArtists(artistData);
-    } catch (err) {
-        console.warn(`[search] Cloud artists search failed:`, err.message);
-        // Fallback: search official artists
-        try {
-            const artistData = await jiosaavnRequest({ __call: 'search.getArtistResults', q: query, n: '10' });
-            if (artistData && Array.isArray(artistData.results)) {
-                artistsResults = artistData.results.map(a => ({
-                    id: a.id,
-                    name: a.name,
-                    image: a.image,
-                    type: 'artist'
-                }));
+            return (data.results || []).map(formatSong).map(t => ({ ...t, type: 'song' }));
+        })(),
+        // Artists: try Vercel wrapper, fallback to official API
+        (async () => {
+            try {
+                const artistUrl = `https://jiosaavn-api-beta.vercel.app/search/artists?query=${encodeURIComponent(query)}&limit=10`;
+                const artistData = await fetchJson(artistUrl, 5000);
+                return parseSaavnDevArtists(artistData);
+            } catch (err) {
+                console.warn(`[search] Cloud artists failed:`, err.message);
+                const artistData = await jiosaavnRequest({ __call: 'search.getArtistResults', q: query, n: '10' });
+                if (artistData && Array.isArray(artistData.results)) {
+                    return artistData.results.map(a => ({
+                        id: a.id,
+                        name: a.name,
+                        image: hdImage(a.image),
+                        type: 'artist'
+                    }));
+                }
+                return [];
             }
-        } catch (e) {}
-    }
+        })()
+    ]);
+
+    const tracks = songsSettled.status === 'fulfilled' ? (songsSettled.value || []) : [];
+    const artistsResults = artistsSettled.status === 'fulfilled' ? (artistsSettled.value || []) : [];
 
     const combinedResults = [...tracks, ...artistsResults];
     if (combinedResults.length > 0) {
@@ -814,12 +840,41 @@ app.get('/api/top-tracks', async (req, res) => {
     if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
 
     try {
-        const data = await jiosaavnRequest({
-            __call: 'search.getResults',
-            q: 'top hindi songs 2024',
-            n: '20',
-        });
-        const tracks = (data.results || []).map(formatSong);
+        // Try Vercel wrapper first (faster from cloud)
+        let tracks = [];
+        try {
+            const data = await fetchJson('https://jiosaavn-api-beta.vercel.app/search/songs?query=top+hindi+songs+2025&limit=20', 7000);
+            const results = data?.data?.results || data?.results || [];
+            if (results.length > 0) {
+                tracks = results.map(song => {
+                    const imgArr = song.image;
+                    let image = '';
+                    if (Array.isArray(imgArr)) {
+                        const sorted = [...imgArr].sort((a, b) => parseInt((b.quality||'').replace(/[^\d]/g,'')) - parseInt((a.quality||'').replace(/[^\d]/g,'')));
+                        image = sorted[0]?.link || '';
+                    } else { image = imgArr || ''; }
+                    image = image.replace(/50x50|150x150/g, '500x500');
+                    const name = song.name || song.title || '';
+                    const artist = song.artists?.primary?.map(a => a.name).join(', ') || song.primaryArtists || '';
+                    return {
+                        id: song.id,
+                        name,
+                        artist,
+                        image,
+                        preview_url: `${BASE_URL}/api/stream?id=${song.id}&name=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}`,
+                        duration_ms: (parseInt(song.duration) || 0) * 1000,
+                        album: song.album?.name || song.album || '',
+                    };
+                });
+            }
+        } catch (e) { console.warn('top-tracks Vercel failed, falling back to official:', e.message); }
+
+        // Fallback: official JioSaavn
+        if (tracks.length === 0) {
+            const data = await jiosaavnRequest({ __call: 'search.getResults', q: 'top hindi songs 2025', n: '20' });
+            tracks = (data.results || []).map(formatSong);
+        }
+
         apiCache.set(cacheKey, tracks);
         res.json(tracks);
     } catch (err) {

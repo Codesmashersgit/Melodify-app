@@ -1,11 +1,56 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
 import FullPlayerScreen from './FullPlayerScreen';
 
 const { width } = Dimensions.get('window');
+
+// Shimmer bar shown at bottom of PlayerBar while track is loading
+const LoadingShimmer = () => {
+    const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(shimmerAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
+                Animated.timing(shimmerAnim, { toValue: 0, duration: 900, useNativeDriver: false }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, []);
+
+    const shimmerWidth = shimmerAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['20%', '85%'],
+    });
+    const shimmerOpacity = shimmerAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0.3, 1, 0.3],
+    });
+
+    return (
+        <View style={shimmerStyles.wrapper}>
+            <Animated.View style={[shimmerStyles.bar, { width: shimmerWidth, opacity: shimmerOpacity }]} />
+        </View>
+    );
+};
+
+const shimmerStyles = StyleSheet.create({
+    wrapper: {
+        height: 3,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        width: '100%',
+        overflow: 'hidden',
+    },
+    bar: {
+        height: 3,
+        backgroundColor: '#1DB954',
+        borderRadius: 2,
+    },
+});
 
 const PlayerBar = () => {
     const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks, isTrackLoading } = usePlayback();
@@ -72,6 +117,9 @@ const PlayerBar = () => {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* ✅ Shimmer loading bar at the bottom - visible while song is loading */}
+                {isTrackLoading && <LoadingShimmer />}
             </TouchableOpacity>
 
             <FullPlayerScreen

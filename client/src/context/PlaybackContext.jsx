@@ -87,6 +87,21 @@ export const PlaybackProvider = ({ children }) => {
         }
     }, [isPlaying, currentTrack]);
 
+    const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+
+    if (!currentTrack) return;
+
+    if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+    } else {
+        audio.play().catch(err => {
+            console.error("Playback failed:", err);
+        });
+        setIsPlaying(true);
+    }
+}, [currentTrack, isPlaying]);
     // Audio event listeners for loading state
     useEffect(() => {
         const audio = audioRef.current;

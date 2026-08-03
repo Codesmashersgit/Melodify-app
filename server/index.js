@@ -261,30 +261,13 @@ const fetchJson = (url, timeoutMs = 8000) => {
     });
 };
 
-const verifyAudioUrl = async (url) => {
+// Trust the URL from the API — do NOT HEAD-verify (adds 1-8s latency per URL, always 404)
+// The proxy will handle any bad URL by returning 500 and client retries.
+const verifyAudioUrl = (url) => {
     if (!url || !/^https?:\/\//i.test(url)) return null;
-
-    return new Promise((resolve) => {
-        const lib = url.startsWith('https') ? https : http;
-        const req = lib.request(url, {
-            method: 'HEAD',
-            timeout: 8000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
-                'Range': 'bytes=0-0'
-            }
-        }, (res) => {
-            const status = res.statusCode || 0;
-            res.resume();
-            resolve(status >= 200 && status < 400 ? url : null);
-        });
-
-        req.on('error', () => resolve(null));
-        req.on('timeout', () => { req.destroy(); resolve(null); });
-        req.end();
-    });
+    return url; // Return immediately — skip HEAD check
 };
+
 
 // Helper to make JioSaavn API calls
 const jiosaavnRequest = (params, version = '4') => {
@@ -370,168 +353,97 @@ try {
 function saveCache() { /* no-op: disk cache disabled - CDN URLs expire */ }
 
 async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
-    // Short in-memory cache hit
+    // Fast in-memory cache hit
     if (hqUrlCache.has(songId)) {
         console.log(`🎵 Cache hit for song ${songId}`);
         return hqUrlCache.get(songId);
     }
 
-    console.log(`🔍 Resolving full URL for: ${songName || songId}`);
+    console.log(`🔍 Resolving URL for: ${songName || songId}`);
 
-    // STRATEGY 0: Use jiosaavn-api-beta.vercel.app (third-party API — works from cloud servers like Render)
-    // This is the most reliable in production since official JioSaavn blocks cloud IPs
-    try {
-        console.log(`🌐 Strategy 0 (Vercel API): Fetching song ${songId}`);
-        const hqData = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 8000);
+    // ─── Extract URL from Vercel-wrapper API response ───
+    const extractUrlFromVercelResponse = (hqData) => {
         let song = null;
-        if (hqData.data && Array.isArray(hqData.data)) song = hqData.data[0];
-        else if (hqData.data && hqData.data.id) song = hqData.data;
+        if (hqData?.data && Array.isArray(hqData.data)) song = hqData.data[0];
+        else if (hqData?.data?.id) song = hqData.data;
+        if (!song) return null;
+        const urls = song.downloadUrl || song.download_url || song.downloadLinks;
+        if (!urls || !Array.isArray(urls)) return null;
+        // Pick highest quality (320kbps preferred)
+        const sorted = [...urls].sort((a, b) => {
+            const qa = parseInt((a.quality || '').replace(/[^\d]/g, '')) || 0;
+            const qb = parseInt((b.quality || '').replace(/[^\d]/g, '')) || 0;
+            return qb - qa;
+        });
+        const best = sorted[0];
+        return best?.link || best?.url || (typeof best === 'string' ? best : null);
+    };
 
-        if (song) {
-            const downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
-            if (downloadUrls && Array.isArray(downloadUrls)) {
-                for (const candidate of downloadUrls) {
-                    const link = candidate?.link || candidate?.url || (typeof candidate === 'string' ? candidate : null);
-                    const verified = await verifyAudioUrl(link);
-                    if (verified) {
-                        console.log(`✅ Strategy 0 (Vercel API) SUCCESS for ${songId}`);
-                        hqUrlCache.set(songId, verified);
-                        saveCache();
-                        return verified;
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        console.warn(`⚠️ Strategy 0 (Vercel API) failed for ${songId}:`, e.message);
-    }
-
-    console.log("--- STRATEGY 1 START ---");
-    // STRATEGY 1: Use JioSaavn's own song.getDetails API to get encrypted_media_url
+    // ─── Run ALL strategies in PARALLEL — first success wins ───
     try {
-        // v3 is MUST for encrypted_media_url
-        const songData = await jiosaavnRequest({
-            __call: 'song.getDetails',
-            pids: songId,
-        }, '3');
-        
-        console.log(`📡 Strategy 1: Data keys for ${songId}: ${Object.keys(songData)}`);
-        
-        let songInfo = null;
-        if (songData[songId]) {
-            songInfo = songData[songId];
-        } else if (songData.songs && Array.isArray(songData.songs)) {
-            songInfo = songData.songs.find(s => s.id === songId) || songData.songs[0];
-        } else {
-            // Try to find the song in any object value
-            songInfo = Object.values(songData).find(v => v && typeof v === 'object' && v.id === songId) 
-                      || Object.values(songData).find(v => v && typeof v === 'object' && v.id);
-        }
+        const result = await Promise.any([
+            // Strategy A: Vercel wrapper (primary)
+            fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
+                .then(d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel A');
+                    return { url, src: 'Vercel-A' };
+                }),
 
-        if (songInfo) {
-            // In v3, the encrypted_media_url is usually in more_info or direct
-            const encUrl = songInfo.encrypted_media_url || songInfo.more_info?.encrypted_media_url;
-            if (encUrl) {
-                console.log(`🔑 Found encrypted_media_url for ${songId}, decrypting...`);
+            // Strategy B: Another Vercel instance (secondary)
+            fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
+                .then(d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel B');
+                    return { url, src: 'Vercel-B' };
+                }),
+
+            // Strategy C: DES decrypt from official JioSaavn API
+            (async () => {
+                const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
+                let songInfo = songData[songId]
+                    || (songData.songs && songData.songs[0])
+                    || Object.values(songData).find(v => v?.id);
+                const encUrl = songInfo?.encrypted_media_url || songInfo?.more_info?.encrypted_media_url;
+                if (!encUrl) throw new Error('No encrypted_media_url');
                 const decrypted = decryptMediaUrl(encUrl);
-                if (decrypted) {
-                    console.log(`✅ Strategy 1 (DES decrypt) SUCCESS for ${songId}`);
-                    console.log(`🔗 Decrypted URL: ${decrypted.substring(0, 80)}...`);
-                    hqUrlCache.set(songId, decrypted);
-                    saveCache();
-                    return decrypted;
-                }
-            } else {
-                console.warn(`⚠️ No encrypted_media_url found in song data for ${songId}`);
-            }
-        } else {
-            console.warn(`⚠️ Could not extract song info from response for ${songId}`);
-        }
+                if (!decrypted) throw new Error('DES decrypt failed');
+                return { url: decrypted, src: 'DES-Decrypt' };
+            })(),
+
+            // Strategy D: Search fallback (if we have name)
+            songName ? (async () => {
+                const q = `${songName} ${songArtist || ''}`.trim();
+                const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '1' });
+                const s = searchData.results?.[0];
+                const encUrl = s?.encrypted_media_url || s?.more_info?.encrypted_media_url;
+                if (!encUrl) throw new Error('No encUrl from search');
+                const decrypted = decryptMediaUrl(encUrl);
+                if (!decrypted) throw new Error('DES decrypt search failed');
+                return { url: decrypted, src: 'Search-DES' };
+            })() : Promise.reject(new Error('No name')),
+        ]);
+
+        console.log(`✅ Resolved [${result.src}] for ${songName || songId}`);
+        hqUrlCache.set(songId, result.url);
+        return result.url;
     } catch (e) {
-        console.warn(`⚠️ Strategy 1 failed for ${songId}:`, e.message);
+        console.error(`❌ All strategies failed for ${songId} (${songName})`);
+        return null;
     }
-
-    // STRATEGY 2: Use third-party JioSaavn API instances in parallel
-    const thirdPartyApis = [
-        `https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`,
-        `https://jiosaavn-api-three.vercel.app/songs?id=${songId}`,
-        `https://jiosaavn-api-beta.vercel.app/api/songs?id=${songId}`,
-        `https://jiosaavn-api-ashutosh.vercel.app/api/songs?id=${songId}`,
-    ];
-
-    try {
-        console.log(`🚀 Strategy 2: Fetching from ${thirdPartyApis.length} third-party APIs in parallel...`);
-        const link = await Promise.any(thirdPartyApis.map(api => new Promise(async (resolve, reject) => {
-            try {
-                const hqData = await fetchJson(api, 6000);
-                
-                let song = null;
-                if (hqData.data && Array.isArray(hqData.data)) song = hqData.data[0];
-                else if (hqData.data && hqData.data.id) song = hqData.data;
-                else if (Array.isArray(hqData)) song = hqData[0];
-
-                if (song) {
-                    let downloadUrls = song.downloadUrl || song.download_url || song.downloadLinks;
-                    if (downloadUrls && Array.isArray(downloadUrls)) {
-                        for (const candidate of downloadUrls) {
-                            const link = candidate?.link || candidate?.url || (typeof candidate === 'string' ? candidate : null);
-                            if (!link) continue;
-                            const verified = await verifyAudioUrl(link);
-                            if (verified) return resolve({ link: verified, api });
-                        }
-                    }
-                    if (song.url && typeof song.url === 'string' && song.url.includes('saavncdn')) {
-                        const verified = await verifyAudioUrl(song.url);
-                        if (verified) return resolve({ link: verified, api });
-                    }
-                }
-                reject(new Error("No valid URL found"));
-            } catch (err) {
-                reject(err);
-            }
-        })));
-
-        if (link && link.link) {
-            console.log(`✅ Strategy 2 (${link.api}) SUCCESS for ${songId}`);
-            hqUrlCache.set(songId, link.link);
-            saveCache();
-            return link.link;
-        }
-    } catch (e) {
-        console.warn(`⚠️ Strategy 2 (Parallel API Fetch) failed for ${songId}`);
-    }
-
-    // STRATEGY 4: Search fallback (if we have name/artist)
-    if (songName) {
-        try {
-            console.log(`🔎 Strategy 4 (Search Fallback) for: ${songName}`);
-            const query = `${songName} ${songArtist || ''}`.trim();
-            const searchData = await jiosaavnRequest({
-                __call: 'search.getResults',
-                q: query,
-                n: '1',
-            });
-            if (searchData.results?.[0]) {
-                const s = searchData.results[0];
-                const encUrl = s.encrypted_media_url || s.more_info?.encrypted_media_url;
-                if (encUrl) {
-                    const decrypted = decryptMediaUrl(encUrl);
-                    if (decrypted) {
-                        console.log(`✅ Strategy 4 SUCCESS for ${songName}`);
-                        hqUrlCache.set(songId, decrypted);
-                        saveCache();
-                        return decrypted;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn(`⚠️ Strategy 4 failed:`, e.message);
-        }
-    }
-
-    console.error(`❌ All strategies failed for song ${songId} (${songName})`);
-    return null;
 }
+
+// ─── Background prefetch: warms URL cache for a list of songs ───
+// Call this AFTER sending a song list response so cache is ready before user taps
+function prefetchSongUrls(songs, limit = 8) {
+    const todo = (songs || []).slice(0, limit);
+    todo.forEach(song => {
+        if (!song?.id || hqUrlCache.has(song.id)) return;
+        resolveFullSongUrl(song.id, song.name, song.artist)
+            .catch(() => {}); // fire and forget — errors are silent
+    });
+}
+
 
 // =================== SONG FORMATTING & CLEANUP ===================
 
@@ -828,11 +740,25 @@ app.get('/api/search', async (req, res) => {
     const combinedResults = [...tracks, ...artistsResults];
     if (combinedResults.length > 0) {
         apiCache.set(cacheKey, combinedResults);
-        return res.json(combinedResults);
+        res.json(combinedResults);
+        // ✅ Prefetch stream URLs for top search songs in background
+        const songResults = tracks.filter(t => t.type === 'song' || !t.type);
+        setImmediate(() => prefetchSongUrls(songResults, 5));
+        return;
     }
 
     res.status(500).json({ error: 'Search unavailable. All APIs failed.', query });
 });
+
+// Explicit prefetch endpoint: client can call this to pre-warm URLs for upcoming songs
+app.post('/api/prefetch', async (req, res) => {
+    const { songs } = req.body || {};
+    if (!Array.isArray(songs) || songs.length === 0) return res.json({ ok: true });
+    res.json({ ok: true, queued: songs.length }); // respond immediately
+    setImmediate(() => prefetchSongUrls(songs, 8)); // warm cache in background
+});
+
+
 
 // Get trending/popular songs for home page (Top Hits)
 app.get('/api/top-tracks', async (req, res) => {
@@ -877,11 +803,14 @@ app.get('/api/top-tracks', async (req, res) => {
 
         apiCache.set(cacheKey, tracks);
         res.json(tracks);
+        // ✅ Prefetch URLs for top songs in background so first play is instant
+        setImmediate(() => prefetchSongUrls(tracks, 10));
     } catch (err) {
         console.error('Top tracks error:', err.message);
         res.status(500).json({ error: 'Failed to fetch top tracks', details: err.message });
     }
 });
+
 
 // Get new releases / albums for home page
 app.get('/api/recommendations', async (req, res) => {

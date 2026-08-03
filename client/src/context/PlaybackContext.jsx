@@ -87,10 +87,39 @@ export const PlaybackProvider = ({ children }) => {
         }
     }, [isPlaying, currentTrack]);
 
-    const togglePlay = useCallback(() => {
-        if (!currentTrack) return;
-        setIsPlaying(prev => !prev);
-    }, [currentTrack]);
+    // Audio event listeners for loading state
+    useEffect(() => {
+        const audio = audioRef.current;
+
+        // Clear loading when browser has enough data to play
+        const handleCanPlay = () => {
+            setIsTrackLoading(false);
+        };
+        // Re-show loading if browser stalls/rebuffers
+        const handleWaiting = () => {
+            setIsTrackLoading(true);
+        };
+        // Also clear on playing (belt + suspenders)
+        const handlePlaying = () => {
+            setIsTrackLoading(false);
+            setIsPlaying(true);
+        };
+        const handleError = () => {
+            setIsTrackLoading(false);
+        };
+
+        audio.addEventListener('canplay', handleCanPlay);
+        audio.addEventListener('waiting', handleWaiting);
+        audio.addEventListener('playing', handlePlaying);
+        audio.addEventListener('error', handleError);
+
+        return () => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('waiting', handleWaiting);
+            audio.removeEventListener('playing', handlePlaying);
+            audio.removeEventListener('error', handleError);
+        };
+    }, []);
 
     const playTrack = useCallback(async (track, newPlaylist = null) => {
         if (!track || !track.id) {
@@ -107,45 +136,44 @@ export const PlaybackProvider = ({ children }) => {
             return;
         }
 
+        // ✅ IMMEDIATELY show the track in footer with loading state
+        // This is the first thing that happens — no await before this
+        setCurrentTrack(track);
         setIsTrackLoading(true);
+        setIsPlaying(false);
+
         audioRef.current.pause();
 
-        const fallbackStreamUrl = `${API_BASE_URL}/api/stream?id=${track.id}&name=${encodeURIComponent(track.name || '')}&artist=${encodeURIComponent(track.artist || '')}`;
-        const rawAudioSrc = (typeof track.preview_url === 'string' && track.preview_url.includes('saavncdn.com'))
-            ? fallbackStreamUrl
-            : track.preview_url || fallbackStreamUrl;
-        const audioSrc = typeof rawAudioSrc === 'string' && window.location.protocol === 'https:'
-            ? rawAudioSrc.replace(/^http:\/\//i, 'https://')
-            : rawAudioSrc;
+        // Build the stream proxy URL (always use our server proxy)
+        const streamUrl = `${API_BASE_URL}/api/stream?id=${encodeURIComponent(track.id)}&name=${encodeURIComponent(track.name || '')}&artist=${encodeURIComponent(track.artist || '')}`;
 
+        // Check if user has this song downloaded offline (fast IndexedDB lookup)
+        let audioSrc = streamUrl;
+        try {
+            const blobUrl = await getTrackBlobUrl(track.id);
+            if (blobUrl) {
+                audioSrc = blobUrl;
+                console.log('🎵 Playing from offline download');
+            }
+        } catch (_) {}
+
+        // Set the audio source and start loading
+        // isTrackLoading will be cleared by the 'canplay' or 'playing' event above
         audioRef.current.src = audioSrc;
         audioRef.current.load();
 
-        setCurrentTrack(track);
-        setIsPlaying(true);
-
-        try {
-            const playPromise = audioRef.current.play().catch(e => {
-                console.warn('Autoplay blocked or stream interrupted:', e.message);
-                try {
-                    audioRef.current.src = fallbackStreamUrl;
-                    audioRef.current.load();
-                    audioRef.current.play().catch(() => {});
-                } catch (_) {}
-            });
-
-            const blobUrlPromise = getTrackBlobUrl(track.id);
-            const blobUrl = await blobUrlPromise;
-            if (blobUrl && audioRef.current.src !== blobUrl) {
-                audioRef.current.src = blobUrl;
+        audioRef.current.play().catch(e => {
+            console.warn('Autoplay blocked or stream interrupted:', e.message);
+            // Try the stream URL as fallback if blob failed
+            if (audioSrc !== streamUrl) {
+                audioRef.current.src = streamUrl;
                 audioRef.current.load();
-                await playPromise.catch(() => {});
                 audioRef.current.play().catch(() => {});
             }
-        } finally {
-            setIsTrackLoading(false);
-        }
+        });
+
     }, [currentTrack, togglePlay]);
+
 
     const handleNext = useCallback(() => {
         if (queue.length > 0) {

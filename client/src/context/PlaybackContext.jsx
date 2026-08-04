@@ -1,10 +1,9 @@
 import React, { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { getTrackBlobUrl } from '../services/WebDownloadService';
-
-const PlaybackContext = createContext();
 import API_BASE_URL from '../config';
 
+const PlaybackContext = createContext();
 const REQUEST_TIMEOUT_MS = 15000;
 
 export const PlaybackProvider = ({ children }) => {
@@ -26,275 +25,200 @@ export const PlaybackProvider = ({ children }) => {
 
     const audioRef = useRef(new Audio());
 
+    // ─── Fetch home data on mount ────────────────────────────────
     useEffect(() => {
-        // Fetch initial tracks, albums and artists
         const fetchInitialData = async () => {
             try {
-                const [tracksResponse, albumsResponse, artistsResponse] = await Promise.allSettled([
-                    axios.get(`${API_BASE_URL}/api/top-tracks`, { timeout: REQUEST_TIMEOUT_MS }),
-                    axios.get(`${API_BASE_URL}/api/recommendations`, { timeout: REQUEST_TIMEOUT_MS }),
-                    axios.get(`${API_BASE_URL}/api/artists`, { timeout: REQUEST_TIMEOUT_MS })
+                const [tracksRes, albumsRes, artistsRes] = await Promise.allSettled([
+                    axios.get(`${API_BASE_URL}/api/top-tracks`,      { timeout: REQUEST_TIMEOUT_MS }),
+                    axios.get(`${API_BASE_URL}/api/recommendations`,  { timeout: REQUEST_TIMEOUT_MS }),
+                    axios.get(`${API_BASE_URL}/api/artists`,          { timeout: REQUEST_TIMEOUT_MS }),
                 ]);
-
-                const tracksResult = tracksResponse.status === 'fulfilled' ? tracksResponse.value : null;
-                const albumsResult = albumsResponse.status === 'fulfilled' ? albumsResponse.value : null;
-                const artistsResult = artistsResponse.status === 'fulfilled' ? artistsResponse.value : null;
-
-                if (tracksResult) setTracks(tracksResult.data);
-                if (albumsResult) setAlbums(albumsResult.data);
-                if (artistsResult) setArtists(artistsResult.data);
-
-                const failedRequests = [tracksResponse, albumsResponse, artistsResponse].filter(result => result.status === 'rejected');
-                if (failedRequests.length > 0) {
-                    console.error("Error fetching initial data:", failedRequests.map(result => result.reason?.message || result.reason));
-                }
-            } catch (error) {
-                console.error("Error fetching initial data:", error);
+                if (tracksRes.status  === 'fulfilled') setTracks(tracksRes.value.data);
+                if (albumsRes.status  === 'fulfilled') setAlbums(albumsRes.value.data);
+                if (artistsRes.status === 'fulfilled') setArtists(artistsRes.value.data);
+            } catch (e) {
+                console.error('fetchInitialData error:', e);
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchInitialData();
     }, []);
 
+    // ─── Audio event listeners (bound once) ─────────────────────
     useEffect(() => {
         const audio = audioRef.current;
 
-        const updateTime = () => setCurrentTime(audio.currentTime);
-        const updateDuration = () => setDuration(audio.duration);
-        
-        audio.addEventListener('timeupdate', updateTime);
-        audio.addEventListener('loadedmetadata', updateDuration);
+        const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+        const onDuration   = () => setDuration(audio.duration || 0);
+        const onCanPlay    = () => setIsTrackLoading(false);
+        const onWaiting    = () => setIsTrackLoading(true);
+        const onPlaying    = () => { setIsTrackLoading(false); setIsPlaying(true); };
+        const onPause      = () => setIsPlaying(false);
+        const onError      = () => setIsTrackLoading(false);
+
+        audio.addEventListener('timeupdate',     onTimeUpdate);
+        audio.addEventListener('loadedmetadata', onDuration);
+        audio.addEventListener('canplay',        onCanPlay);
+        audio.addEventListener('waiting',        onWaiting);
+        audio.addEventListener('playing',        onPlaying);
+        audio.addEventListener('pause',          onPause);
+        audio.addEventListener('error',          onError);
 
         return () => {
-            audio.removeEventListener('timeupdate', updateTime);
-            audio.removeEventListener('loadedmetadata', updateDuration);
+            audio.removeEventListener('timeupdate',     onTimeUpdate);
+            audio.removeEventListener('loadedmetadata', onDuration);
+            audio.removeEventListener('canplay',        onCanPlay);
+            audio.removeEventListener('waiting',        onWaiting);
+            audio.removeEventListener('playing',        onPlaying);
+            audio.removeEventListener('pause',          onPause);
+            audio.removeEventListener('error',          onError);
         };
-    }, []); 
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => {
-        audioRef.current.volume = volume;
-    }, [volume]);
+    // ─── Volume sync ─────────────────────────────────────────────
+    useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
-    useEffect(() => {
-        if (!currentTrack) return;
-
-        if (isPlaying) {
-            audioRef.current.play().catch(e => console.log("Playback blocked:", e));
-        } else {
-            audioRef.current.pause();
-        }
-    }, [isPlaying, currentTrack]);
-
+    // ─── togglePlay ──────────────────────────────────────────────
     const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-
-    if (!currentTrack) return;
-
-    if (isPlaying) {
-        audio.pause();
-        setIsPlaying(false);
-    } else {
-        audio.play().catch(err => {
-            console.error("Playback failed:", err);
-        });
-        setIsPlaying(true);
-    }
-}, [currentTrack, isPlaying]);
-    // Audio event listeners for loading state
-    useEffect(() => {
+        if (!currentTrack) return;
         const audio = audioRef.current;
+        if (audio.paused) {
+            audio.play().catch(e => console.warn('play() blocked:', e));
+        } else {
+            audio.pause();
+        }
+    }, [currentTrack]);
 
-        // Clear loading when browser has enough data to play
-        const handleCanPlay = () => {
-            setIsTrackLoading(false);
-        };
-        // Re-show loading if browser stalls/rebuffers
-        const handleWaiting = () => {
-            setIsTrackLoading(true);
-        };
-        // Also clear on playing (belt + suspenders)
-        const handlePlaying = () => {
-            setIsTrackLoading(false);
-            setIsPlaying(true);
-        };
-        const handleError = () => {
-            setIsTrackLoading(false);
-        };
-
-        audio.addEventListener('canplay', handleCanPlay);
-        audio.addEventListener('waiting', handleWaiting);
-        audio.addEventListener('playing', handlePlaying);
-        audio.addEventListener('error', handleError);
-
-        return () => {
-            audio.removeEventListener('canplay', handleCanPlay);
-            audio.removeEventListener('waiting', handleWaiting);
-            audio.removeEventListener('playing', handlePlaying);
-            audio.removeEventListener('error', handleError);
-        };
-    }, []);
-
+    // ─── playTrack ───────────────────────────────────────────────
     const playTrack = useCallback(async (track, newPlaylist = null) => {
-        if (!track || !track.id) {
-            console.error("Cannot play track: Missing track ID", track);
-            return;
-        }
+        if (!track?.id) return;
+        if (newPlaylist && Array.isArray(newPlaylist)) setTracks(newPlaylist);
 
-        if (newPlaylist && Array.isArray(newPlaylist)) {
-            setTracks(newPlaylist);
-        }
-
+        // Same track → toggle play/pause
         if (currentTrack?.id === track.id) {
             togglePlay();
             return;
         }
 
-        // ✅ IMMEDIATELY show the track in footer with loading state
-        // This is the first thing that happens — no await before this
+        // ✅ Show track in footer IMMEDIATELY (no await before this)
         setCurrentTrack(track);
         setIsTrackLoading(true);
         setIsPlaying(false);
+        setCurrentTime(0);
+        setDuration(0);
 
         audioRef.current.pause();
 
-        // Build the stream proxy URL (always use our server proxy)
         const streamUrl = `${API_BASE_URL}/api/stream?id=${encodeURIComponent(track.id)}&name=${encodeURIComponent(track.name || '')}&artist=${encodeURIComponent(track.artist || '')}`;
 
-        // Check if user has this song downloaded offline (fast IndexedDB lookup)
+        // Check for offline download (fast IndexedDB)
         let audioSrc = streamUrl;
         try {
             const blobUrl = await getTrackBlobUrl(track.id);
-            if (blobUrl) {
-                audioSrc = blobUrl;
-                console.log('🎵 Playing from offline download');
-            }
+            if (blobUrl) { audioSrc = blobUrl; console.log('🎵 Playing offline'); }
         } catch (_) {}
 
-        // Set the audio source and start loading
-        // isTrackLoading will be cleared by the 'canplay' or 'playing' event above
-        audioRef.current.src = audioSrc;
-        audioRef.current.load();
+        const audio = audioRef.current;
+        audio.src = audioSrc;
+        audio.load();
 
-        audioRef.current.play().catch(e => {
-            console.warn('Autoplay blocked or stream interrupted:', e.message);
-            // Try the stream URL as fallback if blob failed
+        // Play — isTrackLoading cleared by 'canplay'/'playing' events
+        audio.play().catch(e => {
+            console.warn('Autoplay blocked:', e.message);
             if (audioSrc !== streamUrl) {
-                audioRef.current.src = streamUrl;
-                audioRef.current.load();
-                audioRef.current.play().catch(() => {});
+                audio.src = streamUrl;
+                audio.load();
+                audio.play().catch(() => {});
             }
         });
-
     }, [currentTrack, togglePlay]);
 
+    // ─── Queue & navigation ──────────────────────────────────────
+    const addToQueue    = useCallback((t) => setQueue(p => [...p, t]), []);
+    const playNextInQueue = useCallback((t) => setQueue(p => [t, ...p]), []);
 
     const handleNext = useCallback(() => {
         if (queue.length > 0) {
-            const nextTrack = queue[0];
-            setQueue(prev => prev.slice(1));
-            playTrack(nextTrack);
+            const next = queue[0];
+            setQueue(p => p.slice(1));
+            playTrack(next);
             return;
         }
-        if (tracks.length === 0) return;
-        const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id);
-        const nextIndex = (currentIndex + 1) % tracks.length;
-        playTrack(tracks[nextIndex]);
+        if (!tracks.length) return;
+        const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+        playTrack(tracks[(idx + 1) % tracks.length]);
     }, [queue, tracks, currentTrack, playTrack]);
 
-    const addToQueue = useCallback((track) => {
-        setQueue(prev => [...prev, track]);
-    }, []);
-
-    const playNextInQueue = useCallback((track) => {
-        setQueue(prev => [track, ...prev]);
-    }, []);
-
     const handlePrev = useCallback(() => {
-        if (tracks.length === 0) return;
-        const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id);
-        let prevIndex = currentIndex - 1;
-        if (prevIndex < 0) prevIndex = tracks.length - 1;
-        playTrack(tracks[prevIndex]);
+        if (!tracks.length) return;
+        const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+        playTrack(tracks[(idx - 1 + tracks.length) % tracks.length]);
     }, [tracks, currentTrack, playTrack]);
 
-    // Handle audio end event using useCallback and reference to dependencies
+    // ─── Auto-advance on end ─────────────────────────────────────
     useEffect(() => {
         const audio = audioRef.current;
-        const handleEnd = () => {
-            if (isRepeat) {
-                audio.currentTime = 0;
-                audio.play().catch(e => console.log("Replay blocked:", e));
-            } else {
-                handleNext();
-            }
+        const onEnd = () => {
+            if (isRepeat) { audio.currentTime = 0; audio.play().catch(() => {}); }
+            else handleNext();
         };
-        audio.addEventListener('ended', handleEnd);
-        return () => audio.removeEventListener('ended', handleEnd);
+        audio.addEventListener('ended', onEnd);
+        return () => audio.removeEventListener('ended', onEnd);
     }, [handleNext, isRepeat]);
 
-    const toggleRepeat = useCallback(() => setIsRepeat(prev => !prev), []);
+    // ─── Misc helpers ────────────────────────────────────────────
+    const toggleRepeat = useCallback(() => setIsRepeat(p => !p), []);
+    const toggleExpand = useCallback(() => setIsExpanded(p => !p), []);
+
+    const seekTo = useCallback((time) => {
+        audioRef.current.currentTime = time;
+        setCurrentTime(time);
+    }, []);
+
+    const formatTime = useCallback((time) => {
+        if (!time || isNaN(time)) return '0:00';
+        const m = Math.floor(time / 60), s = Math.floor(time % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }, []);
 
     const playArtistTracks = useCallback(async (artistId) => {
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/artist/${artistId}/tracks`, { timeout: REQUEST_TIMEOUT_MS });
-            const playableTracks = Array.isArray(response.data?.tracks) ? response.data.tracks.filter(t => t.preview_url) : [];
-            if (playableTracks.length > 0) {
-                playTrack(playableTracks[0], playableTracks);
-            }
-        } catch (error) {
-            console.error("Failed to play artist tracks:", error);
-        } finally {
-            setIsLoading(false);
-        }
+            const res = await axios.get(`${API_BASE_URL}/api/artist/${artistId}/tracks`, { timeout: REQUEST_TIMEOUT_MS });
+            const list = Array.isArray(res.data?.tracks) ? res.data.tracks.filter(t => t.preview_url) : [];
+            if (list.length) playTrack(list[0], list);
+        } catch (e) { console.error('playArtistTracks:', e); }
+        finally { setIsLoading(false); }
     }, [playTrack]);
 
     const searchTracks = useCallback(async (query) => {
         if (!query) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/search?query=${query}`, { timeout: REQUEST_TIMEOUT_MS });
-            const playableTracks = Array.isArray(response.data) ? response.data.filter(t => t.preview_url) : [];
-            setSearchResults(playableTracks);
-            // We set current tracks list for seamless play-next in search results
-            setTracks(playableTracks);
-        } catch (error) {
-            console.error("Search failed:", error);
-        } finally {
-            setIsLoading(false);
-        }
+            const res = await axios.get(`${API_BASE_URL}/api/search?query=${query}`, { timeout: REQUEST_TIMEOUT_MS });
+            const list = Array.isArray(res.data) ? res.data.filter(t => t.preview_url) : [];
+            setSearchResults(list);
+            setTracks(list);
+        } catch (e) { console.error('searchTracks:', e); }
+        finally { setIsLoading(false); }
     }, []);
 
     const selectAlbumPlaylist = useCallback((albumData) => {
         setSelectedAlbum(albumData);
-        if (albumData.tracks && albumData.tracks.length > 0) {
-            setTracks(albumData.tracks);
-        }
+        if (albumData.tracks?.length) setTracks(albumData.tracks);
     }, []);
-
-    const formatTime = useCallback((time) => {
-        if (isNaN(time)) return "0:00";
-        const mins = Math.floor(time / 60);
-        const secs = Math.floor(time % 60);
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    }, []);
-
-    const seekTo = useCallback((time) => {
-        if (audioRef.current) {
-            audioRef.current.currentTime = time;
-            setCurrentTime(time);
-        }
-    }, []);
-
-    const toggleExpand = useCallback(() => setIsExpanded(prev => !prev), []);
 
     return (
         <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration, isLoading, isTrackLoading, isExpanded, queue,
-            playTrack, playArtistTracks, togglePlay, toggleRepeat, setVolume, setCurrentTime, handleNext, handlePrev, formatTime, seekTo, searchTracks, toggleExpand, addToQueue, playNextInQueue, setQueue,
-            albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults
+            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration,
+            isLoading, isTrackLoading, isExpanded, queue,
+            playTrack, playArtistTracks, togglePlay, toggleRepeat,
+            setVolume, setCurrentTime, handleNext, handlePrev,
+            formatTime, seekTo, searchTracks, toggleExpand,
+            addToQueue, playNextInQueue, setQueue,
+            albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults,
         }}>
             {children}
         </PlaybackContext.Provider>

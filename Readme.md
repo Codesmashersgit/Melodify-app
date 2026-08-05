@@ -3,7 +3,7 @@
   src="./client/src/assets/melodify.png"
   alt="Melodify Logo"
   width="200"
-  style="border-radius: 50%;"
+  style={{ borderRadius: "50%" }}
 />
   
   # 🎵 Melodify

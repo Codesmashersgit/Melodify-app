@@ -1,5 +1,10 @@
 <div align="center">
-  <img src="./client/src/assets/melodify.png" alt="Melodify Logo" width="200" />
+  <img
+  src="./client/src/assets/melodify.png"
+  alt="Melodify Logo"
+  width="200"
+  style="border-radius: 50%;"
+/>
   
   # 🎵 Melodify
   

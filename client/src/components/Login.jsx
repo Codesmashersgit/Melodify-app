@@ -5,8 +5,6 @@ import { FaGoogle, FaApple, FaMobileAlt, FaEye, FaEyeSlash, FaTimes, FaCheck } f
 import logo from '../assets/melodify.png';
 import axios from 'axios';
 import API_BASE_URL from '../config';
-import { auth } from '../firebaseConfig';
-import * as firebaseAuth from 'firebase/auth';
 import { useGoogleLogin } from '@react-oauth/google';
 
 const Login = () => {

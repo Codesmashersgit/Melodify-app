@@ -214,12 +214,29 @@ function desDecryptECB(data, keyBuf) {
     return result;
 }
 
+const CryptoJS = require('crypto-js');
+
+// Helper to very quickly check if a URL is valid/streaming
+const fastVerifyUrl = async (url) => {
+    try {
+        const res = await axios.head(url, { timeout: 1500 });
+        if (res.status === 200 || res.status === 206) return true;
+        return false;
+    } catch {
+        return false; // Error or timeout means dead link
+    }
+};
+
 function decryptMediaUrl(encryptedUrl) {
     try {
-        const key = Buffer.from(JIOSAAVN_DES_KEY);
-        const encrypted = Buffer.from(encryptedUrl, 'base64');
-        const decrypted = desDecryptECB(encrypted, key);
-        const url = decrypted.toString('utf8').replace(/\0/g, '').trim();
+        const key = CryptoJS.enc.Utf8.parse(JIOSAAVN_DES_KEY);
+        const decrypted = CryptoJS.DES.decrypt({
+            ciphertext: CryptoJS.enc.Base64.parse(encryptedUrl)
+        }, key, {
+            mode: CryptoJS.mode.ECB,
+            padding: CryptoJS.pad.Pkcs7
+        });
+        const url = decrypted.toString(CryptoJS.enc.Utf8).replace(/\0/g, '').trim();
         if (!url.startsWith('http')) throw new Error('Decrypted result is not a valid URL');
         // Upgrade to 320kbps
         return url.replace('_96.mp4', '_320.mp4')
@@ -352,24 +369,19 @@ try {
 
 function saveCache() { /* no-op: disk cache disabled - CDN URLs expire */ }
 
-async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
-    // Fast in-memory cache hit
+async function resolveFullSongUrl(songId, songName, songArtist) {
     if (hqUrlCache.has(songId)) {
         console.log(`🎵 Cache hit for song ${songId}`);
         return hqUrlCache.get(songId);
     }
-
+    
     console.log(`🔍 Resolving URL for: ${songName || songId}`);
 
-    // ─── Extract URL from Vercel-wrapper API response ───
-    const extractUrlFromVercelResponse = (hqData) => {
-        let song = null;
-        if (hqData?.data && Array.isArray(hqData.data)) song = hqData.data[0];
-        else if (hqData?.data?.id) song = hqData.data;
+    const extractUrlFromVercelResponse = (data) => {
+        const song = data?.data?.[0] || data?.data || data;
         if (!song) return null;
         const urls = song.downloadUrl || song.download_url || song.downloadLinks;
         if (!urls || !Array.isArray(urls)) return null;
-        // Pick highest quality (320kbps preferred)
         const sorted = [...urls].sort((a, b) => {
             const qa = parseInt((a.quality || '').replace(/[^\d]/g, '')) || 0;
             const qb = parseInt((b.quality || '').replace(/[^\d]/g, '')) || 0;
@@ -379,47 +391,51 @@ async function resolveFullSongUrl(songId, songName = null, songArtist = null) {
         return best?.link || best?.url || (typeof best === 'string' ? best : null);
     };
 
-    // ─── Run ALL strategies in PARALLEL — first success wins ───
+    // ─── Run ALL strategies in PARALLEL — first valid URL wins ───
     try {
         const result = await Promise.any([
-            // Strategy A: Vercel wrapper (primary)
-            fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
-                .then(d => {
-                    const url = extractUrlFromVercelResponse(d);
-                    if (!url) throw new Error('No URL from Vercel A');
-                    return { url, src: 'Vercel-A' };
-                }),
-
-            // Strategy B: Another Vercel instance (secondary)
-            fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
-                .then(d => {
-                    const url = extractUrlFromVercelResponse(d);
-                    if (!url) throw new Error('No URL from Vercel B');
-                    return { url, src: 'Vercel-B' };
-                }),
-
-            // Strategy C: DES decrypt from official JioSaavn API
+            // Strategy C: DES decrypt from official JioSaavn API (Fastest & most reliable)
             (async () => {
                 const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
                 let songInfo = songData[songId]
                     || (songData.songs && songData.songs[0])
                     || Object.values(songData).find(v => v?.id);
-                const encUrl = songInfo?.encrypted_media_url || songInfo?.more_info?.encrypted_media_url;
+                const encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
                 if (!encUrl) throw new Error('No encrypted_media_url');
                 const decrypted = decryptMediaUrl(encUrl);
                 if (!decrypted) throw new Error('DES decrypt failed');
+                if (!(await fastVerifyUrl(decrypted))) throw new Error('DES URL dead');
                 return { url: decrypted, src: 'DES-Decrypt' };
             })(),
 
-            // Strategy D: Search fallback (if we have name)
+            // Strategy A: Vercel wrapper (primary)
+            fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
+                .then(async d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel A');
+                    if (!(await fastVerifyUrl(url))) throw new Error('Vercel A dead');
+                    return { url, src: 'Vercel-A' };
+                }),
+
+            // Strategy B: Another Vercel instance (secondary)
+            fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
+                .then(async d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel B');
+                    if (!(await fastVerifyUrl(url))) throw new Error('Vercel B dead');
+                    return { url, src: 'Vercel-B' };
+                }),
+
+            // Strategy D: Search fallback
             songName ? (async () => {
                 const q = `${songName} ${songArtist || ''}`.trim();
                 const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '1' });
                 const s = searchData.results?.[0];
-                const encUrl = s?.encrypted_media_url || s?.more_info?.encrypted_media_url;
+                const encUrl = s?.more_info?.encrypted_media_url || s?.encrypted_media_url;
                 if (!encUrl) throw new Error('No encUrl from search');
                 const decrypted = decryptMediaUrl(encUrl);
                 if (!decrypted) throw new Error('DES decrypt search failed');
+                if (!(await fastVerifyUrl(decrypted))) throw new Error('Search DES URL dead');
                 return { url: decrypted, src: 'Search-DES' };
             })() : Promise.reject(new Error('No name')),
         ]);

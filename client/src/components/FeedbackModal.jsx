@@ -38,23 +38,24 @@ const FeedbackModal = () => {
 
     const handleSubmit = async () => {
         try {
+            // Optimistically dismiss first so it never annoys them again
+            localStorage.setItem('melodify_web_has_rated', 'true');
+            setIsVisible(false);
+            
             await axios.post(`${API_BASE_URL}/api/user/feedback`, {
                 rating,
                 comment,
                 platform: 'web'
             }); // cookies are sent automatically
-            localStorage.setItem('melodify_web_has_rated', 'true');
-            setIsVisible(false);
         } catch (error) {
             console.error('Failed to submit feedback:', error);
-            // Even if it fails, maybe let them try again later, so don't set local storage
         }
     };
 
     const handleClose = () => {
+        // User wants this to NEVER show again once they exit or interact with it
+        localStorage.setItem('melodify_web_has_rated', 'true');
         setIsVisible(false);
-        // We do NOT set local storage here, so it will ask again next time they try to exit,
-        // just like the user requested.
     };
 
     if (!isVisible) return null;

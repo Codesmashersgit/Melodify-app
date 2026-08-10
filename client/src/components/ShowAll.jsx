@@ -206,7 +206,7 @@ const ShowAll = () => {
                                 className='card'
                                 onClick={() => navigate(`/artist/${artist.id}`)}
                             >
-                                <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%' }} />
+                                <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%', aspectRatio: '1/1', objectFit: 'cover' }} />
                                 <h4 style={{ marginBottom: '4px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{artist.name}</h4>
                                 <p style={{ fontSize: '0.82rem', color: 'var(--melodify-dim-white)', textAlign: 'center' }}>Artist</p>
                                 <div className='play-button-overlay' onClick={(e) => handlePlayArtist(artist.id, e)}>

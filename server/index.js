@@ -395,6 +395,8 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
     try {
         const result = await Promise.any([
             // Strategy C: DES decrypt from official JioSaavn API (Fastest & most reliable)
+            // NOTE: fastVerifyUrl checks removed — HEAD requests from Render (US) to JioSaavn CDN
+            // return false 403/404 even for valid URLs. Trust the URL and let the proxy fail gracefully.
             (async () => {
                 const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
                 let songInfo = songData[songId]
@@ -404,25 +406,22 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
                 if (!encUrl) throw new Error('No encrypted_media_url');
                 const decrypted = decryptMediaUrl(encUrl);
                 if (!decrypted) throw new Error('DES decrypt failed');
-                if (!(await fastVerifyUrl(decrypted))) throw new Error('DES URL dead');
                 return { url: decrypted, src: 'DES-Decrypt' };
             })(),
 
             // Strategy A: Vercel wrapper (primary)
             fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
-                .then(async d => {
+                .then(d => {
                     const url = extractUrlFromVercelResponse(d);
                     if (!url) throw new Error('No URL from Vercel A');
-                    if (!(await fastVerifyUrl(url))) throw new Error('Vercel A dead');
                     return { url, src: 'Vercel-A' };
                 }),
 
             // Strategy B: Another Vercel instance (secondary)
             fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
-                .then(async d => {
+                .then(d => {
                     const url = extractUrlFromVercelResponse(d);
                     if (!url) throw new Error('No URL from Vercel B');
-                    if (!(await fastVerifyUrl(url))) throw new Error('Vercel B dead');
                     return { url, src: 'Vercel-B' };
                 }),
 
@@ -435,7 +434,6 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
                 if (!encUrl) throw new Error('No encUrl from search');
                 const decrypted = decryptMediaUrl(encUrl);
                 if (!decrypted) throw new Error('DES decrypt search failed');
-                if (!(await fastVerifyUrl(decrypted))) throw new Error('Search DES URL dead');
                 return { url: decrypted, src: 'Search-DES' };
             })() : Promise.reject(new Error('No name')),
         ]);

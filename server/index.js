@@ -834,16 +834,47 @@ app.get('/api/recommendations', async (req, res) => {
     if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
 
     try {
-        const data = await jiosaavnRequest({
-            __call: 'content.getHomepageData',
-        });
+        let albums = [];
         
-        const albums = (data.new_albums || []).map(album => ({
-            id: album.albumid || album.id,
-            name: album.title || album.name,
-            artist: album.music || album.subtitle || '',
-            image: hdImage(album.image),
-        }));
+        try {
+            const data = await jiosaavnRequest({
+                __call: 'content.getHomepageData',
+            });
+            if (data.new_albums && data.new_albums.length > 0) {
+                albums = (data.new_albums || []).map(album => ({
+                    id: album.albumid || album.id,
+                    name: album.title || album.name,
+                    artist: album.music || album.subtitle || '',
+                    image: hdImage(album.image),
+                }));
+            }
+        } catch (e) {}
+
+        if (albums.length === 0) {
+            try {
+                const d = await fetchJson('https://jiosaavn-api-beta.vercel.app/modules?language=hindi');
+                if (d?.data?.albums) {
+                    albums = d.data.albums.map(a => ({
+                        id: a.id,
+                        name: a.name || a.title,
+                        artist: a.primaryArtists?.map(x => x.name).join(', ') || a.subtitle || '',
+                        image: hdImage(a.image?.[2]?.link || a.image?.[0]?.link || a.image),
+                    }));
+                }
+            } catch (e) {}
+        }
+
+        if (albums.length === 0) {
+            albums = [
+                { id: "1483832", name: "Aashiqui 2", artist: "Mithoon, Ankit Tiwari, Jeet Gannguli", image: "https://c.saavncdn.com/119/Aashiqui-2-Hindi-2013-500x500.jpg" },
+                { id: "1064041", name: "Kabir Singh", artist: "Mithoon, Amaal Mallik, Vishal Mishra", image: "https://c.saavncdn.com/217/Kabir-Singh-Hindi-2019-20190614075009-500x500.jpg" },
+                { id: "115712", name: "Yeh Jawaani Hai Deewani", artist: "Pritam", image: "https://c.saavncdn.com/978/Yeh-Jawaani-Hai-Deewani-Hindi-2013-500x500.jpg" },
+                { id: "2816912", name: "Shershaah", artist: "Tanishk Bagchi, B Praak", image: "https://c.saavncdn.com/238/Shershaah-Original-Motion-Picture-Soundtrack--Hindi-2021-20210815181610-500x500.jpg" },
+                { id: "32393392", name: "Animal", artist: "Manan Bhardwaj, Vishal Mishra", image: "https://c.saavncdn.com/092/Animal-Hindi-2023-20231124191036-500x500.jpg" },
+                { id: "13511306", name: "Brahmastra", artist: "Pritam, Arijit Singh", image: "https://c.saavncdn.com/393/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20220906135805-500x500.jpg" }
+            ];
+        }
+
         apiCache.set(cacheKey, albums);
         res.json(albums.slice(0, 10));
     } catch (err) {
@@ -879,82 +910,76 @@ app.get('/api/album/:id', async (req, res) => {
 });
 
 // In-memory artist cache to avoid spamming the API on every request/restart
-let globalArtistsCache = null;
+let globalArtistsCache = [
+    { id: "455142", name: "Kumar Sanu", image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg" },
+    { id: "455120", name: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220310065939_500x500.jpg" },
+    { id: "455931", name: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_002_20220419080753_500x500.jpg" },
+    { id: "455125", name: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230323062147_500x500.jpg" },
+    { id: "456863", name: "Atif Aslam", image: "https://c.saavncdn.com/artists/Atif_Aslam_500x500.jpg" },
+    { id: "455130", name: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_002_20220325062548_500x500.jpg" },
+    { id: "455123", name: "Sonu Nigam", image: "https://c.saavncdn.com/artists/Sonu_Nigam_003_20220719124458_500x500.jpg" },
+    { id: "591969", name: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_002_20220808080927_500x500.jpg" },
+    { id: "459633", name: "Neha Kakkar", image: "https://c.saavncdn.com/artists/Neha_Kakkar_006_20200822042626_500x500.jpg" },
+    { id: "468249", name: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025072044_500x500.jpg" },
+];
+let isFetchingArtists = false;
 
 // Get popular artists
 app.get('/api/artists', async (req, res) => {
-    if (globalArtistsCache) return res.json(globalArtistsCache);
+    // Return immediately to not block frontend loading
+    res.json(globalArtistsCache);
     
-    try {
-        const artistNames = [
-            // 90s Legends (The User's Request)
-            'Kumar Sanu', 'Alka Yagnik', 'Udit Narayan', 'Sonu Nigam', 'Kavita Krishnamurthy',
-            'Abhijeet Bhattacharya', 'Anu Malik', 'Hariharan', 'Sadhana Sargam', 'Shaan',
-            
-            // Modern Superstars
-            'Arijit Singh', 'Atif Aslam', 'Shreya Ghoshal', 'Jubin Nautiyal', 'Neha Kakkar', 
-            'Diljit Dosanjh', 'Armaan Malik', 'B Praak', 'Darshan Raval', 'Mohit Chauhan',
-            
-            // Rap & Hip-Hop
-            'Sidhu Moose Wala', 'Badshah', 'Yo Yo Honey Singh', 'Divine', 'MC Stan', 
-            'King', 'AP Dhillon', 'Raftaar', 'Emiway Bantai', 'Krsna',
-            
-            // South Indian / Pan-India
-            'Anirudh Ravichander', 'Sid Sriram', 'AR Rahman', 'Devi Sri Prasad',
-            
-            // All-Time Classics
-            'Kishore Kumar', 'Lata Mangeshkar', 'Mohammed Rafi', 'Mukesh', 'Asha Bhosle',
-            'Jagjit Singh', 'Pankaj Udhas', 'Nusrat Fateh Ali Khan',
-            
-            // Pop & Indie
-            'Sachet-Parampara', 'Tony Kakkar', 'Mithoon', 'Pritam', 'Vishal-Shekhar',
-            'Lucky Ali', 'Sunidhi Chauhan', 'Adnan Sami', 'Himesh Reshammiya'
-        ];
-
-        // Unique names only
-        const uniqueArtists = [...new Set(artistNames)];
-        
-        // Fetch sequential/batched to avoid rate limits
-        const artists = [];
-        const batchSize = 3; // Even smaller batch to be safe
-        
-        console.log(`🎨 Fetching ${uniqueArtists.length} artists...`);
-        
-        for (let i = 0; i < uniqueArtists.length; i += batchSize) {
-            const batch = uniqueArtists.slice(i, i + batchSize);
-            const batchPromises = batch.map(name =>
-                jiosaavnRequest({
-                    __call: 'search.getArtistResults',
-                    q: name,
-                    n: '1',
-                }).catch(() => null)
-            );
-            
-            const results = await Promise.all(batchPromises);
-            results.forEach(r => {
-                if (r && r.results?.[0]) {
-                    const artist = r.results[0];
-                    if (artist.image && !artist.image.includes('artist-default')) {
-                        artists.push({
-                            id: artist.id,
-                            name: artist.name,
-                            image: hdImage(artist.image),
-                        });
-                    }
+    // Background fetch if not fetching already and we want to expand cache
+    if (!isFetchingArtists && globalArtistsCache.length < 20) {
+        isFetchingArtists = true;
+        (async () => {
+            try {
+                const artistNames = [
+                    'Badshah', 'Yo Yo Honey Singh', 'Divine', 'MC Stan', 'King', 
+                    'AP Dhillon', 'Raftaar', 'Emiway Bantai', 'Krsna', 
+                    'Anirudh Ravichander', 'Sid Sriram', 'AR Rahman', 
+                    'Kishore Kumar', 'Lata Mangeshkar', 'Mohammed Rafi'
+                ];
+                
+                const artists = [...globalArtistsCache];
+                const batchSize = 3;
+                
+                for (let i = 0; i < artistNames.length; i += batchSize) {
+                    const batch = artistNames.slice(i, i + batchSize);
+                    const batchPromises = batch.map(name =>
+                        jiosaavnRequest({
+                            __call: 'search.getArtistResults',
+                            q: name,
+                            n: '1',
+                        }).catch(() => null)
+                    );
+                    
+                    const results = await Promise.all(batchPromises);
+                    results.forEach(r => {
+                        if (r && r.results?.[0]) {
+                            const artist = r.results[0];
+                            if (artist.image && !artist.image.includes('artist-default')) {
+                                if (!artists.find(a => a.id === artist.id)) {
+                                    artists.push({
+                                        id: artist.id,
+                                        name: artist.name,
+                                        image: hdImage(artist.image),
+                                    });
+                                }
+                            }
+                        }
+                    });
+                    
+                    await new Promise(r => setTimeout(r, 400));
                 }
-            });
-            
-            // Small gap between batches to breathe
-            if (i + batchSize < uniqueArtists.length) {
-                await new Promise(r => setTimeout(r, 400));
+                
+                globalArtistsCache = artists;
+            } catch (err) {
+                console.error('Background artists fetch error:', err.message);
+            } finally {
+                isFetchingArtists = false;
             }
-        }
-
-        globalArtistsCache = artists;
-        res.json(artists);
-    } catch (err) {
-        console.error('Artists error:', err.message);
-        res.status(500).json({ error: 'Failed to fetch artists', details: err.message });
+        })();
     }
 });
 

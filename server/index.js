@@ -505,7 +505,7 @@ const formatSong = (song) => {
         id: songId,
         name: name,
         artist: artist,
-        artistId: song.primary_artists_id?.split(', ')[0] || info.artistMap?.primary_artists?.[0]?.id || '',
+        artistId: song.primary_artists_id?.split(', ')[0] || info.artistMap?.primary_artists?.[0]?.id || song.primaryArtistsId?.split(', ')[0] || '',
         image: hdImage(song.image || info.image),
         preview_url: preview,
         duration_ms: (parseInt(song.duration || info.duration) || 0) * 1000,
@@ -913,72 +913,28 @@ let globalArtistsCache = [
     { id: "455120", name: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220310065939_500x500.jpg" },
     { id: "455931", name: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_002_20220419080753_500x500.jpg" },
     { id: "455125", name: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230323062147_500x500.jpg" },
-    { id: "456863", name: "Atif Aslam", image: "https://c.saavncdn.com/artists/Atif_Aslam_500x500.jpg" },
-    { id: "455130", name: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_002_20220325062548_500x500.jpg" },
-    { id: "455123", name: "Sonu Nigam", image: "https://c.saavncdn.com/artists/Sonu_Nigam_003_20220719124458_500x500.jpg" },
-    { id: "591969", name: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_002_20220808080927_500x500.jpg" },
-    { id: "459633", name: "Neha Kakkar", image: "https://c.saavncdn.com/artists/Neha_Kakkar_006_20200822042626_500x500.jpg" },
-    { id: "468249", name: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025072044_500x500.jpg" },
+    { id: '459320', name: 'Arijit Singh', image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg' },
+    { id: '455130', name: 'Shreya Ghoshal', image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg' },
+    { id: '464932', name: 'Neha Kakkar', image: 'https://c.saavncdn.com/artists/Neha_Kakkar_007_20241212115832_500x500.jpg' },
+    { id: '456863', name: 'Badshah', image: 'https://c.saavncdn.com/artists/Badshah_006_20241118064015_500x500.jpg' },
+    { id: '455142', name: 'Kumar Sanu', image: 'https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg' },
+    { id: '455120', name: 'Alka Yagnik', image: 'https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg' },
+    { id: '455127', name: 'Udit Narayan', image: 'https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg' },
+    { id: '485956', name: 'Yo Yo Honey Singh', image: 'https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_002_20221216102650_500x500.jpg' },
+    { id: '455144', name: 'Kishore Kumar', image: 'https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg' },
+    { id: '455109', name: 'Lata Mangeshkar', image: 'https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg' },
+    { id: '505312', name: 'Mohammed Rafi', image: 'https://c.saavncdn.com/artists/Mohammed_Rafi_500x500.jpg' },
+    { id: '456269', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084455_500x500.jpg' },
+    { id: '455663', name: 'Anirudh Ravichander', image: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_003_20260121134149_500x500.jpg' },
+    { id: '456323', name: 'Pritam', image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg' },
 ];
-let isFetchingArtists = false;
+
+let isFetchingArtists = false; // Kept for legacy compatibility if used elsewhere
 
 // Get popular artists
 app.get('/api/artists', async (req, res) => {
-    // Return immediately to not block frontend loading
     res.json(globalArtistsCache);
-    
-    // Background fetch if not fetching already and we want to expand cache
-    if (!isFetchingArtists && globalArtistsCache.length < 20) {
-        isFetchingArtists = true;
-        (async () => {
-            try {
-                const artistNames = [
-                    'Badshah', 'Yo Yo Honey Singh', 'Divine', 'MC Stan', 'King', 
-                    'AP Dhillon', 'Raftaar', 'Emiway Bantai', 'Krsna', 
-                    'Anirudh Ravichander', 'Sid Sriram', 'AR Rahman', 
-                    'Kishore Kumar', 'Lata Mangeshkar', 'Mohammed Rafi'
-                ];
-                
-                const artists = [...globalArtistsCache];
-                const batchSize = 3;
-                
-                for (let i = 0; i < artistNames.length; i += batchSize) {
-                    const batch = artistNames.slice(i, i + batchSize);
-                    const batchPromises = batch.map(name =>
-                        jiosaavnRequest({
-                            __call: 'search.getArtistResults',
-                            q: name,
-                            n: '1',
-                        }).catch(() => null)
-                    );
-                    
-                    const results = await Promise.all(batchPromises);
-                    results.forEach(r => {
-                        if (r && r.results?.[0]) {
-                            const artist = r.results[0];
-                            if (artist.image && !artist.image.includes('artist-default')) {
-                                if (!artists.find(a => a.id === artist.id)) {
-                                    artists.push({
-                                        id: artist.id,
-                                        name: artist.name,
-                                        image: hdImage(artist.image),
-                                    });
-                                }
-                            }
-                        }
-                    });
-                    
-                    await new Promise(r => setTimeout(r, 400));
-                }
-                
-                globalArtistsCache = artists;
-            } catch (err) {
-                console.error('Background artists fetch error:', err.message);
-            } finally {
-                isFetchingArtists = false;
-            }
-        })();
-    }
+    // Background fetch removed — it was causing songs to be incorrectly classified as artists
 });
 
 // Get artist details with their top songs

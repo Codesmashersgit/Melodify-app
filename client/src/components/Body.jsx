@@ -147,6 +147,34 @@ const Body = () => {
 
             {/* ── Popular Albums ── */}
             <section className='section-container'>
+            {/* ── Popular Artists ── */}
+            <section className='section-container'>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h2 className='section-title' style={{ margin: 0 }}>Popular artists</h2>
+                    <Link to="/show-all/artists" style={{ textDecoration: 'none' }}>
+                        <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
+                    </Link>
+                </div>
+                {isLoading || artists.length === 0 ? (
+                    <CardSkeletonRow count={12} />
+                ) : (
+                    <div className='grid-container'>
+                        {artists.slice(0, 30).map(artist => (
+                            <div key={artist.id} className='card' onClick={() => navigate(`/artist/${artist.id}`)}>
+                                <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%', aspectRatio: '1/1', objectFit: 'cover' }} />
+                                <h4 style={{ marginBottom: '4px' }}>{artist.name}</h4>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
+                                <div className='play-button-overlay' onClick={(e) => handlePlayArtist(artist.id, e)}>
+                                    <div className='play-icon' style={{ width: '0', height: '0', borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '12px solid black', marginLeft: '2px' }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* ── Popular Albums ── */}
+            <section className='section-container'>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                     <h2 className='section-title' style={{ margin: 0 }}>Popular albums</h2>
                     <Link to="/show-all/albums" style={{ textDecoration: 'none' }}>
@@ -171,32 +199,6 @@ const Body = () => {
                                 </div>
                                 <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.name}</h4>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.artist}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
-
-            {/* ── Popular Artists ── */}
-            <section className='section-container'>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <h2 className='section-title' style={{ margin: 0 }}>Popular artists</h2>
-                    <Link to="/show-all/artists" style={{ textDecoration: 'none' }}>
-                        <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
-                    </Link>
-                </div>
-                {isLoading || artists.length === 0 ? (
-                    <CardSkeletonRow count={12} />
-                ) : (
-                    <div className='grid-container'>
-                        {artists.slice(0, 30).map(artist => (
-                            <div key={artist.id} className='card' onClick={() => navigate(`/artist/${artist.id}`)}>
-                                <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%', aspectRatio: '1/1', objectFit: 'cover' }} />
-                                <h4 style={{ marginBottom: '4px' }}>{artist.name}</h4>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
-                                <div className='play-button-overlay' onClick={(e) => handlePlayArtist(artist.id, e)}>
-                                    <div className='play-icon' style={{ width: '0', height: '0', borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '12px solid black', marginLeft: '2px' }}></div>
-                                </div>
                             </div>
                         ))}
                     </div>

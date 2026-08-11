@@ -909,10 +909,6 @@ app.get('/api/album/:id', async (req, res) => {
 
 // In-memory artist cache to avoid spamming the API on every request/restart
 let globalArtistsCache = [
-    { id: "455142", name: "Kumar Sanu", image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg" },
-    { id: "455120", name: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220310065939_500x500.jpg" },
-    { id: "455931", name: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_002_20220419080753_500x500.jpg" },
-    { id: "455125", name: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230323062147_500x500.jpg" },
     { id: '459320', name: 'Arijit Singh', image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg' },
     { id: '455130', name: 'Shreya Ghoshal', image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg' },
     { id: '464932', name: 'Neha Kakkar', image: 'https://c.saavncdn.com/artists/Neha_Kakkar_007_20241212115832_500x500.jpg' },
@@ -927,6 +923,16 @@ let globalArtistsCache = [
     { id: '456269', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084455_500x500.jpg' },
     { id: '455663', name: 'Anirudh Ravichander', image: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_003_20260121134149_500x500.jpg' },
     { id: '456323', name: 'Pritam', image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg' },
+    { id: '455125', name: 'Sonu Nigam', image: 'https://c.saavncdn.com/artists/Sonu_Nigam_500x500.jpg' },
+    { id: '881158', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg' },
+    { id: '468245', name: 'Diljit Dosanjh', image: 'https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg' },
+    { id: '712878', name: 'Guru Randhawa', image: 'https://c.saavncdn.com/artists/Guru_Randhawa_004_20250701125845_500x500.jpg' },
+    { id: '788130', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg' },
+    { id: '888127', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_006_20250807060352_500x500.jpg' },
+    { id: '455135', name: 'Shaan', image: 'https://c.saavncdn.com/artists/Shaan_004_20250422120221_500x500.jpg' },
+    { id: '455782', name: 'KK', image: 'https://c.saavncdn.com/artists/KK_500x500.jpg' },
+    { id: '702452', name: 'Vishal Mishra', image: 'https://c.saavncdn.com/artists/Vishal_Mishra_005_20251120085316_500x500.jpg' },
+    { id: '741999', name: 'S. P. Balasubrahmanyam', image: 'https://c.saavncdn.com/artists/S_P_Balasubrahmanyam_500x500.jpg' },
 ];
 
 let isFetchingArtists = false; // Kept for legacy compatibility if used elsewhere

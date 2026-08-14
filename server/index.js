@@ -376,11 +376,10 @@ const hdImage = (url) => {
 // =================== RESOLVE FULL SONG URL ===================
 // This is the core function that resolves a full-length HQ URL from a song ID
 
-// JioSaavn CDN URLs expire quickly — DO NOT cache to disk.
-// Only keep a short in-memory cache (5 min) to avoid hammering APIs on rapid play
+// JioSaavn CDN URLs expire in ~1-2 minutes — keep cache very short
 let hqUrlCache = new Map();
-// Clear URL cache every 5 minutes so we always get fresh (non-expired) CDN URLs
-setInterval(() => { hqUrlCache.clear(); console.log('🗑️ HQ URL cache cleared'); }, 5 * 60 * 1000);
+// Clear URL cache every 90 seconds to avoid serving expired CDN URLs
+setInterval(() => { hqUrlCache.clear(); console.log('🗑️ HQ URL cache cleared'); }, 90 * 1000);
 
 // Delete old stale disk cache if it exists
 try {
@@ -538,23 +537,57 @@ const formatSong = (song) => {
 
 // ========================== ENDPOINTS ==========================
 
-// Audio Resolve — resolves HQ URL and returns 302 redirect to CDN directly
-// This way expo-av streams directly from JioSaavn CDN, bypassing Render as middleman
-app.get('/api/stream', async (req, res) => {
-    let { id, name, artist } = req.query;
+// Audio Stream — proxies audio through server with auto-retry on expired CDN URLs
+const doCdnProxy = async (url, req, res) => {
+    const rangeHeader = req.headers['range'];
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.jiosaavn.com/',
+        'Origin': 'https://www.jiosaavn.com',
+        'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
+    };
+    if (rangeHeader) headers['Range'] = rangeHeader;
 
+    const cdnResp = await axios({ method: 'GET', url, responseType: 'stream', timeout: 30000, headers });
+    const status = cdnResp.status === 206 ? 206 : 200;
+    res.status(status);
+    res.setHeader('Content-Type', cdnResp.headers['content-type'] || 'audio/mpeg');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (cdnResp.headers['content-length']) res.setHeader('Content-Length', cdnResp.headers['content-length']);
+    if (cdnResp.headers['content-range']) res.setHeader('Content-Range', cdnResp.headers['content-range']);
+    cdnResp.data.pipe(res);
+    cdnResp.data.on('error', (err) => {
+        if (!res.headersSent) res.status(500).send('Stream pipe failed');
+    });
+};
+
+app.get('/api/stream', async (req, res) => {
+    const { id, name, artist } = req.query;
     if (!id) return res.status(400).send('Song ID is required');
 
     try {
-        const resolvedUrl = await resolveFullSongUrl(id, name, artist);
-        if (!resolvedUrl) {
-            return res.status(404).send('Could not resolve song URL');
-        }
+        let resolvedUrl = await resolveFullSongUrl(id, name, artist);
+        if (!resolvedUrl) return res.status(404).send('Could not resolve song URL');
 
-        // ✅ Redirect directly to the CDN instead of proxying
-        // Bypasses IP blocks on Render and reduces server bandwidth load.
-        return res.redirect(302, resolvedUrl);
-        
+        try {
+            await doCdnProxy(resolvedUrl, req, res);
+        } catch (cdnErr) {
+            const cdnStatus = cdnErr.response?.status;
+            // If CDN returned 404 or 403 → URL is expired/invalid. Evict cache & retry once.
+            if ((cdnStatus === 404 || cdnStatus === 403) && !res.headersSent) {
+                console.warn(`⚠️  CDN ${cdnStatus} for ${id} — evicting cache and retrying...`);
+                hqUrlCache.delete(id);
+                resolvedUrl = await resolveFullSongUrl(id, name, artist);
+                if (resolvedUrl) {
+                    await doCdnProxy(resolvedUrl, req, res);
+                } else {
+                    res.status(404).send('Song not available');
+                }
+            } else {
+                throw cdnErr;
+            }
+        }
     } catch (err) {
         console.error('Stream error:', err.message);
         if (!res.headersSent) return res.status(500).send('Stream failed');

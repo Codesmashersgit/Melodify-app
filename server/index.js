@@ -529,45 +529,10 @@ app.get('/api/stream', async (req, res) => {
             return res.status(404).send('Could not resolve song URL');
         }
 
-        // ✅ PROXY the audio through our server instead of redirecting
-        // This is required because JioSaavn CDN URLs expire within seconds
-        // and browsers cannot directly fetch them after that.
-        const rangeHeader = req.headers['range'];
-        const fetchHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.jiosaavn.com/',
-            'Origin': 'https://www.jiosaavn.com',
-            'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
-        };
-        if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
-
-        const cdnResponse = await axios({
-            method: 'GET',
-            url: resolvedUrl,
-            responseType: 'stream',
-            maxRedirects: 10,
-            timeout: 30000,
-            headers: fetchHeaders,
-        });
-
-        // Forward relevant headers to client
-        const status = cdnResponse.status === 206 ? 206 : 200;
-        res.status(status);
-        res.setHeader('Content-Type', cdnResponse.headers['content-type'] || 'audio/mpeg');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Accept-Ranges', 'bytes');
-        if (cdnResponse.headers['content-length']) {
-            res.setHeader('Content-Length', cdnResponse.headers['content-length']);
-        }
-        if (cdnResponse.headers['content-range']) {
-            res.setHeader('Content-Range', cdnResponse.headers['content-range']);
-        }
-
-        cdnResponse.data.pipe(res);
-        cdnResponse.data.on('error', (err) => {
-            console.error('Stream pipe error:', err.message);
-            if (!res.headersSent) res.status(500).send('Stream pipe failed');
-        });
+        // ✅ Redirect directly to the CDN instead of proxying
+        // Bypasses IP blocks on Render and reduces server bandwidth load.
+        return res.redirect(302, resolvedUrl);
+        
     } catch (err) {
         console.error('Stream error:', err.message);
         if (!res.headersSent) return res.status(500).send('Stream failed');

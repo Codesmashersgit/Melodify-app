@@ -397,75 +397,66 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
     
     console.log(`🔍 Resolving URL for: ${songName || songId}`);
 
-    const extractUrlFromVercelResponse = (data) => {
+    // Extract best quality URL from Vercel API response
+    const extractVercelUrl = (data) => {
         const song = data?.data?.[0] || data?.data || data;
         if (!song) return null;
         const urls = song.downloadUrl || song.download_url || song.downloadLinks;
-        if (!urls || !Array.isArray(urls)) return null;
+        if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
+        // Sort by quality descending, pick highest
         const sorted = [...urls].sort((a, b) => {
-            const qa = parseInt((a.quality || '').replace(/[^\d]/g, '')) || 0;
-            const qb = parseInt((b.quality || '').replace(/[^\d]/g, '')) || 0;
+            const qa = parseInt((a.quality || '').replace(/\D/g, '')) || 0;
+            const qb = parseInt((b.quality || '').replace(/\D/g, '')) || 0;
             return qb - qa;
         });
-        const best = sorted[0];
-        return best?.link || best?.url || (typeof best === 'string' ? best : null);
+        return sorted[0]?.link || sorted[0]?.url || null;
     };
 
-    // ─── Run ALL strategies in PARALLEL — first valid URL wins ───
+    // ─── Strategy 1: jiosaavn-api-beta Vercel (most reliable) ───
     try {
-        const result = await Promise.any([
-            // Strategy A: Vercel wrapper (primary) — gives verified working URLs per quality
-            fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
-                .then(d => {
-                    const url = extractUrlFromVercelResponse(d);
-                    if (!url) throw new Error('No URL from Vercel A');
-                    return { url, src: 'Vercel-A' };
-                }),
+        const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 8000);
+        const url = extractVercelUrl(data);
+        if (url) {
+            console.log(`✅ Resolved [Vercel-A] for ${songName || songId}`);
+            hqUrlCache.set(songId, url);
+            return url;
+        }
+    } catch (_) {}
 
-            // Strategy B: Another Vercel instance (secondary)
-            fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
-                .then(d => {
-                    const url = extractUrlFromVercelResponse(d);
-                    if (!url) throw new Error('No URL from Vercel B');
-                    return { url, src: 'Vercel-B' };
-                }),
+    // ─── Strategy 2: jiosaavn-api-three Vercel (secondary) ───
+    try {
+        const data = await fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 8000);
+        const url = extractVercelUrl(data);
+        if (url) {
+            console.log(`✅ Resolved [Vercel-B] for ${songName || songId}`);
+            hqUrlCache.set(songId, url);
+            return url;
+        }
+    } catch (_) {}
 
-            // Strategy C: DES decrypt from official JioSaavn API — validate quality before returning
-            (async () => {
-                const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
-                let songInfo = songData[songId]
-                    || (songData.songs && songData.songs[0])
-                    || Object.values(songData).find(v => v?.id);
-                const encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
-                if (!encUrl) throw new Error('No encrypted_media_url');
-                const decrypted = decryptMediaUrl(encUrl);
-                if (!decrypted) throw new Error('DES decrypt failed');
-                // Find the best quality that actually exists
-                const bestUrl = await getBestQualityUrl(decrypted);
-                return { url: bestUrl, src: 'DES-Decrypt' };
-            })(),
-
-            // Strategy D: Search fallback
-            songName ? (async () => {
-                const q = `${songName} ${songArtist || ''}`.trim();
-                const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '1' });
-                const s = searchData.results?.[0];
-                const encUrl = s?.more_info?.encrypted_media_url || s?.encrypted_media_url;
-                if (!encUrl) throw new Error('No encUrl from search');
-                const decrypted = decryptMediaUrl(encUrl);
-                if (!decrypted) throw new Error('DES decrypt search failed');
-                const bestUrl = await getBestQualityUrl(decrypted);
-                return { url: bestUrl, src: 'Search-DES' };
-            })() : Promise.reject(new Error('No name')),
-        ]);
-
-        console.log(`✅ Resolved [${result.src}] for ${songName || songId}`);
-        hqUrlCache.set(songId, result.url);
-        return result.url;
-    } catch (e) {
-        console.error(`❌ All strategies failed for ${songId} (${songName})`);
-        return null;
+    // ─── Strategy 3: Search by name → get real ID → Vercel lookup ───
+    if (songName) {
+        try {
+            const q = `${songName} ${songArtist || ''}`.trim();
+            const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '3' });
+            const results = searchData?.results || [];
+            for (const s of results) {
+                if (!s?.id) continue;
+                try {
+                    const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${s.id}`, 6000);
+                    const url = extractVercelUrl(data);
+                    if (url) {
+                        console.log(`✅ Resolved [Search+Vercel] for ${songName}`);
+                        hqUrlCache.set(songId, url); // cache under original ID too
+                        return url;
+                    }
+                } catch (_) {}
+            }
+        } catch (_) {}
     }
+
+    console.error(`❌ All strategies failed for ${songId} (${songName})`);
+    return null;
 }
 
 // ─── Background prefetch: warms URL cache for a list of songs ───

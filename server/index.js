@@ -238,15 +238,36 @@ function decryptMediaUrl(encryptedUrl) {
         });
         const url = decrypted.toString(CryptoJS.enc.Utf8).replace(/\0/g, '').trim();
         if (!url.startsWith('http')) throw new Error('Decrypted result is not a valid URL');
-        // Upgrade to 320kbps
-        return url.replace('_96.mp4', '_320.mp4')
-                  .replace('_160.mp4', '_320.mp4')
-                  .replace('_128.mp4', '_320.mp4')
-                  .replace('_48.mp4', '_320.mp4');
+        // Return the base URL as-is (without forced quality upgrade)
+        // Quality upgrade is handled by getBestQualityUrl() which validates each quality
+        return url;
     } catch (e) {
         console.error('DES Decryption failed:', e.message);
         return null;
     }
+}
+
+// Try qualities from 320 down to 48 — return first URL that exists (HTTP 200)
+async function getBestQualityUrl(baseUrl) {
+    const qualities = ['_320.mp4', '_160.mp4', '_96.mp4', '_48.mp4', '_12.mp4'];
+    // Replace whatever quality suffix the URL has with each candidate
+    const withoutQuality = baseUrl.replace(/_\d+\.mp4$/, '');
+    
+    for (const q of qualities) {
+        const candidate = withoutQuality + q;
+        try {
+            const resp = await axios.head(candidate, {
+                timeout: 3000,
+                headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.jiosaavn.com/' }
+            });
+            if (resp.status === 200 || resp.status === 206) {
+                console.log(`✅ Quality found: ${q} for ${baseUrl.substring(0, 60)}`);
+                return candidate;
+            }
+        } catch (_) { /* try next */ }
+    }
+    // All failed — return original URL as last resort
+    return baseUrl;
 }
 
 // =================== HTTP HELPERS ===================
@@ -394,22 +415,7 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
     // ─── Run ALL strategies in PARALLEL — first valid URL wins ───
     try {
         const result = await Promise.any([
-            // Strategy C: DES decrypt from official JioSaavn API (Fastest & most reliable)
-            // NOTE: fastVerifyUrl checks removed — HEAD requests from Render (US) to JioSaavn CDN
-            // return false 403/404 even for valid URLs. Trust the URL and let the proxy fail gracefully.
-            (async () => {
-                const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
-                let songInfo = songData[songId]
-                    || (songData.songs && songData.songs[0])
-                    || Object.values(songData).find(v => v?.id);
-                const encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
-                if (!encUrl) throw new Error('No encrypted_media_url');
-                const decrypted = decryptMediaUrl(encUrl);
-                if (!decrypted) throw new Error('DES decrypt failed');
-                return { url: decrypted, src: 'DES-Decrypt' };
-            })(),
-
-            // Strategy A: Vercel wrapper (primary)
+            // Strategy A: Vercel wrapper (primary) — gives verified working URLs per quality
             fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
                 .then(d => {
                     const url = extractUrlFromVercelResponse(d);
@@ -425,6 +431,21 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
                     return { url, src: 'Vercel-B' };
                 }),
 
+            // Strategy C: DES decrypt from official JioSaavn API — validate quality before returning
+            (async () => {
+                const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
+                let songInfo = songData[songId]
+                    || (songData.songs && songData.songs[0])
+                    || Object.values(songData).find(v => v?.id);
+                const encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
+                if (!encUrl) throw new Error('No encrypted_media_url');
+                const decrypted = decryptMediaUrl(encUrl);
+                if (!decrypted) throw new Error('DES decrypt failed');
+                // Find the best quality that actually exists
+                const bestUrl = await getBestQualityUrl(decrypted);
+                return { url: bestUrl, src: 'DES-Decrypt' };
+            })(),
+
             // Strategy D: Search fallback
             songName ? (async () => {
                 const q = `${songName} ${songArtist || ''}`.trim();
@@ -434,7 +455,8 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
                 if (!encUrl) throw new Error('No encUrl from search');
                 const decrypted = decryptMediaUrl(encUrl);
                 if (!decrypted) throw new Error('DES decrypt search failed');
-                return { url: decrypted, src: 'Search-DES' };
+                const bestUrl = await getBestQualityUrl(decrypted);
+                return { url: bestUrl, src: 'Search-DES' };
             })() : Promise.reject(new Error('No name')),
         ]);
 

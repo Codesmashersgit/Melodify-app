@@ -129,8 +129,7 @@ export const AuthProvider = ({ children }) => {
                 }
             );
 
-            setUser(res.data.user);
-
+            // Manual signup now returns success but requires explicit login
             return { success: true };
 
         } catch (error) {

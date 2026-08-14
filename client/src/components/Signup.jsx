@@ -16,6 +16,7 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [focusedField, setFocusedField] = useState('');
+  const [isSignupSuccess, setIsSignupSuccess] = useState(false);
 
   // Phone Auth Modal State
   const [showPhoneModal, setShowPhoneModal] = useState(false);
@@ -83,7 +84,7 @@ const Signup = () => {
     setError('');
     const res = await signup(username, email, password);
     if (res.success) {
-      navigate('/');
+      setIsSignupSuccess(true);
     } else {
       setError(res.message);
     }
@@ -164,20 +165,38 @@ const Signup = () => {
         <img src={logo} alt='Melodify' className='auth-logo' />
 
         <div className='auth-card fade-in'>
-          <h1 className='auth-title'>Create your account</h1>
-          <p className='auth-subtitle'>Sign up to start listening for free</p>
+          {isSignupSuccess ? (
+            <div className="signup-success-message" style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(29, 185, 84, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto' }}>
+                <FaCheck style={{ color: '#1DB954', fontSize: '40px' }} />
+              </div>
+              <h2 style={{ color: 'white', marginBottom: '16px', fontSize: '24px' }}>Account Created!</h2>
+              <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '32px', fontSize: '16px', lineHeight: '1.5' }}>
+                You are successfully signed up.<br/>Please login here to continue.
+              </p>
+              <button 
+                className='auth-submit-btn'
+                onClick={() => navigate('/login')}
+              >
+                Go to Login
+              </button>
+            </div>
+          ) : (
+            <>
+              <h1 className='auth-title'>Create your account</h1>
+              <p className='auth-subtitle'>Sign up to start listening for free</p>
 
-          <div className='auth-social-btns'>
-            <button type="button" className='btn-social btn-google' id="signup-google-btn" onClick={handleGoogleSignup}>
-              <img 
-                src='https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' 
-                alt='Google' 
-                style={{ width: '20px', height: '20px', marginRight: '12px' }} 
-              /> Sign up with Google
-            </button>
-          </div>
+              <div className='auth-social-btns'>
+                <button type="button" className='btn-social btn-google' id="signup-google-btn" onClick={handleGoogleSignup}>
+                  <img 
+                    src='https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' 
+                    alt='Google' 
+                    style={{ width: '20px', height: '20px', marginRight: '12px' }} 
+                  /> Sign up with Google
+                </button>
+              </div>
 
-          <div className='auth-divider'>or</div>
+              <div className='auth-divider'>or</div>
 
           {error && <div className="auth-error" style={{color: '#ff4444', textAlign: 'center', marginBottom: '1rem'}}>{error}</div>}
 
@@ -316,6 +335,8 @@ const Signup = () => {
               </Link>
             </p>
           </div>
+          </>
+          )}
         </div>
       </div>
 

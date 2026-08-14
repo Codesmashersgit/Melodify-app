@@ -64,9 +64,7 @@ router.post('/signup', async (req, res) => {
                 return res.status(500).json({ error: 'Database error' });
             }
             
-            const token = jwt.sign({ id: this.lastID, email, name }, getJwtSecret(), { expiresIn: '7d' });
-            res.cookie('melodify_token', token, cookieOptions);
-            res.json({ user: { id: this.lastID, name, email, platform: userPlatform }, token });
+            res.json({ success: true, message: "Signup successful" });
         });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });

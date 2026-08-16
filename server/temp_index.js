@@ -238,36 +238,15 @@ function decryptMediaUrl(encryptedUrl) {
         });
         const url = decrypted.toString(CryptoJS.enc.Utf8).replace(/\0/g, '').trim();
         if (!url.startsWith('http')) throw new Error('Decrypted result is not a valid URL');
-        // Return the base URL as-is (without forced quality upgrade)
-        // Quality upgrade is handled by getBestQualityUrl() which validates each quality
-        return url;
+        // Upgrade to 320kbps
+        return url.replace('_96.mp4', '_320.mp4')
+                  .replace('_160.mp4', '_320.mp4')
+                  .replace('_128.mp4', '_320.mp4')
+                  .replace('_48.mp4', '_320.mp4');
     } catch (e) {
         console.error('DES Decryption failed:', e.message);
         return null;
     }
-}
-
-// Try qualities from 320 down to 48 — return first URL that exists (HTTP 200)
-async function getBestQualityUrl(baseUrl) {
-    const qualities = ['_320.mp4', '_160.mp4', '_96.mp4', '_48.mp4', '_12.mp4'];
-    // Replace whatever quality suffix the URL has with each candidate
-    const withoutQuality = baseUrl.replace(/_\d+\.mp4$/, '');
-    
-    for (const q of qualities) {
-        const candidate = withoutQuality + q;
-        try {
-            const resp = await axios.head(candidate, {
-                timeout: 3000,
-                headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.jiosaavn.com/' }
-            });
-            if (resp.status === 200 || resp.status === 206) {
-                console.log(`✅ Quality found: ${q} for ${baseUrl.substring(0, 60)}`);
-                return candidate;
-            }
-        } catch (_) { /* try next */ }
-    }
-    // All failed — return original URL as last resort
-    return baseUrl;
 }
 
 // =================== HTTP HELPERS ===================
@@ -376,10 +355,11 @@ const hdImage = (url) => {
 // =================== RESOLVE FULL SONG URL ===================
 // This is the core function that resolves a full-length HQ URL from a song ID
 
-// JioSaavn CDN URLs expire in ~1-2 minutes — keep cache very short
+// JioSaavn CDN URLs expire quickly — DO NOT cache to disk.
+// Only keep a short in-memory cache (5 min) to avoid hammering APIs on rapid play
 let hqUrlCache = new Map();
-// Clear URL cache every 90 seconds to avoid serving expired CDN URLs
-setInterval(() => { hqUrlCache.clear(); console.log('🗑️ HQ URL cache cleared'); }, 90 * 1000);
+// Clear URL cache every 5 minutes so we always get fresh (non-expired) CDN URLs
+setInterval(() => { hqUrlCache.clear(); console.log('🗑️ HQ URL cache cleared'); }, 5 * 60 * 1000);
 
 // Delete old stale disk cache if it exists
 try {
@@ -397,82 +377,74 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
     
     console.log(`🔍 Resolving URL for: ${songName || songId}`);
 
-    // Prefer JioSaavn's encrypted media URL. The wrapper's metadata endpoint is
-    // available, but the CDN links it returns frequently respond with 404.
-    try {
-        const details = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
-        const song = details[songId] || details.songs?.[0] || Object.values(details).find(value => value?.id);
-        const encryptedUrl = song?.more_info?.encrypted_media_url || song?.encrypted_media_url;
-        const url = decryptMediaUrl(encryptedUrl);
-        if (url) {
-            console.log(`Resolved [JioSaavn] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (error) {
-        console.warn(`JioSaavn URL resolution failed for ${songId}: ${error.message}`);
-    }
-
-    // Extract best quality URL from Vercel API response
-    const extractVercelUrl = (data) => {
+    const extractUrlFromVercelResponse = (data) => {
         const song = data?.data?.[0] || data?.data || data;
         if (!song) return null;
         const urls = song.downloadUrl || song.download_url || song.downloadLinks;
-        if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
-        // Sort by quality descending, pick highest
+        if (!urls || !Array.isArray(urls)) return null;
         const sorted = [...urls].sort((a, b) => {
-            const qa = parseInt((a.quality || '').replace(/\D/g, '')) || 0;
-            const qb = parseInt((b.quality || '').replace(/\D/g, '')) || 0;
+            const qa = parseInt((a.quality || '').replace(/[^\d]/g, '')) || 0;
+            const qb = parseInt((b.quality || '').replace(/[^\d]/g, '')) || 0;
             return qb - qa;
         });
-        return sorted[0]?.link || sorted[0]?.url || null;
+        const best = sorted[0];
+        return best?.link || best?.url || (typeof best === 'string' ? best : null);
     };
 
-    // ─── Strategy 1: jiosaavn-api-beta Vercel (most reliable) ───
+    // ─── Run ALL strategies in PARALLEL — first valid URL wins ───
     try {
-        const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 8000);
-        const url = extractVercelUrl(data);
-        if (url) {
-            console.log(`✅ Resolved [Vercel-A] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (_) {}
+        const result = await Promise.any([
+            // Strategy C: DES decrypt from official JioSaavn API (Fastest & most reliable)
+            // NOTE: fastVerifyUrl checks removed — HEAD requests from Render (US) to JioSaavn CDN
+            // return false 403/404 even for valid URLs. Trust the URL and let the proxy fail gracefully.
+            (async () => {
+                const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
+                let songInfo = songData[songId]
+                    || (songData.songs && songData.songs[0])
+                    || Object.values(songData).find(v => v?.id);
+                const encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
+                if (!encUrl) throw new Error('No encrypted_media_url');
+                const decrypted = decryptMediaUrl(encUrl);
+                if (!decrypted) throw new Error('DES decrypt failed');
+                return { url: decrypted, src: 'DES-Decrypt' };
+            })(),
 
-    // ─── Strategy 2: jiosaavn-api-three Vercel (secondary) ───
-    try {
-        const data = await fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 8000);
-        const url = extractVercelUrl(data);
-        if (url) {
-            console.log(`✅ Resolved [Vercel-B] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (_) {}
+            // Strategy A: Vercel wrapper (primary)
+            fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 7000)
+                .then(d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel A');
+                    return { url, src: 'Vercel-A' };
+                }),
 
-    // ─── Strategy 3: Search by name → get real ID → Vercel lookup ───
-    if (songName) {
-        try {
-            const q = `${songName} ${songArtist || ''}`.trim();
-            const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '3' });
-            const results = searchData?.results || [];
-            for (const s of results) {
-                if (!s?.id) continue;
-                try {
-                    const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${s.id}`, 6000);
-                    const url = extractVercelUrl(data);
-                    if (url) {
-                        console.log(`✅ Resolved [Search+Vercel] for ${songName}`);
-                        hqUrlCache.set(songId, url); // cache under original ID too
-                        return url;
-                    }
-                } catch (_) {}
-            }
-        } catch (_) {}
+            // Strategy B: Another Vercel instance (secondary)
+            fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 7000)
+                .then(d => {
+                    const url = extractUrlFromVercelResponse(d);
+                    if (!url) throw new Error('No URL from Vercel B');
+                    return { url, src: 'Vercel-B' };
+                }),
+
+            // Strategy D: Search fallback
+            songName ? (async () => {
+                const q = `${songName} ${songArtist || ''}`.trim();
+                const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '1' });
+                const s = searchData.results?.[0];
+                const encUrl = s?.more_info?.encrypted_media_url || s?.encrypted_media_url;
+                if (!encUrl) throw new Error('No encUrl from search');
+                const decrypted = decryptMediaUrl(encUrl);
+                if (!decrypted) throw new Error('DES decrypt search failed');
+                return { url: decrypted, src: 'Search-DES' };
+            })() : Promise.reject(new Error('No name')),
+        ]);
+
+        console.log(`✅ Resolved [${result.src}] for ${songName || songId}`);
+        hqUrlCache.set(songId, result.url);
+        return result.url;
+    } catch (e) {
+        console.error(`❌ All strategies failed for ${songId} (${songName})`);
+        return null;
     }
-
-    console.error(`❌ All strategies failed for ${songId} (${songName})`);
-    return null;
 }
 
 // ─── Background prefetch: warms URL cache for a list of songs ───
@@ -544,57 +516,58 @@ const formatSong = (song) => {
 
 // ========================== ENDPOINTS ==========================
 
-// Audio Stream — proxies audio through server with auto-retry on expired CDN URLs
-const doCdnProxy = async (url, req, res) => {
-    const rangeHeader = req.headers['range'];
-    const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://www.jiosaavn.com/',
-        'Origin': 'https://www.jiosaavn.com',
-        'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
-    };
-    if (rangeHeader) headers['Range'] = rangeHeader;
-
-    const cdnResp = await axios({ method: 'GET', url, responseType: 'stream', timeout: 30000, headers });
-    const status = cdnResp.status === 206 ? 206 : 200;
-    res.status(status);
-    res.setHeader('Content-Type', cdnResp.headers['content-type'] || 'audio/mpeg');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Accept-Ranges', 'bytes');
-    if (cdnResp.headers['content-length']) res.setHeader('Content-Length', cdnResp.headers['content-length']);
-    if (cdnResp.headers['content-range']) res.setHeader('Content-Range', cdnResp.headers['content-range']);
-    cdnResp.data.pipe(res);
-    cdnResp.data.on('error', (err) => {
-        if (!res.headersSent) res.status(500).send('Stream pipe failed');
-    });
-};
-
+// Audio Resolve — resolves HQ URL and returns 302 redirect to CDN directly
+// This way expo-av streams directly from JioSaavn CDN, bypassing Render as middleman
 app.get('/api/stream', async (req, res) => {
-    const { id, name, artist } = req.query;
+    let { id, name, artist } = req.query;
+
     if (!id) return res.status(400).send('Song ID is required');
 
     try {
-        let resolvedUrl = await resolveFullSongUrl(id, name, artist);
-        if (!resolvedUrl) return res.status(404).send('Could not resolve song URL');
-
-        try {
-            await doCdnProxy(resolvedUrl, req, res);
-        } catch (cdnErr) {
-            const cdnStatus = cdnErr.response?.status;
-            // If CDN returned 404 or 403 → URL is expired/invalid. Evict cache & retry once.
-            if ((cdnStatus === 404 || cdnStatus === 403) && !res.headersSent) {
-                console.warn(`⚠️  CDN ${cdnStatus} for ${id} — evicting cache and retrying...`);
-                hqUrlCache.delete(id);
-                resolvedUrl = await resolveFullSongUrl(id, name, artist);
-                if (resolvedUrl) {
-                    await doCdnProxy(resolvedUrl, req, res);
-                } else {
-                    res.status(404).send('Song not available');
-                }
-            } else {
-                throw cdnErr;
-            }
+        const resolvedUrl = await resolveFullSongUrl(id, name, artist);
+        if (!resolvedUrl) {
+            return res.status(404).send('Could not resolve song URL');
         }
+
+        // ✅ PROXY the audio through our server instead of redirecting
+        // This is required because JioSaavn CDN URLs expire within seconds
+        // and browsers cannot directly fetch them after that.
+        const rangeHeader = req.headers['range'];
+        const fetchHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.jiosaavn.com/',
+            'Origin': 'https://www.jiosaavn.com',
+            'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
+        };
+        if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
+
+        const cdnResponse = await axios({
+            method: 'GET',
+            url: resolvedUrl,
+            responseType: 'stream',
+            maxRedirects: 10,
+            timeout: 30000,
+            headers: fetchHeaders,
+        });
+
+        // Forward relevant headers to client
+        const status = cdnResponse.status === 206 ? 206 : 200;
+        res.status(status);
+        res.setHeader('Content-Type', cdnResponse.headers['content-type'] || 'audio/mpeg');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Accept-Ranges', 'bytes');
+        if (cdnResponse.headers['content-length']) {
+            res.setHeader('Content-Length', cdnResponse.headers['content-length']);
+        }
+        if (cdnResponse.headers['content-range']) {
+            res.setHeader('Content-Range', cdnResponse.headers['content-range']);
+        }
+
+        cdnResponse.data.pipe(res);
+        cdnResponse.data.on('error', (err) => {
+            console.error('Stream pipe error:', err.message);
+            if (!res.headersSent) res.status(500).send('Stream pipe failed');
+        });
     } catch (err) {
         console.error('Stream error:', err.message);
         if (!res.headersSent) return res.status(500).send('Stream failed');
@@ -654,10 +627,6 @@ app.get('/api/download', async (req, res) => {
 const apiCache = new Map();
 // Clear cache every 1 hour to prevent memory bloat
 setInterval(() => apiCache.clear(), 60 * 60 * 1000);
-const isUsableArtist = (artist) => {
-    const name = cleanText(artist?.name || artist).toLowerCase();
-    return Boolean(name) && !/^(unknown|unknown artist|various artists|n\/a|-)$/.test(name);
-};
 
 // Search songs — tries multiple APIs for maximum production compatibility
 // Priority: saavn.dev → official JioSaavn
@@ -676,7 +645,7 @@ app.get('/api/search', async (req, res) => {
         return results.map(song => {
             const name = song.name || song.title || 'Unknown';
             const artist = song.artists?.primary?.map(a => a.name).join(', ')
-                        || song.primaryArtists || song.singers || song.album?.name || song.album || 'Melodify Artist';
+                        || song.primaryArtists || song.singers || 'Unknown';
             const imgArr = song.image;
             let image = '';
             if (Array.isArray(imgArr)) {
@@ -710,7 +679,7 @@ app.get('/api/search', async (req, res) => {
     const parseSaavnDevArtists = (data) => {
         const results = data?.data?.results || data?.results || [];
         if (!Array.isArray(results)) return [];
-        return results.filter(a => a && a.id && isUsableArtist(a)).map(artist => {
+        return results.filter(a => a && a.id).map(artist => {
             const imgArr = artist.image;
             let image = '';
             if (Array.isArray(imgArr)) {
@@ -767,7 +736,7 @@ app.get('/api/search', async (req, res) => {
                 console.warn(`[search] Cloud artists failed:`, err.message);
                 const artistData = await jiosaavnRequest({ __call: 'search.getArtistResults', q: query, n: '10' });
                 if (artistData && Array.isArray(artistData.results)) {
-                    return artistData.results.filter(isUsableArtist).map(a => ({
+                    return artistData.results.map(a => ({
                         id: a.id,
                         name: a.name,
                         image: hdImage(a.image),
@@ -859,7 +828,7 @@ app.get('/api/top-tracks', async (req, res) => {
 
 // Get new releases / albums for home page
 app.get('/api/recommendations', async (req, res) => {
-    const cacheKey = 'recommendations_v2';
+    const cacheKey = 'recommendations';
     if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
 
     try {
@@ -875,7 +844,7 @@ app.get('/api/recommendations', async (req, res) => {
                     name: album.title || album.name,
                     artist: album.music || album.subtitle || '',
                     image: hdImage(album.image),
-                })).filter(album => /^\d+$/.test(String(album.id)) && album.name);
+                }));
             }
         } catch (e) {}
 
@@ -883,10 +852,10 @@ app.get('/api/recommendations', async (req, res) => {
             try {
                 const d = await fetchJson('https://jiosaavn-api-beta.vercel.app/modules?language=hindi');
                 if (d?.data?.albums) {
-                    albums = d.data.albums.filter(a => a.type === 'album' && /^\d+$/.test(String(a.id))).map(a => ({
+                    albums = d.data.albums.map(a => ({
                         id: a.id,
                         name: a.name || a.title,
-                        artist: a.primaryArtists?.map(x => x.name).join(', ') || a.artists?.map(x => x.name).join(', ') || a.subtitle || '',
+                        artist: a.primaryArtists?.map(x => x.name).join(', ') || a.subtitle || '',
                         image: hdImage(a.image?.[2]?.link || a.image?.[0]?.link || a.image),
                     }));
                 }
@@ -922,22 +891,14 @@ app.get('/api/album/:id', async (req, res) => {
             albumid: albumId,
         });
 
-        const tracks = (data.songs || data.list || []).map(formatSong)
-            .filter(track => track.id && track.name);
-        const albumName = cleanText(data.title || data.name || '');
-
-        // An invalid homepage token can resolve to an unrelated single song.
-        // Do not display or play that incorrect data as an album.
-        if (!albumName || tracks.length === 0) {
-            return res.status(404).json({ error: 'Album is unavailable' });
-        }
-
         const albumInfo = {
             id: data.albumid || data.id || albumId,
-            name: albumName,
+            name: data.title || data.name || 'Unknown Album',
             artist: data.primary_artists || data.music || data.subtitle || '',
             image: hdImage(data.image || ''),
         };
+
+        const tracks = (data.songs || data.list || []).map(formatSong);
 
         res.json({ album: albumInfo, tracks });
     } catch (err) {
@@ -1325,15 +1286,5 @@ app.post('/api/ai/collab', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`✅ Full Song Playback Enabled (DES Decryption + Multi-API Fallback)`);
-    console.log(`🎵 Audio Quality: 320kbps`);
-});
-
-server.on('error', (err) => {
-    console.error('💥 Server Error:', err);
-});
-
-// Heartbeat to keep the process alive
-setInterval(() => { }, 1000 * 60 * 60);
+const server = 
+module.exports = { resolveFullSongUrl };

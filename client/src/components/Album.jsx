@@ -16,12 +16,19 @@ const Album = () => {
   useEffect(() => {
     const fetchAlbumData = async () => {
       setLoading(true);
+      setAlbumData(null);
+      setAlbumTracks([]);
       try {
         if (id) {
           const response = await axios.get(`${API_BASE_URL}/api/album/${id}`);
+          const album = response.data?.album;
+          const tracks = (response.data?.tracks || []).filter(track => track?.id && track?.name);
+          if (!album?.name || tracks.length === 0) {
+            throw new Error('Album has no playable tracks');
+          }
 
-          setAlbumData(response.data.album);
-          setAlbumTracks(response.data.tracks || []);
+          setAlbumData(album);
+          setAlbumTracks(tracks);
         } else {
           // Fallback if no ID is provided (e.g. direct /album route)
           const fallbackAlbum = (albums && albums[0]) || { name: 'Top Hits 2024', artist: 'Melodify', image: 'https://i.scdn.co/image/ab67616d0000b273b7a54a7c8585675f9e2b1464' };

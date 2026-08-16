@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaPlay, FaPause, FaStepForward, FaStepBackward, FaRandom, FaUndoAlt, FaChevronDown, FaHeart, FaVolumeUp, FaVolumeMute, FaFilm, FaMusic } from "react-icons/fa";
-import { usePlayback } from '../context/PlaybackContext';
+import { usePlayback, usePlaybackProgress } from '../context/PlaybackContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 
 const FullPlayer = () => {
     const {
         currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-        currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded,
+        volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded,
         isRepeat, toggleRepeat
     } = usePlayback();
+    const { currentTime, duration } = usePlaybackProgress();
 
     // Video mode state
     const [mode, setMode] = useState('audio');

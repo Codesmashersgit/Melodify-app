@@ -332,7 +332,7 @@ body {
   height: 100%;
   background-color: var(--melodify-white);
   border-radius: 4px;
-  transition: background-color 0.2s, width 0.1s linear;
+  transition: background-color 0.2s;
 }
 
 .progress-bar:hover .progress-fill {
@@ -354,6 +354,18 @@ body {
 }
 
 .progress-bar:hover .progress-knob {
+  opacity: 1;
+}
+
+.progress-bar.is-scrubbing {
+  height: 6px;
+}
+
+.progress-bar.is-scrubbing .progress-fill {
+  background-color: var(--melodify-green);
+}
+
+.progress-bar.is-scrubbing .progress-knob {
   opacity: 1;
 }
 

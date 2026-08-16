@@ -1,9 +1,10 @@
-import React, { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useRef, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { getTrackBlobUrl } from '../services/WebDownloadService';
 import API_BASE_URL from '../config';
 
 const PlaybackContext = createContext();
+const PlaybackProgressContext = createContext({ currentTime: 0, duration: 0 });
 const REQUEST_TIMEOUT_MS = 15000;
 
 export const PlaybackProvider = ({ children }) => {
@@ -24,6 +25,7 @@ export const PlaybackProvider = ({ children }) => {
     const [queue, setQueue] = useState([]);
 
     const audioRef = useRef(new Audio());
+    const isSourceLoadingRef = useRef(false);
 
     // ─── Fetch home data on mount ────────────────────────────────
     useEffect(() => {
@@ -52,11 +54,21 @@ export const PlaybackProvider = ({ children }) => {
 
         const onTimeUpdate = () => setCurrentTime(audio.currentTime);
         const onDuration   = () => setDuration(audio.duration || 0);
-        const onCanPlay    = () => setIsTrackLoading(false);
-        const onWaiting    = () => setIsTrackLoading(true);
-        const onPlaying    = () => { setIsTrackLoading(false); setIsPlaying(true); };
+        const finishSourceLoading = () => {
+            if (isSourceLoadingRef.current) {
+                isSourceLoadingRef.current = false;
+                setIsTrackLoading(false);
+            }
+        };
+        const onCanPlay    = finishSourceLoading;
+        // Seeking can emit `waiting` for a moment. That must not switch the
+        // whole footer into its track-loading UI and make its text blink.
+        const onWaiting    = () => {
+            if (isSourceLoadingRef.current) setIsTrackLoading(true);
+        };
+        const onPlaying    = () => { finishSourceLoading(); setIsPlaying(true); };
         const onPause      = () => setIsPlaying(false);
-        const onError      = () => setIsTrackLoading(false);
+        const onError      = () => { isSourceLoadingRef.current = false; setIsTrackLoading(false); };
 
         audio.addEventListener('timeupdate',     onTimeUpdate);
         audio.addEventListener('loadedmetadata', onDuration);
@@ -104,6 +116,7 @@ export const PlaybackProvider = ({ children }) => {
 
         // ✅ Show track in footer IMMEDIATELY (no await before this)
         setCurrentTrack(track);
+        isSourceLoadingRef.current = true;
         setIsTrackLoading(true);
         setIsPlaying(false);
         setCurrentTime(0);
@@ -128,6 +141,8 @@ export const PlaybackProvider = ({ children }) => {
         audio.play().catch(e => {
             console.warn('Autoplay blocked:', e.message);
             if (audioSrc !== streamUrl) {
+                isSourceLoadingRef.current = true;
+                setIsTrackLoading(true);
                 audio.src = streamUrl;
                 audio.load();
                 audio.play().catch(() => {});
@@ -210,19 +225,28 @@ export const PlaybackProvider = ({ children }) => {
         if (albumData.tracks?.length) setTracks(albumData.tracks);
     }, []);
 
-    return (
-        <PlaybackContext.Provider value={{
-            tracks, currentTrack, isPlaying, isRepeat, volume, currentTime, duration,
+    const playbackValue = useMemo(() => ({
+            tracks, currentTrack, isPlaying, isRepeat, volume,
             isLoading, isTrackLoading, isExpanded, queue,
             playTrack, playArtistTracks, togglePlay, toggleRepeat,
-            setVolume, setCurrentTime, handleNext, handlePrev,
+            setVolume, handleNext, handlePrev,
             formatTime, seekTo, searchTracks, toggleExpand,
             addToQueue, playNextInQueue, setQueue,
             albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults,
-        }}>
-            {children}
+    }), [tracks, currentTrack, isPlaying, isRepeat, volume, isLoading, isTrackLoading, isExpanded, queue,
+        playTrack, playArtistTracks, togglePlay, toggleRepeat, handleNext, handlePrev, formatTime, seekTo,
+        searchTracks, addToQueue, playNextInQueue, albums, artists, selectedAlbum, selectAlbumPlaylist, searchResults]);
+
+    const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration]);
+
+    return (
+        <PlaybackContext.Provider value={playbackValue}>
+            <PlaybackProgressContext.Provider value={progressValue}>
+                {children}
+            </PlaybackProgressContext.Provider>
         </PlaybackContext.Provider>
     );
 };
 
 export const usePlayback = () => useContext(PlaybackContext);
+export const usePlaybackProgress = () => useContext(PlaybackProgressContext);

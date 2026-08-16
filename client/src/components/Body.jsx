@@ -91,7 +91,7 @@ const Body = () => {
         setLoadingAlbumId(albumId);
         try {
             const res = await axios.get(`${API_BASE_URL}/api/album/${albumId}`);
-            const songs = res.data.tracks.filter(t => t.preview_url);
+            const songs = (res.data.tracks || []).filter(t => t.id && t.name && t.preview_url);
             setAlbumSongsCache(prev => ({ ...prev, [albumId]: songs }));
             if (songs.length > 0) playTrack(songs[0], songs);
         } catch (err) {

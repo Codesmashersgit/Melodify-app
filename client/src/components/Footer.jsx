@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { FaPlay, FaPause, FaStepForward, FaStepBackward, FaRandom, FaUndoAlt, FaVolumeUp, FaVolumeMute, FaListUl, FaHeart, FaPlus, FaTimes, FaCheck } from "react-icons/fa";
-import { usePlayback } from '../context/PlaybackContext';
+import { usePlayback, usePlaybackProgress } from '../context/PlaybackContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import API_BASE_URL from '../config';
@@ -10,12 +10,16 @@ import { useNavigate } from 'react-router-dom';
 const Footer = () => {
   const {
     currentTrack, isPlaying, togglePlay, handleNext, handlePrev,
-    currentTime, duration, volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded, isTrackLoading
+    volume, setVolume, formatTime, seekTo, toggleExpand, isExpanded, isTrackLoading
   } = usePlayback();
+  const { currentTime, duration } = usePlaybackProgress();
   const { user } = useAuth();
 
   const [liked, setLiked] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubProgress, setScrubProgress] = useState(0);
+  const scrubberRef = useRef(null);
   const navigate = useNavigate();
 
   if (!currentTrack || isExpanded) return null;
@@ -55,13 +59,35 @@ const Footer = () => {
     setVolume(parseFloat(e.target.value));
   };
 
-  const progressPercentage = (currentTime / duration) * 100 || 0;
+  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
+  const displayedProgress = isScrubbing ? scrubProgress : progressPercentage;
 
-  const handleSeek = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const clickedProgress = x / rect.width;
-    seekTo(clickedProgress * duration);
+  const getPointerProgress = (event) => {
+    const rect = scrubberRef.current?.getBoundingClientRect();
+    if (!rect?.width) return 0;
+    return Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100));
+  };
+
+  const startScrubbing = (event) => {
+    if (showLoadingState || !duration) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setScrubProgress(getPointerProgress(event));
+    setIsScrubbing(true);
+  };
+
+  const updateScrubbing = (event) => {
+    if (!isScrubbing) return;
+    setScrubProgress(getPointerProgress(event));
+  };
+
+  const finishScrubbing = (event) => {
+    if (!isScrubbing) return;
+    event.stopPropagation();
+    const nextProgress = getPointerProgress(event);
+    setScrubProgress(nextProgress);
+    setIsScrubbing(false);
+    seekTo((nextProgress / 100) * duration);
   };
 
   return (
@@ -223,12 +249,21 @@ const Footer = () => {
           <div className='progress-bar-container'>
             <span>{formatTime(showLoadingState ? 0 : currentTime)}</span>
             <div
-              className='progress-bar'
-              onClick={showLoadingState ? undefined : handleSeek}
+              ref={scrubberRef}
+              className={`progress-bar ${isScrubbing ? 'is-scrubbing' : ''}`}
+              onPointerDown={startScrubbing}
+              onPointerMove={updateScrubbing}
+              onPointerUp={finishScrubbing}
+              onPointerCancel={finishScrubbing}
               style={{ cursor: showLoadingState ? 'wait' : 'pointer' }}
+              role="slider"
+              aria-label="Song progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={Math.round(displayedProgress)}
             >
-              <div className='progress-fill' style={{ width: `${showLoadingState ? 0 : progressPercentage}%` }}></div>
-              <div className='progress-knob' style={{ left: `${showLoadingState ? 0 : progressPercentage}%` }}></div>
+              <div className='progress-fill' style={{ width: `${showLoadingState ? 0 : displayedProgress}%` }}></div>
+              <div className='progress-knob' style={{ left: `${showLoadingState ? 0 : displayedProgress}%` }}></div>
             </div>
             <span>{formatTime(showLoadingState ? 0 : duration)}</span>
           </div>

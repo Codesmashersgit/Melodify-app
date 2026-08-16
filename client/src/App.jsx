@@ -107,6 +107,32 @@ function App() {
   );
 }
 
+const ScrollRestoration = () => {
+  const location = useLocation();
+  const positionsRef = React.useRef(new Map());
+  const routeKey = `${location.pathname}${location.search}`;
+
+  React.useLayoutEffect(() => {
+    const scrollContainer = document.querySelector('.main-view');
+    if (!scrollContainer) return undefined;
+
+    const restorePosition = () => {
+      scrollContainer.scrollTop = positionsRef.current.get(routeKey) || 0;
+    };
+    const frame = requestAnimationFrame(restorePosition);
+    const savePosition = () => positionsRef.current.set(routeKey, scrollContainer.scrollTop);
+
+    scrollContainer.addEventListener('scroll', savePosition, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      savePosition();
+      scrollContainer.removeEventListener('scroll', savePosition);
+    };
+  }, [routeKey]);
+
+  return null;
+};
+
 function Layout() {
   const { isExpanded } = usePlayback();
 
@@ -119,6 +145,7 @@ function Layout() {
 
       <main className='main-view'>
         <Nav />
+        <ScrollRestoration />
         <Outlet />
       </main>
 

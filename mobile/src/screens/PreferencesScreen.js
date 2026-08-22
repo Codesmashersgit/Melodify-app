@@ -38,7 +38,7 @@ const PREFERENCES = [
   { id: 'lofi', label: 'Lo-Fi', type: 'Genre', icon: 'headphones', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSd7_Cyw-p-dp3vAIoZOs2tl9v0AdwqztgNal2gM3lGJQ&s=10' },
   { id: 'hiphop', label: 'Hip-Hop', type: 'Genre', icon: 'microphone', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRABrYmHSKCXvBS5H-e8RoqDCi59d-Sg4uH_OR19acJKg&s=10' },
   { id: 'indie', label: 'Indie', type: 'Genre', icon: 'guitar-acoustic', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSHTSRJlLyB2qAPN-7-1CWuxNWrzLWqHWt8ygkYKGGIcQ&s=10' },
-  { id: 'devotional', label: 'Devotional', type: 'Genre', icon: 'hands-pray', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRyXaTpBzyKTy0EEOyrnzHMwWY2ZLnaGxJOBZfBgclZGQ&s=10' },
+  { id: 'devotional', label: 'Devotional', type: 'Genre', icon: 'hands-pray', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3ZqPi1SzQ0KX6Aav2zvTLqU7NKSkhdE7guXpmNdkqIQ&s=10' },
   { id: 'kpop', label: 'K-Pop', type: 'Genre', icon: 'account-group', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLpW4qjksK6BJwgkoxJAk5be5P3GX0aC-LZiHJaJ6D6A&s=10' },
   { id: 'jazz', label: 'Jazz & Blues', type: 'Genre', icon: 'saxophone', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrEXpNxhcIVRkogEJcyjEmrDNUxOLSoLkOoW3ghltRwQ&s=10' },
   { id: 'classical', label: 'Classical', type: 'Genre', icon: 'violin', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT61DrqlJLFmyAqeW-yrSvpAHcZn4KcHU9tLGIqC8fyYg&s=10' },

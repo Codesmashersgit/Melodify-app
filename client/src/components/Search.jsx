@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaPlay, FaPause, FaSearch, FaMicrophone, FaArrowLeft, FaTimes } from 'react-icons/fa';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
@@ -28,6 +28,7 @@ const categories = [
 
 const SEARCH_STATE_KEY = 'melodify_search_state';
 const normalizeArtistName = (name = '') => String(name).toLowerCase().trim();
+
 const toHdImage = (url = '') => String(url || '').replace(/(?:150|50|300)x(?:150|50|300)/gi, '500x500').replace(/(?:_150x150|_50x50|_300x300)/gi, '_500x500');
 const matchesArtist = (trackArtist = '', artistName = '') => {
     const trackArtists = String(trackArtist)
@@ -114,8 +115,10 @@ const SongRow = ({ track, index, queue, playTrack, currentTrack, isPlaying, togg
 
 const Search = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const initialQ = searchParams.get('q');
     const { albums, artists, playTrack, currentTrack, isPlaying, togglePlay } = usePlayback();
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialQ || '');
     const [hasSearched, setHasSearched] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
@@ -142,7 +145,13 @@ const Search = () => {
 
     useEffect(() => {
         const savedState = readSearchState();
-        if (savedState?.searchQuery) {
+        if (initialQ) {
+            setSearchQuery(initialQ);
+            setHasSearched(false);
+            setSongResults([]);
+            setArtistResults([]);
+            setAlbumResults([]);
+        } else if (savedState?.searchQuery) {
             setSearchQuery(savedState.searchQuery || '');
             setHasSearched(Boolean(savedState.hasSearched));
             setSongResults(savedState.songResults || []);

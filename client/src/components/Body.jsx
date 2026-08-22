@@ -120,6 +120,9 @@ const Body = () => {
                         <section key={pref} className='section-container'>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                                 <h2 className='section-title' style={{ margin: 0, textTransform: 'capitalize' }}>More of what you like: {pref}</h2>
+                                <Link to={`/search?q=${encodeURIComponent(pref)}`} style={{ textDecoration: 'none' }}>
+                                    <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
+                                </Link>
                             </div>
                             <div className='grid-container'>
                                 {prefSongs.slice(0, 10).map(track => (

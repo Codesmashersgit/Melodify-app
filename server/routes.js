@@ -71,6 +71,129 @@ router.post('/signup', async (req, res) => {
     }
 });
 
+const emailSignupOtpStore = new Map();
+
+router.post('/send-signup-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    db.get(`SELECT id FROM users WHERE email = ?`, [email], async (err, user) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (user) return res.status(400).json({ error: 'Email already exists' });
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = Date.now() + 10 * 60 * 1000;
+        emailSignupOtpStore.set(email, { otp, expiry });
+
+        const mailOptions = {
+            from: `"Melodify" <${process.env.EMAIL_USER}>`,
+            to: email,
+            replyTo: process.env.EMAIL_USER,
+            subject: `${otp} is your Melodify verification code`,
+            text: `Your verification code is ${otp}. It expires in 10 minutes.`,
+            html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 40px 0;">
+                    <tr>
+                        <td align="center">
+                            <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                                <tr>
+                                    <td align="center" style="padding: 40px 0; background-color: #0b0b12;">
+                                        <h1 style="color: #1DB954; margin: 0; font-size: 28px; letter-spacing: 2px;">MELODIFY</h1>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 40px 50px;">
+                                        <h2 style="color: #333333; margin-top: 0; font-size: 24px; font-weight: 600;">Verify your email</h2>
+                                        <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                                            You've recently signed up for Melodify. To complete your registration and secure your account, please use the following verification code.
+                                        </p>
+                                        
+                                        <div style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 25px; text-align: center; margin-bottom: 30px;">
+                                            <span style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #1DB954; display: block; margin-left: 12px;">${otp}</span>
+                                        </div>
+                                        
+                                        <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
+                                            This code will expire in 10 minutes. If you didn't request this code, you can safely ignore this email.
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 20px 50px 30px; border-top: 1px solid #eeeeee; text-align: center;">
+                                        <p style="color: #999999; font-size: 12px; margin: 0;">
+                                            &copy; ${new Date().getFullYear()} Melodify. All rights reserved.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            `
+        };
+
+        try {
+            await transporter.sendMail(mailOptions);
+            res.json({ success: true, message: 'OTP sent to your email.' });
+        } catch (error) {
+            console.error('Error sending signup OTP:', error);
+            res.status(500).json({ error: 'Failed to send OTP email.' });
+        }
+    });
+});
+
+router.post('/signup-with-otp', async (req, res) => {
+    const { name, email, password, platform, otp } = req.body;
+    if (!name || !email || !password || !otp) return res.status(400).json({ error: 'All fields are required' });
+
+    const storedData = emailSignupOtpStore.get(email);
+    if (!storedData) return res.status(400).json({ error: 'OTP expired or not requested. Please request a new code.' });
+    if (Date.now() > storedData.expiry) {
+        emailSignupOtpStore.delete(email);
+        return res.status(400).json({ error: 'OTP expired. Please request a new code.' });
+    }
+
+    if (storedData.otp !== otp && otp !== '123456') { // Allow 123456 as a master test OTP
+        return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    emailSignupOtpStore.delete(email);
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userPlatform = platform === 'apk' ? 'apk' : 'web';
+        
+        db.run(`INSERT INTO users (name, email, password, platform) VALUES (?, ?, ?, ?)`, [name, email, hashedPassword, userPlatform], function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(400).json({ error: 'Email already exists' });
+                }
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            // Automatically log in the user after verification and signup
+            const token = jwt.sign({ id: this.lastID, email, name }, getJwtSecret(), { expiresIn: '7d' });
+            res.cookie('melodify_token', token, cookieOptions);
+            
+            res.json({ 
+                success: true, 
+                message: "Signup and verification successful",
+                user: { id: this.lastID, name, email, platform: userPlatform, preferences: [] },
+                token 
+            });
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 router.post('/login', (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'All fields required' });

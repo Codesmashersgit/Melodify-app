@@ -414,38 +414,82 @@ const HomeScreen = ({ navigation }) => {
                     )}
                 </View>
 
-                {/* ── Dynamic Preference Sections ── */}
+                {/* ── Dynamic Preference Sections & Artists in Middle ── */}
                 {preferencesLoading ? (
                     <View style={styles.sectionContainer}>
                         <TrackSkeletonRow />
+                        <TrackSkeletonRow />
                     </View>
                 ) : (
-                    Object.keys(preferenceTracks).map((pref) => {
-                        const capitalizedPref = pref.charAt(0).toUpperCase() + pref.slice(1);
-                        const pTracks = preferenceTracks[pref];
-                        if (!pTracks || pTracks.length === 0) return null;
-                        
-                        return (
-                            <View key={pref} style={styles.sectionContainer}>
-                                <View style={styles.sectionRow}>
-                                    <View>
-                                        <Text style={styles.sectionTitle}>🔥 {capitalizedPref} Vibes</Text>
-                                        <Text style={styles.sectionSubtitle}>Handpicked for you</Text>
+                    (() => {
+                        const prefEntries = Object.entries(preferenceTracks);
+                        const midIndex = Math.ceil(prefEntries.length / 2);
+
+                        const renderPrefSection = ([pref, prefSongs]) => {
+                            if (!prefSongs || prefSongs.length === 0) return null;
+                            const capitalizedPref = pref.charAt(0).toUpperCase() + pref.slice(1);
+                            return (
+                                <View key={pref} style={styles.sectionContainer}>
+                                    <View style={styles.sectionRow}>
+                                        <View>
+                                            <Text style={styles.sectionTitle}>🔥 {capitalizedPref} Vibes</Text>
+                                            <Text style={styles.sectionSubtitle}>Handpicked for you</Text>
+                                        </View>
+                                        <TouchableOpacity 
+                                            onPress={() => navigation.navigate('Search', { q: pref })} 
+                                            style={styles.seeAllBtn}
+                                        >
+                                            <Text style={styles.seeAll}>See all</Text>
+                                        </TouchableOpacity>
                                     </View>
+                                    <FlatList
+                                        data={prefSongs.slice(0, 10)}
+                                        keyExtractor={(item) => item.id}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        renderItem={renderTrackCard}
+                                        contentContainerStyle={styles.horizontalList}
+                                        snapToInterval={145 + 16}
+                                        decelerationRate="fast"
+                                    />
                                 </View>
-                                <FlatList
-                                    data={pTracks.slice(0, 10)}
-                                    keyExtractor={(item) => item.id}
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    renderItem={renderTrackCard}
-                                    contentContainerStyle={styles.horizontalList}
-                                    snapToInterval={145 + 16}
-                                    decelerationRate="fast"
-                                />
+                            );
+                        };
+
+                        const renderArtistsSection = () => (
+                            <View key="artists-section" style={styles.sectionContainer}>
+                                <View style={styles.sectionRow}>
+                                    <Text style={styles.sectionTitle}>🧑‍🎤 Artists You'll Love</Text>
+                                    <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'artists', title: 'Popular Artists' })} style={styles.seeAllBtn}>
+                                        <Text style={styles.seeAll}>See all</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {isLoading ? <ArtistSkeletonRow /> : (
+                                    <View style={styles.artistRow}>
+                                        {(artists || []).slice(0, 4).map((item) => (
+                                            <TouchableOpacity
+                                                key={item.id}
+                                                style={styles.artistCard}
+                                                activeOpacity={0.8}
+                                                onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
+                                            >
+                                                <Image source={{ uri: item.image }} style={styles.artistImage} />
+                                                <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
                         );
-                    })
+
+                        return (
+                            <>
+                                {prefEntries.slice(0, midIndex).map(renderPrefSection)}
+                                {renderArtistsSection()}
+                                {prefEntries.slice(midIndex).map(renderPrefSection)}
+                            </>
+                        );
+                    })()
                 )}
 
                 {/* ── Popular Albums ── */}
@@ -465,30 +509,6 @@ const HomeScreen = ({ navigation }) => {
                             renderItem={renderAlbumCard}
                             contentContainerStyle={styles.horizontalList}
                         />
-                    )}
-                </View>
-                {/* ── Popular Artists ── */}
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>🧑‍🎤 Artists You'll Love</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('SeeAll', { type: 'artists', title: 'Popular Artists' })} style={styles.seeAllBtn}>
-                            <Text style={styles.seeAll}>See all</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {isLoading ? <ArtistSkeletonRow /> : (
-                        <View style={styles.artistRow}>
-                            {(artists || []).slice(0, 4).map((item) => (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    style={styles.artistCard}
-                                    activeOpacity={0.8}
-                                    onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
-                                >
-                                    <Image source={{ uri: item.image }} style={styles.artistImage} />
-                                    <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
                     )}
                 </View>
 

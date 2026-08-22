@@ -17,9 +17,9 @@ import SongOptionsSheet from '../components/SongOptionsSheet';
 import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 
 
-const SearchScreen = ({ navigation }) => {
+const SearchScreen = ({ navigation, route }) => {
     const { playTrack, artists, albums } = usePlayback();
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(route?.params?.q || '');
     const [hasSearched, setHasSearched] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [songResults, setSongResults] = useState([]);
@@ -60,6 +60,12 @@ const SearchScreen = ({ navigation }) => {
 
 
     const aiModeRef = useRef(false);
+
+    useEffect(() => {
+        if (route?.params?.q) {
+            setSearchQuery(route.params.q);
+        }
+    }, [route?.params?.q]);
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);

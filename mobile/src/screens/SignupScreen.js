@@ -37,6 +37,10 @@ const SignupScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Email OTP Auth State
+    const [emailOtpSent, setEmailOtpSent] = useState(false);
+    const [emailOtp, setEmailOtp] = useState('');
+
     // Phone Auth State
     const [showPhoneModal, setShowPhoneModal] = useState(false);
     const [phone, setPhone] = useState('');
@@ -45,17 +49,41 @@ const SignupScreen = ({ navigation }) => {
     const [phoneLoading, setPhoneLoading] = useState(false);
 
     const handleSignup = async () => {
-        if (!name || !email || !password) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
-        }
-        setIsLoading(true);
-        const result = await signup(name, email, password);
-        setIsLoading(false);
-        if (result.success) {
-            navigation.navigate('Main');
+        if (!emailOtpSent) {
+            if (!name || !email) {
+                Alert.alert('Error', 'Please enter your name and email');
+                return;
+            }
+            setIsLoading(true);
+            try {
+                const res = await axios.post(`${API_BASE_URL}/api/user/send-signup-otp`, { email });
+                if (res.data.success) {
+                    setEmailOtpSent(true);
+                }
+            } catch (err) {
+                Alert.alert('Error', err.response?.data?.error || 'Failed to send OTP code');
+            } finally {
+                setIsLoading(false);
+            }
         } else {
-            Alert.alert('Signup Failed', result.error);
+            if (!password || !emailOtp || emailOtp.length !== 6) {
+                Alert.alert('Error', 'Please enter a valid 6-digit OTP and your password');
+                return;
+            }
+            setIsLoading(true);
+            try {
+                const res = await axios.post(`${API_BASE_URL}/api/user/signup-with-otp`, {
+                    name, email, password, otp: emailOtp, platform: 'apk'
+                });
+                if (res.data.success) {
+                    await login(email, password);
+                    // Navigation will automatically happen based on user state in AppNavigator
+                }
+            } catch (err) {
+                Alert.alert('Signup Failed', err.response?.data?.error || 'Invalid OTP or Signup Error');
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -159,52 +187,71 @@ const SignupScreen = ({ navigation }) => {
                         <Text style={styles.subtitle}>Sign up to start listening</Text>
 
                         <View style={styles.form}>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>What's your name?</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={name}
-                                    onChangeText={setName}
-                                    placeholder="Enter your name"
-                                    placeholderTextColor="#535353"
-                                />
-                            </View>
+                            {!emailOtpSent ? (
+                                <>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>What's your name?</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={name}
+                                            onChangeText={setName}
+                                            placeholder="Enter your name"
+                                            placeholderTextColor="#535353"
+                                        />
+                                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>What's your email?</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    placeholder="Enter your email"
-                                    placeholderTextColor="#535353"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                />
-                            </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>What's your email?</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={email}
+                                            onChangeText={setEmail}
+                                            placeholder="Enter your email"
+                                            placeholderTextColor="#535353"
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
+                                        />
+                                    </View>
+                                </>
+                            ) : (
+                                <>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>6-Digit Verification Code</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={emailOtp}
+                                            onChangeText={setEmailOtp}
+                                            placeholder="Enter 6-digit OTP from your email"
+                                            placeholderTextColor="#535353"
+                                            keyboardType="number-pad"
+                                            maxLength={6}
+                                        />
+                                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Create a password</Text>
-                                <View style={styles.passwordContainer}>
-                                    <TextInput
-                                        style={[styles.input, { flex: 1, borderBottomWidth: 0 }]}
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        placeholder="Enter your password"
-                                        placeholderTextColor="#535353"
-                                        secureTextEntry={!showPassword}
-                                    />
-                                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                        <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color="#b3b3b3" />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Create a password</Text>
+                                        <View style={styles.passwordContainer}>
+                                            <TextInput
+                                                style={[styles.input, { flex: 1, borderBottomWidth: 0 }]}
+                                                value={password}
+                                                onChangeText={setPassword}
+                                                placeholder="Enter your password"
+                                                placeholderTextColor="#535353"
+                                                secureTextEntry={!showPassword}
+                                            />
+                                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color="#b3b3b3" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </>
+                            )}
 
                             <TouchableOpacity style={styles.signupButton} onPress={handleSignup} disabled={isLoading}>
                                  {isLoading ? (
                                      <ActivityIndicator color="black" />
                                  ) : (
-                                     <Text style={styles.signupButtonText}>Create account</Text>
+                                     <Text style={styles.signupButtonText}>{emailOtpSent ? "Verify & Create account" : "Send Verification Code"}</Text>
                                  )}
                              </TouchableOpacity>
                          </View>

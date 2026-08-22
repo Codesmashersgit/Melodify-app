@@ -48,7 +48,8 @@ const ProtectedRoute = ({ children }) => {
   // Only redirect to preferences if user has NEVER set them (null from server)
   // user.preferences === null means column was null in DB (brand new user, never visited preferences)
   // user.preferences === [] means user visited but selected nothing (don't force redirect)
-  const neverSetPreferences = user.preferences === null || user.preferences === undefined;
+  // Redirect to preferences if user has no preferences selected
+  const neverSetPreferences = !user.preferences || user.preferences.length === 0;
   if (neverSetPreferences && location.pathname !== '/preferences') {
     return <Navigate to="/preferences" replace />;
   }

@@ -757,16 +757,8 @@ router.post('/forgot-password', (req, res) => {
                 const senderEmail = process.env.EMAIL_USER;
 
                 try {
-                    await transporter.sendMail({
-                        from: `"Melodify" <${senderEmail}>`,
-                        to: email,
-                        subject: 'Your Melodify Password Reset OTP',
-                        attachments: [{
-                            filename: 'melodify-logo.png',
-                            path: path.join(__dirname, '../client/public/melodify-logo.png'),
-                            cid: 'melodify-logo'  // referenced as cid:melodify-logo in HTML
-                        }],
-                        html: `
+                    const mailSubject = 'Your Melodify Password Reset OTP';
+                    const mailHtml = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -776,9 +768,7 @@ router.post('/forgot-password', (req, res) => {
       <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 100%);padding:32px 40px;text-align:center;">
-            <img src="cid:melodify-logo" alt="Melodify" width="64" height="64"
-              style="border-radius:50%;display:block;margin:0 auto 14px;border:3px solid rgba(255,107,0,0.4);" />
-            <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;">Melodify</h1>
+            <h1 style="margin:0;color:#1DB954;font-size:28px;font-weight:800;letter-spacing:2px;">MELODIFY</h1>
             <p style="margin:6px 0 0;color:#888;font-size:13px;letter-spacing:0.5px;">Your music. Your world.</p>
           </td>
         </tr>
@@ -789,28 +779,20 @@ router.post('/forgot-password', (req, res) => {
             <p style="margin:0 0 16px;color:#555555;font-size:14px;">Use the OTP below to reset your password:</p>
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td align="center" style="padding:8px 0 28px;">
-                <div style="display:inline-block;background:#fff8f5;border:2px solid #ff6b00;border-radius:14px;padding:20px 48px;">
-                  <span style="font-size:42px;font-weight:900;letter-spacing:14px;color:#ff6b00;font-family:'Courier New',monospace;">${otp}</span>
+                <div style="display:inline-block;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:14px;padding:20px 48px;">
+                  <span style="font-size:42px;font-weight:900;letter-spacing:14px;color:#1DB954;font-family:'Courier New',monospace;">${otp}</span>
                 </div>
               </td></tr>
             </table>
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-              <tr>
-                <td style="background:#fff3cd;border-left:4px solid #f59e0b;border-radius:6px;padding:12px 16px;">
-                  <p style="margin:0;color:#92400e;font-size:13px;">&#9201; <strong>This OTP expires in 10 minutes.</strong> Do not share it with anyone.</p>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:0;color:#888888;font-size:13px;line-height:1.6;">If you did not request a password reset, you can safely ignore this email. Your account is secure.</p>
+            <p style="margin:0 0 16px;color:#777777;font-size:14px;line-height:1.5;">This code will expire in <strong>10 minutes</strong>.</p>
+            <p style="margin:0;color:#999999;font-size:13px;line-height:1.5;">If you didn't request a password reset, you can safely ignore this email. Your password won't be changed.</p>
           </td>
         </tr>
         <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #eeeeee;margin:0;"></td></tr>
         <tr>
           <td style="padding:24px 40px;background:#fafafa;text-align:center;">
-            <img src="cid:melodify-logo" alt="" width="28" height="28"
-              style="border-radius:50%;vertical-align:middle;margin-right:8px;opacity:0.6;" />
             <span style="color:#aaaaaa;font-size:12px;vertical-align:middle;">
-              &copy; 2025 Melodify &nbsp;&bull;&nbsp; Made with &#9829; for music lovers
+              &copy; ${new Date().getFullYear()} Melodify &nbsp;&bull;&nbsp; Made with &#9829; for music lovers
             </span><br>
             <span style="color:#bbbbbb;font-size:11px;">This is an automated email. Please do not reply.</span>
           </td>
@@ -819,13 +801,35 @@ router.post('/forgot-password', (req, res) => {
     </td></tr>
   </table>
 </body>
-</html>`
-                    });
+</html>`;
+
+                    if (process.env.BREVO_API_KEY) {
+                        const axios = require('axios');
+                        await axios.post('https://api.brevo.com/v3/smtp/email', {
+                            sender: { name: "Melodify Support", email: senderEmail },
+                            to: [{ email: email }],
+                            subject: mailSubject,
+                            htmlContent: mailHtml
+                        }, {
+                            headers: {
+                                'api-key': process.env.BREVO_API_KEY,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    } else {
+                        await transporter.sendMail({
+                            from: `"Melodify Support" <${senderEmail}>`,
+                            to: email,
+                            replyTo: senderEmail,
+                            subject: mailSubject,
+                            html: mailHtml
+                        });
+                    }
                     res.json({ success: true, message: 'OTP sent to your email.' });
                 } catch (mailErr) {
-                    console.error('Failed to send email:', mailErr.message);
+                    console.error('Failed to send password reset email:', mailErr.response?.data || mailErr.message);
                     res.status(500).json({
-                        error: `Email delivery failed: ${mailErr.message}. Please check server SMTP config.`
+                        error: `Email delivery failed: ${mailErr.response?.data?.message || mailErr.message}. Please check server SMTP/API config.`
                     });
                 }
             }

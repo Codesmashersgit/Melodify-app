@@ -397,78 +397,37 @@ async function resolveFullSongUrl(songId, songName, songArtist) {
     
     console.log(`🔍 Resolving URL for: ${songName || songId}`);
 
-    // Prefer JioSaavn's encrypted media URL. The wrapper's metadata endpoint is
-    // available, but the CDN links it returns frequently respond with 404.
     try {
-        const details = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
-        const song = details[songId] || details.songs?.[0] || Object.values(details).find(value => value?.id);
-        const encryptedUrl = song?.more_info?.encrypted_media_url || song?.encrypted_media_url;
-        const url = decryptMediaUrl(encryptedUrl);
-        if (url) {
-            console.log(`Resolved [JioSaavn] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (error) {
-        console.warn(`JioSaavn URL resolution failed for ${songId}: ${error.message}`);
-    }
-
-    // Extract best quality URL from Vercel API response
-    const extractVercelUrl = (data) => {
-        const song = data?.data?.[0] || data?.data || data;
-        if (!song) return null;
-        const urls = song.downloadUrl || song.download_url || song.downloadLinks;
-        if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
-        // Sort by quality descending, pick highest
-        const sorted = [...urls].sort((a, b) => {
-            const qa = parseInt((a.quality || '').replace(/\D/g, '')) || 0;
-            const qb = parseInt((b.quality || '').replace(/\D/g, '')) || 0;
-            return qb - qa;
-        });
-        return sorted[0]?.link || sorted[0]?.url || null;
-    };
-
-    // ─── Strategy 1: jiosaavn-api-beta Vercel (most reliable) ───
-    try {
-        const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${songId}`, 8000);
-        const url = extractVercelUrl(data);
-        if (url) {
-            console.log(`✅ Resolved [Vercel-A] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (_) {}
-
-    // ─── Strategy 2: jiosaavn-api-three Vercel (secondary) ───
-    try {
-        const data = await fetchJson(`https://jiosaavn-api-three.vercel.app/songs?id=${songId}`, 8000);
-        const url = extractVercelUrl(data);
-        if (url) {
-            console.log(`✅ Resolved [Vercel-B] for ${songName || songId}`);
-            hqUrlCache.set(songId, url);
-            return url;
-        }
-    } catch (_) {}
-
-    // ─── Strategy 3: Search by name → get real ID → Vercel lookup ───
-    if (songName) {
-        try {
+        let encUrl;
+        const songData = await jiosaavnRequest({ __call: 'song.getDetails', pids: songId }, '3');
+        let songInfo = songData[songId] || (songData.songs && songData.songs[0]) || Object.values(songData).find(v => v?.id);
+        
+        encUrl = songInfo?.more_info?.encrypted_media_url || songInfo?.encrypted_media_url;
+        
+        // If not found, try search as fallback
+        if (!encUrl && songName) {
             const q = `${songName} ${songArtist || ''}`.trim();
-            const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '3' });
-            const results = searchData?.results || [];
-            for (const s of results) {
-                if (!s?.id) continue;
-                try {
-                    const data = await fetchJson(`https://jiosaavn-api-beta.vercel.app/songs?id=${s.id}`, 6000);
-                    const url = extractVercelUrl(data);
-                    if (url) {
-                        console.log(`✅ Resolved [Search+Vercel] for ${songName}`);
-                        hqUrlCache.set(songId, url); // cache under original ID too
-                        return url;
-                    }
-                } catch (_) {}
-            }
-        } catch (_) {}
+            const searchData = await jiosaavnRequest({ __call: 'search.getResults', q, n: '1' });
+            const s = searchData.results?.[0];
+            encUrl = s?.more_info?.encrypted_media_url || s?.encrypted_media_url;
+        }
+
+        if (!encUrl) {
+            throw new Error('No encrypted_media_url found');
+        }
+
+        const decrypted = decryptMediaUrl(encUrl);
+        if (!decrypted) throw new Error('DES decrypt failed');
+        
+        // Find the best quality that actually exists
+        const bestUrl = await getBestQualityUrl(decrypted);
+        if (bestUrl) {
+            console.log(`✅ Resolved [DES-Decrypt] for ${songName || songId}`);
+            hqUrlCache.set(songId, bestUrl);
+            return bestUrl;
+        }
+    } catch (e) {
+        console.error(`❌ DES Strategy failed for ${songId} (${songName}): ${e.message}`);
     }
 
     console.error(`❌ All strategies failed for ${songId} (${songName})`);

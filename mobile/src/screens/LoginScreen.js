@@ -220,7 +220,7 @@ const LoginScreen = ({ navigation }) => {
 
                             <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={handleGoogleLogin} activeOpacity={0.8}>
                                 <Image 
-                                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' }} 
+                                    source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }} 
                                     style={{ width: 20, height: 20, marginRight: 12 }} 
                                 />
                                 <Text style={styles.socialButtonText}>Continue with Google</Text>

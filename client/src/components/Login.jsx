@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaGoogle, FaApple, FaMobileAlt, FaEye, FaEyeSlash, FaTimes, FaCheck } from 'react-icons/fa';
+import { FcGoogle } from 'react-icons/fc';
 import logo from '../assets/melodify.png';
 import axios from 'axios';
 import API_BASE_URL from '../config';
@@ -122,11 +123,7 @@ const Login = () => {
 
               <div className='auth-social-btns'>
                 <button type="button" className='btn-social btn-google' id="login-google-btn" onClick={handleGoogleLogin}>
-                  <img 
-                    src='https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png' 
-                    alt='Google' 
-                    style={{ width: '20px', height: '20px', marginRight: '12px' }} 
-                  /> Continue with Google
+                  <FcGoogle size={22} style={{ marginRight: '10px' }} /> Continue with Google
                 </button>
               </div>
 

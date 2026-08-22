@@ -105,71 +105,94 @@ const Body = () => {
         <div className='fade-in'>
             <SkeletonStyles />
 
-            {/* ── User Preference Sections ── */}
+            {/* ── User Preference Sections & Artists in Middle ── */}
             {preferencesLoading ? (
                 <>
                     <SectionSkeleton count={10} />
                     <SectionSkeleton count={10} />
                 </>
-            ) : Object.entries(preferenceTracks).map(([pref, prefSongs]) => (
-                <section key={pref} className='section-container'>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h2 className='section-title' style={{ margin: 0, textTransform: 'capitalize' }}>More of what you like: {pref}</h2>
-                    </div>
-                    <div className='grid-container'>
-                        {prefSongs.slice(0, 10).map(track => (
-                            <div key={track.id} className={`card ${currentTrack?.id === track.id ? 'playing-card' : ''}`} onClick={() => playTrack(track, prefSongs)}>
-                                <div style={{ position: 'relative' }}>
-                                    <img src={track.image} alt={track.name} className='card-image' />
-                                    {currentTrack?.id === track.id && (
-                                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                            <span style={{ fontSize: '28px' }}>🎵</span>
+            ) : (
+                (() => {
+                    const prefEntries = Object.entries(preferenceTracks);
+                    const midIndex = Math.ceil(prefEntries.length / 2);
+                    
+                    const renderPrefSection = ([pref, prefSongs]) => (
+                        <section key={pref} className='section-container'>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h2 className='section-title' style={{ margin: 0, textTransform: 'capitalize' }}>More of what you like: {pref}</h2>
+                            </div>
+                            <div className='grid-container'>
+                                {prefSongs.slice(0, 10).map(track => (
+                                    <div key={track.id} className={`card ${currentTrack?.id === track.id ? 'playing-card' : ''}`} onClick={() => playTrack(track, prefSongs)}>
+                                        <div style={{ position: 'relative' }}>
+                                            <img src={track.image} alt={track.name} className='card-image' />
+                                            {currentTrack?.id === track.id && (
+                                                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                                    <span style={{ fontSize: '28px' }}>🎵</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <div className="card-menu-overlay" onClick={(e) => e.stopPropagation()}>
-                                    <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
-                                </div>
-                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
-                                <div className='play-button-overlay' onClick={(e) => handlePlay(track, e)}>
-                                    {currentTrack?.id === track.id && isPlaying ? (
-                                        <FaPause style={{ color: 'black', fontSize: '14px' }} />
-                                    ) : (
-                                        <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
-                                    )}
-                                </div>
+                                        <div className="card-menu-overlay" onClick={(e) => e.stopPropagation()}>
+                                            <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
+                                        </div>
+                                        <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
+                                        <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.artist}</p>
+                                        <div className='play-button-overlay' onClick={(e) => handlePlay(track, e)}>
+                                            {currentTrack?.id === track.id && isPlaying ? (
+                                                <FaPause style={{ color: 'black', fontSize: '14px' }} />
+                                            ) : (
+                                                <FaPlay style={{ color: 'black', fontSize: '14px', marginLeft: '2px' }} />
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </section>
-            ))}
+                        </section>
+                    );
 
-            {/* ── Popular Artists ── */}
-            <section className='section-container'>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <h2 className='section-title' style={{ margin: 0 }}>Popular artists</h2>
-                    <Link to="/show-all/artists" style={{ textDecoration: 'none' }}>
-                        <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
-                    </Link>
-                </div>
-                {isLoading || artists.length === 0 ? (
-                    <CardSkeletonRow count={12} />
-                ) : (
-                    <div className='grid-container'>
-                        {artists.slice(0, 30).map(artist => (
-                            <div key={artist.id} className='card' onClick={() => navigate(`/artist/${artist.id}`)}>
-                                <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%', aspectRatio: '1/1', objectFit: 'cover' }} />
-                                <h4 style={{ marginBottom: '4px' }}>{artist.name}</h4>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
-                                <div className='play-button-overlay' onClick={(e) => handlePlayArtist(artist.id, e)}>
-                                    <div className='play-icon' style={{ width: '0', height: '0', borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '12px solid black', marginLeft: '2px' }}></div>
-                                </div>
+                    const renderArtistsSection = () => (
+                        <section key="artists-section" className='section-container'>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                                <h2 className='section-title' style={{ margin: 0 }}>Popular artists</h2>
+                                <Link to="/show-all/artists" style={{ textDecoration: 'none' }}>
+                                    <span style={{ color: 'var(--melodify-dim-white)', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}>Show all</span>
+                                </Link>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </section>
+                            {isLoading || artists.length === 0 ? (
+                                <CardSkeletonRow count={12} />
+                            ) : (
+                                <div className='grid-container'>
+                                    {artists.slice(0, 30).map(artist => (
+                                        <div key={artist.id} className='card' onClick={() => navigate(`/artist/${artist.id}`)}>
+                                            <img src={artist.image} alt={artist.name} className='card-image' style={{ borderRadius: '50%', aspectRatio: '1/1', objectFit: 'cover' }} />
+                                            <h4 style={{ marginBottom: '4px' }}>{artist.name}</h4>
+                                            <p style={{ fontSize: '0.85rem', color: 'var(--melodify-dim-white)' }}>Artist</p>
+                                            <div className='play-button-overlay' onClick={(e) => handlePlayArtist(artist.id, e)}>
+                                                <div className='play-icon' style={{ width: '0', height: '0', borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '12px solid black', marginLeft: '2px' }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    );
+
+                    if (prefEntries.length === 0) {
+                        return [renderArtistsSection()];
+                    }
+
+                    const elements = [];
+                    prefEntries.forEach((entry, index) => {
+                        elements.push(renderPrefSection(entry));
+                        // Insert artists section in the middle
+                        if (index === midIndex - 1) {
+                            elements.push(renderArtistsSection());
+                        }
+                    });
+                    
+                    return elements;
+                })()
+            )}
 
             {/* ── Popular Albums ── */}
             <section className='section-container'>

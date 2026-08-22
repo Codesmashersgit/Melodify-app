@@ -144,25 +144,15 @@ const SongMenu = ({ track, onAddToPlaylist }) => {
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             {dlState === 'downloading' ? (
-              <>
-                <FaSpinner size={13} style={{ animation: 'spin 1s linear infinite' }} />
-                Saving... {dlProgress > 0 ? `${dlProgress}%` : ''}
-              </>
+                <FaSpinner className="spin" size={13} color="white" />
             ) : dlState === 'done' || isDownloaded ? (
-              <>
                 <FaCheck size={13} color="#1DB954" />
-                <span style={{ color: '#1DB954' }}>Saved Offline</span>
-              </>
-            ) : dlState === 'error' ? (
-              <>
-                <span style={{ fontSize: '15px' }}>❌</span> Failed, Retry
-              </>
             ) : (
-              <>
                 <FaDownload size={13} />
-                Save Offline
-              </>
             )}
+            <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                {dlState === 'downloading' ? `Downloading ${dlProgress}%` : isDownloaded ? 'Remove Download' : 'Download'}
+            </span>
           </div>
         </div>
       )}

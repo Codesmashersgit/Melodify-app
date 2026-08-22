@@ -96,7 +96,7 @@ const Signup = () => {
           setEmailOtpSent(true);
         }
       } catch (err) {
-        setError(err.response?.data?.error || "Failed to send verification code");
+        setError(err.response?.data?.details || err.response?.data?.error || "Failed to send verification code");
       } finally {
         setEmailLoading(false);
       }

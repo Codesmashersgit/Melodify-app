@@ -140,11 +140,30 @@ router.post('/send-signup-otp', async (req, res) => {
         };
 
         try {
-            await transporter.sendMail(mailOptions);
+            if (process.env.BREVO_API_KEY) {
+                // Send via Brevo HTTP API (Port 443) to completely bypass Render's SMTP block!
+                const axios = require('axios');
+                await axios.post('https://api.brevo.com/v3/smtp/email', {
+                    sender: { name: "Melodify", email: process.env.EMAIL_USER },
+                    to: [{ email: email }],
+                    subject: mailOptions.subject,
+                    htmlContent: mailOptions.html
+                }, {
+                    headers: {
+                        'api-key': process.env.BREVO_API_KEY,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } else {
+                await transporter.sendMail(mailOptions);
+            }
             res.json({ success: true, message: 'OTP sent to your email.' });
         } catch (error) {
-            console.error('Error sending signup OTP:', error);
-            res.status(500).json({ error: 'Failed to send OTP email.', details: error.message || String(error) });
+            console.error('Error sending signup OTP:', error.response?.data || error.message);
+            res.status(500).json({ 
+                error: 'Failed to send OTP email.', 
+                details: error.response?.data?.message || error.message || String(error) 
+            });
         }
     });
 });

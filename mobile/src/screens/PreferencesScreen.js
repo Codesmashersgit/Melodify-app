@@ -25,137 +25,27 @@ const CARD_WIDTH = (width - 32 - CARD_GAP * (NUM_COLS - 1)) / NUM_COLS;
 
 
 const PREFERENCES = [
-
-  // LANGUAGES
-  {
-    id:"punjabi",
-    label:"Punjabi",
-    type:"Language",
-    icon:"music-note",
-    image:"https://images.unsplash.com/photo-1501386761578-eac5c94b800f?w=800"
-  },
-  {
-    id:"bhojpuri",
-    label:"Bhojpuri",
-    type:"Language",
-    icon:"music-note",
-    image:"https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800"
-  },
-  {
-    id:"marathi",
-    label:"Marathi",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=800"
-  },
-  {
-    id:"gujarati",
-    label:"Gujarati",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1599661046827-dacde6976549?w=800"
-  },
-  {
-    id:"bengali",
-    label:"Bengali",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1558431382-27e303142255?w=800"
-  },
-  {
-    id:"tamil",
-    label:"Tamil",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800"
-  },
-  {
-    id:"telugu",
-    label:"Telugu",
-    type:"Language",
-    icon:"translate",
-    image:"https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800"
-  },
-  {
-    id:"rajasthani",
-    label:"Rajasthani",
-    type:"Language",
-    icon:"castle",
-    image:"https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800"
-  },
-
-  // GENRES
-  {
-    id:"bollywood",
-    label:"Bollywood",
-    type:"Genre",
-    icon:"movie-open",
-    image:"https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800"
-  },
-  {
-    id:"hollywood",
-    label:"Hollywood",
-    type:"Genre",
-    icon:"movie",
-    image:"https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800"
-  },
-  {
-    id:"lofi",
-    label:"Lo-Fi",
-    type:"Genre",
-    icon:"coffee",
-    image:"https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=800"
-  },
-  {
-    id:"hiphop",
-    label:"Hip-Hop",
-    type:"Genre",
-    icon:"microphone",
-    image:"https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800"
-  },
-  {
-    id:"romantic",
-    label:"Romantic",
-    type:"Genre",
-    icon:"heart",
-    image:"https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800"
-  },
-  {
-    id:"party",
-    label:"Party",
-    type:"Genre",
-    icon:"party-popper",
-    image:"https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800"
-  },
-  {
-    id:"devotional",
-    label:"Devotional",
-    type:"Genre",
-    icon:"hands-pray",
-    image:"https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=800"
-  },
-  {
-    id:"indie",
-    label:"Indie",
-    type:"Genre",
-    icon:"guitar-acoustic",
-    image:"https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800"
-  },
-  {
-    id:"sufi",
-    label:"Sufi",
-    type:"Genre",
-    icon:"star-crescent",
-    image:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800"
-  },
-  {
-    id:"workout",
-    label:"Workout",
-    type:"Mood",
-    icon:"dumbbell",
-    image:"https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800"
-  },
-
+  { id: 'hindi', label: 'Hindi', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1593530752179-847201c10776?w=500&auto=format&fit=crop' },
+  { id: 'punjabi', label: 'Punjabi', type: 'Language', icon: 'music-note', image: 'https://images.unsplash.com/photo-1591873133543-85f0ef6631b3?w=500&auto=format&fit=crop' },
+  { id: 'bhojpuri', label: 'Bhojpuri', type: 'Language', icon: 'music-note', image: 'https://images.unsplash.com/photo-1533221350175-680456108169?w=500&auto=format&fit=crop' },
+  { id: 'marathi', label: 'Marathi', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1567157577867-05ccb1388e66?w=500&auto=format&fit=crop' },
+  { id: 'gujarati', label: 'Gujarati', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1632731818290-7815cf1b9cf2?w=500&auto=format&fit=crop' },
+  { id: 'bengali', label: 'Bengali', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1604169990817-21a48c40ff42?w=500&auto=format&fit=crop' },
+  { id: 'tamil', label: 'Tamil', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1582502660021-8728a38a715a?w=500&auto=format&fit=crop' },
+  { id: 'telugu', label: 'Telugu', type: 'Language', icon: 'translate', image: 'https://images.unsplash.com/photo-1595181534005-4f32a5170d47?w=500&auto=format&fit=crop' },
+  { id: 'rajasthani', label: 'Rajasthani', type: 'Language', icon: 'castle', image: 'https://images.unsplash.com/photo-1540898555-467475355609?w=500&auto=format&fit=crop' },
+  { id: 'bollywood', label: 'Bollywood', type: 'Genre', icon: 'movie-open', image: 'https://images.unsplash.com/photo-1603813735163-fdf466a9d18b?w=500&auto=format&fit=crop' },
+  { id: 'hollywood', label: 'Hollywood', type: 'Genre', icon: 'movie-roll', image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop' },
+  { id: 'lofi', label: 'Lo-Fi', type: 'Genre', icon: 'headphones', image: 'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?w=500&auto=format&fit=crop' },
+  { id: 'hiphop', label: 'Hip-Hop', type: 'Genre', icon: 'microphone', image: 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?w=500&auto=format&fit=crop' },
+  { id: 'indie', label: 'Indie', type: 'Genre', icon: 'guitar-acoustic', image: 'https://images.unsplash.com/photo-1459233313842-cd392ee2c388?w=500&auto=format&fit=crop' },
+  { id: 'devotional', label: 'Devotional', type: 'Genre', icon: 'hands-pray', image: 'https://images.unsplash.com/photo-1515005886638-348df13b299e?w=500&auto=format&fit=crop' },
+  { id: 'kpop', label: 'K-Pop', type: 'Genre', icon: 'account-group', image: 'https://images.unsplash.com/photo-1543787798-25f02c67c5dc?w=500&auto=format&fit=crop' },
+  { id: 'jazz', label: 'Jazz & Blues', type: 'Genre', icon: 'saxophone', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=500&auto=format&fit=crop' },
+  { id: 'classical', label: 'Classical', type: 'Genre', icon: 'violin', image: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop' },
+  { id: 'sufi', label: 'Sufi', type: 'Genre', icon: 'star-crescent', image: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=500&auto=format&fit=crop' },
+  { id: 'dance', label: 'Dance/Electronic', type: 'Genre', icon: 'speaker', image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=500&auto=format&fit=crop' },
+  { id: 'romantic', label: 'Romantic', type: 'Genre', icon: 'heart', image: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=500&auto=format&fit=crop' },
 ];
 const PreferencesScreen = ({ navigation }) => {
 

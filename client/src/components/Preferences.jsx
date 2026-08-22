@@ -26,11 +26,30 @@ const PREFERENCES = [
     { id:"romantic", label:"Romantic", type:"Genre", image:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKjgVZJlk1grzIc8cGdEvDWEr6gLhbusiO4RifZdkzsA&s=10" },
 ];
 
+const ARTISTS = [
+    { id: "arijit_singh", label: "Arijit Singh", image: "https://ui-avatars.com/api/?name=Arijit+Singh&background=random&color=fff&size=200&bold=true" },
+    { id: "shreya_ghoshal", label: "Shreya Ghoshal", image: "https://ui-avatars.com/api/?name=Shreya+Ghoshal&background=random&color=fff&size=200&bold=true" },
+    { id: "diljit_dosanjh", label: "Diljit Dosanjh", image: "https://ui-avatars.com/api/?name=Diljit+Dosanjh&background=random&color=fff&size=200&bold=true" },
+    { id: "ar_rahman", label: "A.R. Rahman", image: "https://ui-avatars.com/api/?name=A+R+Rahman&background=random&color=fff&size=200&bold=true" },
+    { id: "atif_aslam", label: "Atif Aslam", image: "https://ui-avatars.com/api/?name=Atif+Aslam&background=random&color=fff&size=200&bold=true" },
+    { id: "taylor_swift", label: "Taylor Swift", image: "https://ui-avatars.com/api/?name=Taylor+Swift&background=random&color=fff&size=200&bold=true" },
+    { id: "the_weeknd", label: "The Weeknd", image: "https://ui-avatars.com/api/?name=The+Weeknd&background=random&color=fff&size=200&bold=true" },
+    { id: "kishore_kumar", label: "Kishore Kumar", image: "https://ui-avatars.com/api/?name=Kishore+Kumar&background=random&color=fff&size=200&bold=true" },
+    { id: "lata_mangeshkar", label: "Lata Mangeshkar", image: "https://ui-avatars.com/api/?name=Lata+Mangeshkar&background=random&color=fff&size=200&bold=true" },
+    { id: "neha_kakkar", label: "Neha Kakkar", image: "https://ui-avatars.com/api/?name=Neha+Kakkar&background=random&color=fff&size=200&bold=true" },
+    { id: "badshah", label: "Badshah", image: "https://ui-avatars.com/api/?name=Badshah&background=random&color=fff&size=200&bold=true" },
+    { id: "sid_sriram", label: "Sid Sriram", image: "https://ui-avatars.com/api/?name=Sid+Sriram&background=random&color=fff&size=200&bold=true" },
+    { id: "sonu_nigam", label: "Sonu Nigam", image: "https://ui-avatars.com/api/?name=Sonu+Nigam&background=random&color=fff&size=200&bold=true" },
+    { id: "justin_bieber", label: "Justin Bieber", image: "https://ui-avatars.com/api/?name=Justin+Bieber&background=random&color=fff&size=200&bold=true" },
+    { id: "bts", label: "BTS", image: "https://ui-avatars.com/api/?name=BTS&background=random&color=fff&size=200&bold=true" },
+];
+
 const Preferences = () => {
     const { user, updatePreferences } = useAuth();
     const navigate = useNavigate();
     const [selected, setSelected] = useState(user?.preferences || []);
     const [saving, setSaving] = useState(false);
+    const [step, setStep] = useState(1); // 1 = Genres, 2 = Artists
 
     const togglePreference = (id) => {
         if (selected.includes(id)) {
@@ -40,11 +59,16 @@ const Preferences = () => {
         }
     };
 
+    const handleNext = () => {
+        setStep(2);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     const handleSave = async () => {
         setSaving(true);
         try {
             await updatePreferences(selected);
-            navigate('/');
+            navigate("/");
         } catch (error) {
             console.error("Failed to save preferences", error);
         } finally {
@@ -55,47 +79,101 @@ const Preferences = () => {
     return (
         <div className="preferences-container fade-in">
             <div className="preferences-header">
-                <h1 className="preferences-title">What do you <span className="text-orange">like?</span></h1>
-                <p className="preferences-subtitle">Pick your favorite languages and genres to get better music recommendations.</p>
+                {step === 1 ? (
+                    <>
+                        <h1 className="preferences-title">What do you <span className="text-orange">like?</span></h1>
+                        <p className="preferences-subtitle">Pick your favorite languages and genres to get better music recommendations.</p>
+                    </>
+                ) : (
+                    <>
+                        <h1 className="preferences-title">Choose your <span className="text-orange">Artists</span></h1>
+                        <p className="preferences-subtitle">Select artists you love to fine-tune your personalized feed.</p>
+                    </>
+                )}
             </div>
 
-            <div className="preferences-grid">
-                {PREFERENCES.map(pref => {
-                    const isSelected = selected.includes(pref.id);
-                    return (
-                        <div 
-                            key={pref.id}
-                            className={`pref-card ${isSelected ? 'selected' : ''}`}
-                            onClick={() => togglePreference(pref.id)}
-                            style={{ backgroundImage: `url(${pref.image})` }}
-                        >
-                            <div className="pref-card-overlay">
-                                <span className="pref-type">{pref.type}</span>
-                                <span className="pref-label">{pref.label}</span>
-                                {isSelected && (
-                                    <div className="pref-check">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                    </div>
-                                )}
+            {step === 1 ? (
+                <div className="preferences-grid">
+                    {PREFERENCES.map(pref => {
+                        const isSelected = selected.includes(pref.id);
+                        return (
+                            <div 
+                                key={pref.id}
+                                className={\`pref-card \${isSelected ? 'selected' : ''}\`}
+                                onClick={() => togglePreference(pref.id)}
+                                style={{ backgroundImage: \`url(\${pref.image})\` }}
+                            >
+                                <div className="pref-card-overlay">
+                                    <span className="pref-type">{pref.type}</span>
+                                    <span className="pref-label">{pref.label}</span>
+                                    {isSelected && (
+                                        <div className="pref-check">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="preferences-grid artists-grid">
+                    {ARTISTS.map(artist => {
+                        const isSelected = selected.includes(artist.id);
+                        return (
+                            <div 
+                                key={artist.id}
+                                className={\`pref-artist-card \${isSelected ? 'selected' : ''}\`}
+                                onClick={() => togglePreference(artist.id)}
+                            >
+                                <div className="artist-image-container">
+                                    <img src={artist.image} alt={artist.label} className="artist-image" />
+                                    {isSelected && (
+                                        <div className="pref-check artist-check">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+                                <span className="pref-artist-label">{artist.label}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             <div className="preferences-footer">
+                {step === 2 && (
+                    <button 
+                        className="pref-back-btn" 
+                        onClick={() => setStep(1)}
+                    >
+                        Back
+                    </button>
+                )}
                 <div className="pref-count">
-                    {selected.length === 0 ? "Select at least one" : `${selected.length} selected`}
+                    {selected.length === 0 ? "Select at least one" : \`\${selected.length} selected\`}
                 </div>
-                <button 
-                    className="pref-save-btn" 
-                    onClick={handleSave}
-                    disabled={selected.length === 0 || saving}
-                >
-                    {saving ? "Saving..." : "Continue"}
-                </button>
+                {step === 1 ? (
+                    <button 
+                        className="pref-save-btn" 
+                        onClick={handleNext}
+                        disabled={selected.length === 0}
+                    >
+                        Next: Artists
+                    </button>
+                ) : (
+                    <button 
+                        className="pref-save-btn" 
+                        onClick={handleSave}
+                        disabled={selected.length === 0 || saving}
+                    >
+                        {saving ? "Saving..." : "Finish & Play"}
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -207,3 +207,93 @@
     .pref-card { height: 130px; }
     .pref-label { font-size: 17px; }
 }
+
+/* Artists Additions */
+.artists-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 24px;
+    row-gap: 40px;
+}
+
+.pref-artist-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.25s ease;
+}
+
+.pref-artist-card:hover {
+    transform: translateY(-5px);
+}
+
+.artist-image-container {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    margin-bottom: 12px;
+    position: relative;
+    padding: 4px;
+    background: transparent;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.pref-artist-card.selected .artist-image-container {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    box-shadow: 0 8px 24px rgba(255, 107, 53, 0.45);
+    transform: scale(1.05);
+}
+
+.artist-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #0b0b12; /* Match background */
+}
+
+.pref-artist-label {
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.artist-check {
+    top: 5px;
+    right: 5px;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #0b0b12;
+}
+
+.pref-back-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.pref-back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 1100px) {
+    .artists-grid { grid-template-columns: repeat(4, 1fr); }
+    .artist-image-container { width: 120px; height: 120px; }
+}
+
+@media (max-width: 768px) {
+    .artists-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; row-gap: 24px; }
+    .artist-image-container { width: 100px; height: 100px; }
+}
+
+@media (max-width: 480px) {
+    .artists-grid { grid-template-columns: repeat(2, 1fr); }
+    .artist-image-container { width: 110px; height: 110px; }
+}

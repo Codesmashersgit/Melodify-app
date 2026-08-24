@@ -64,7 +64,8 @@
           }
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

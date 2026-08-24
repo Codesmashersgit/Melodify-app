@@ -297,7 +297,7 @@ const Body = () => {
                             Melodify is a next-gen music streaming ecosystem built for both <strong>Web Browser</strong> and <strong>Android Mobile Application</strong>. Stream high quality music, sync videos live, search by AI mood, and save tracks for offline play!
                         </p>
                         
-                        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'flex-start' }}>
                             <a
                                 href="/Melodify.apk"
                                 download
@@ -320,61 +320,18 @@ const Body = () => {
                             >
                                 <FaAndroid size={18} /> Download Android App (.apk)
                             </a>
-
-                            <div
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    background: 'rgba(255,255,255,0.08)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    color: 'white',
-                                    padding: '12px 20px',
-                                    borderRadius: '30px',
-                                    fontWeight: '600',
-                                    fontSize: '0.9rem',
-                                }}
-                            >
-                                <FaGlobe size={16} style={{ color: '#1DB954' }} /> Web Edition Active
+                            
+                            <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '6px', 
+                                color: 'rgba(255,255,255,0.6)', 
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                marginTop: '4px'
+                            }}>
+                                Made with <span style={{ color: '#e25555', fontSize: '1.1rem' }}>♥</span> by Sudhanshu
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Right Contact Info */}
-                    <div style={{
-                        flex: '0 1 320px',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        borderRadius: '20px',
-                        padding: '24px 28px',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        backdropFilter: 'blur(10px)'
-                    }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            👨‍💻 Connect with Developer
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <a
-                                href="mailto:sudhanshu.ok1802@gmail.com"
-                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
-                            >
-                                <FaEnvelope style={{ color: '#1DB954' }} /> sudhanshu.ok1802@gmail.com
-                            </a>
-                            <a
-                                href="https://www.linkedin.com/in/sudhanshu-raj-45b205250/"
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
-                            >
-                                <FaLinkedin style={{ color: '#0A66C2' }} /> LinkedIn / Sudhanshu Raj
-                            </a>
-                            <a
-                                href="https://github.com/Codesmashersgit"
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '500' }}
-                            >
-                                <FaGithub style={{ color: 'white' }} /> GitHub / Codesmashersgit
-                            </a>
                         </div>
                     </div>
                 </div>

@@ -99,9 +99,9 @@ const Preferences = () => {
                         return (
                             <div 
                                 key={pref.id}
-                                className={\`pref-card \${isSelected ? 'selected' : ''}\`}
+                                className={`pref-card ${isSelected ? 'selected' : ''}`}
                                 onClick={() => togglePreference(pref.id)}
-                                style={{ backgroundImage: \`url(\${pref.image})\` }}
+                                style={{ backgroundImage: `url(${pref.image})` }}
                             >
                                 <div className="pref-card-overlay">
                                     <span className="pref-type">{pref.type}</span>
@@ -125,7 +125,7 @@ const Preferences = () => {
                         return (
                             <div 
                                 key={artist.id}
-                                className={\`pref-artist-card \${isSelected ? 'selected' : ''}\`}
+                                className={`pref-artist-card ${isSelected ? 'selected' : ''}`}
                                 onClick={() => togglePreference(artist.id)}
                             >
                                 <div className="artist-image-container">
@@ -155,7 +155,7 @@ const Preferences = () => {
                     </button>
                 )}
                 <div className="pref-count">
-                    {selected.length === 0 ? "Select at least one" : \`\${selected.length} selected\`}
+                    {selected.length === 0 ? "Select at least one" : `${selected.length} selected`}
                 </div>
                 {step === 1 ? (
                     <button 

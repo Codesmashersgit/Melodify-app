@@ -5,7 +5,7 @@ import API_BASE_URL from '../config';
 
 const PlaybackContext = createContext();
 const PlaybackProgressContext = createContext({ currentTime: 0, duration: 0 });
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 60000;
 
 export const PlaybackProvider = ({ children }) => {
     const [tracks, setTracks] = useState([]);

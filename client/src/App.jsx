@@ -30,7 +30,7 @@ import FeedbackModal from './components/FeedbackModal';
 
 import BottomNav from './components/BottomNav';
 
-import { AppSkeleton } from './components/Skeleton';
+import { AppSkeleton, SectionSkeleton } from './components/Skeleton';
 
 import { useLocation } from 'react-router-dom';
 
@@ -39,7 +39,20 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (loading) {
-    return <AppSkeleton />;
+    return (
+      <div className='app-container'>
+        <div className='sidebar-container'>
+          <Sidebar />
+        </div>
+        <main className='main-view'>
+          <Nav />
+          <div style={{ padding: '24px', paddingTop: '80px' }}>
+            <SectionSkeleton count={5} />
+            <SectionSkeleton count={5} square={true} />
+          </div>
+        </main>
+      </div>
+    );
   }
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -61,7 +74,7 @@ const ProtectedRoute = ({ children }) => {
 const PublicOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) {
-    return <AppSkeleton />;
+    return <div style={{ height: '100vh', backgroundColor: '#0b0b12' }}></div>;
   }
   if (user) {
     return <Navigate to="/" replace />;

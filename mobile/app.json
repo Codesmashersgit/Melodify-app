@@ -15,6 +15,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "audio"
         ],
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
@@ -24,6 +25,11 @@
     "android": {
       "package": "com.melodify.music",
       "permissions": [
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK",
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "WAKE_LOCK",
@@ -65,6 +71,12 @@
         "projectId": "f3be5949-d3ef-4116-9b4c-0dca079d8c19"
       }
     },
-    "owner": "sudhanshu_raj"
+    "owner": "sudhanshu_raj",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f3be5949-d3ef-4116-9b4c-0dca079d8c19"
+    }
   }
 }

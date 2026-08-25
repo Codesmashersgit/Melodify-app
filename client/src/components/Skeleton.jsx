@@ -4,13 +4,22 @@ import React from 'react';
 export const SkeletonStyles = () => (
     <style>{`
         @keyframes skeleton-shimmer {
-            0%   { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0%   { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
         }
         .skeleton-block {
-            background: linear-gradient(90deg, #1e1e2e 25%, #2a2a3e 50%, #1e1e2e 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 1.4s infinite;
+            background: #181820;
+            background-image: linear-gradient(
+                to right,
+                #181820 0%,
+                rgba(255, 255, 255, 0.06) 20%,
+                #181820 40%,
+                #181820 100%
+            );
+            background-size: 1000px 100%;
+            background-repeat: no-repeat;
+            animation: skeleton-shimmer 2s infinite linear forwards;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
     `}</style>
 );
@@ -20,52 +29,40 @@ const SkeletonBlock = ({ style = {} }) => (
     <div className="skeleton-block" style={style} />
 );
 
-// ── ONE skeleton card — matches .card exactly (circular image + 2 text lines)
+// ── ONE skeleton card — matches .card exactly
 const CardSkeletonItem = () => (
-    <div style={{
-        padding: '8px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-    }}>
-        {/* Circular image — matches .card-image (100% width, 50% radius, green border) */}
-        <SkeletonBlock style={{
-            width: '100%',
-            aspectRatio: '1',
-            borderRadius: '50%',
-            border: '3px solid rgba(29, 185, 84, 0.25)',
-            marginBottom: '16px',
-            boxSizing: 'border-box',
-        }} />
+    <div className="card" style={{ cursor: 'default' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '1', marginBottom: '16px' }}>
+            <SkeletonBlock style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                border: '3px solid rgba(29, 185, 84, 0.15)',
+                boxSizing: 'border-box',
+            }} />
+        </div>
         {/* Title line */}
-        <SkeletonBlock style={{ width: '80%', height: '13px', borderRadius: '6px', marginBottom: '8px' }} />
+        <SkeletonBlock style={{ width: '80%', height: '14px', borderRadius: '6px', marginBottom: '12px' }} />
         {/* Subtitle line */}
-        <SkeletonBlock style={{ width: '55%', height: '10px', borderRadius: '6px' }} />
+        <SkeletonBlock style={{ width: '55%', height: '11px', borderRadius: '6px' }} />
     </div>
 );
 
 // ── ONE square album skeleton card ───────────────────────────────
 const AlbumSkeletonItem = () => (
-    <div style={{
-        padding: '8px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-    }}>
-        {/* Square image */}
-        <SkeletonBlock style={{
-            width: '100%',
-            aspectRatio: '1',
-            borderRadius: '12px',
-            marginBottom: '12px',
-            boxSizing: 'border-box',
-        }} />
+    <div className="card" style={{ cursor: 'default' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '1', marginBottom: '12px' }}>
+            <SkeletonBlock style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '12px',
+                boxSizing: 'border-box',
+            }} />
+        </div>
         {/* Title */}
-        <SkeletonBlock style={{ width: '80%', height: '13px', borderRadius: '6px', marginBottom: '8px' }} />
+        <SkeletonBlock style={{ width: '85%', height: '14px', borderRadius: '6px', marginBottom: '10px' }} />
         {/* Artist */}
-        <SkeletonBlock style={{ width: '55%', height: '10px', borderRadius: '6px' }} />
+        <SkeletonBlock style={{ width: '60%', height: '11px', borderRadius: '6px' }} />
     </div>
 );
 

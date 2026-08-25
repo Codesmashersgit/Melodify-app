@@ -30,7 +30,7 @@ import FeedbackModal from './components/FeedbackModal';
 
 import BottomNav from './components/BottomNav';
 
-import { AppSkeleton, SectionSkeleton } from './components/Skeleton';
+import { AppSkeleton, SectionSkeleton, SkeletonStyles } from './components/Skeleton';
 
 import { useLocation } from 'react-router-dom';
 
@@ -41,6 +41,7 @@ const ProtectedRoute = ({ children }) => {
   if (loading) {
     return (
       <div className='app-container'>
+      <SkeletonStyles />
         <div className='sidebar-container'>
           <Sidebar />
         </div>

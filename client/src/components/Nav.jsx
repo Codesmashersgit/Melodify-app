@@ -8,7 +8,7 @@ import logo from '../assets/melodify.png';
 
 const Nav = () => {
   const { goBack, goForward, canGoBack, canGoForward } = useAppHistory();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -51,7 +51,12 @@ const Nav = () => {
       </div>
 
       <div className='nav-auth'>
-        {user ? (
+        {loading ? (
+          <div style={{ display: 'flex', gap: '12px' }}>
+             <div className="skeleton-block" style={{ width: '80px', height: '40px', borderRadius: '24px' }}></div>
+             <div className="skeleton-block" style={{ width: '100px', height: '40px', borderRadius: '24px' }}></div>
+          </div>
+        ) : user ? (
           <>
             <span style={{ color: 'white', marginRight: '15px', fontWeight: 'bold', fontSize: '0.9rem' }}>Hi, {user.name}</span>
             <button className='btn-ghost' onClick={handleLogout}>Log out</button>

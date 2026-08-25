@@ -168,6 +168,14 @@ db.serialize(() => {
         platform TEXT DEFAULT 'apk',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    // Global Settings table (for admin controls)
+    db.run(`CREATE TABLE IF NOT EXISTS app_settings (
+        id SERIAL,
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
 });
 
 module.exports = db;

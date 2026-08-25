@@ -623,9 +623,10 @@ const isUsableArtist = (artist) => {
 // Search songs and artists — tries multiple APIs for maximum production compatibility
 // Priority: saavn.dev → official JioSaavn
 app.get('/api/search', async (req, res) => {
-    const { query } = req.query;
+    const { query, limit } = req.query;
+    const fetchLimit = limit || '20';
     if (!query) return res.json([]);
-    const cacheKey = `search_${query}`;
+    const cacheKey = `search_${query}_${fetchLimit}`;
     if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
 
     // Helper: parse saavn.dev/saavnapi-style response
@@ -694,7 +695,7 @@ app.get('/api/search', async (req, res) => {
 
     // --- CLOUD-FRIENDLY APIs (work from Render) ---
     const cloudApis = [
-        `https://jiosaavn-api-beta.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=20`,
+        `https://jiosaavn-api-beta.vercel.app/search/songs?query=${encodeURIComponent(query)}&limit=${fetchLimit}`,
     ];
 
     // Fetch songs and artists IN PARALLEL for speed
@@ -713,7 +714,7 @@ app.get('/api/search', async (req, res) => {
             }
             // Fallback to official JioSaavn
             console.log(`[search] Falling back to official JioSaavn for songs`);
-            const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: '20' });
+            const data = await jiosaavnRequest({ __call: 'search.getResults', q: query, n: fetchLimit });
             return (data.results || []).map(formatSong).map(t => ({ ...t, type: 'song' }));
         })(),
         // Artists: try Vercel wrapper, fallback to official API
@@ -872,6 +873,19 @@ app.get('/api/recommendations', async (req, res) => {
 });
 
 // Get album details with tracks
+app.get('/api/playlist/:id', async (req, res) => {
+    try {
+        const data = await jiosaavnRequest({
+            __call: 'playlist.getDetails',
+            listid: req.params.id
+        });
+        const tracks = (data.songs || data.list || []).map(formatSong).filter(track => track.id && track.name);
+        res.json(tracks);
+    } catch (err) {
+        res.status(500).json([]);
+    }
+});
+
 app.get('/api/album/:id', async (req, res) => {
     const albumId = req.params.id;
     try {

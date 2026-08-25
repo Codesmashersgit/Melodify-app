@@ -914,6 +914,31 @@ router.post('/reset-password', async (req, res) => {
     );
 });
 
+// --- FESTIVAL CONFIG (Dynamic UI) ---
+router.get('/festival', (req, res) => {
+    db.get(`SELECT setting_value FROM app_settings WHERE setting_key = 'active_festival'`, [], (err, row) => {
+        if (err || !row) return res.json({ active: false, festivalName: '', query: '', playlistId: '' });
+        try {
+            res.json(JSON.parse(row.setting_value));
+        } catch(e) {
+            res.json({ active: false });
+        }
+    });
+});
+
+router.post('/admin/festival', authenticateAdmin, (req, res) => {
+    const config = JSON.stringify(req.body);
+    // SQLite/PG UPSERT equivalent
+    db.run(`
+        INSERT INTO app_settings (setting_key, setting_value) 
+        VALUES ('active_festival', $1)
+        ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = CURRENT_TIMESTAMP
+    `, [config], (err) => {
+        if (err) return res.status(500).json({ error: 'Database error', details: err.message });
+        res.json({ success: true });
+    });
+});
+
 // --- ADMIN PANEL ROUTES ---
 
 router.post('/admin/login', async (req, res) => {

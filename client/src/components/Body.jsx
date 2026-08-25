@@ -16,6 +16,8 @@ const Body = () => {
     const [albumSongsCache, setAlbumSongsCache] = useState({});
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
     const [preferenceTracks, setPreferenceTracks] = useState({});
+    const [festivalTracks, setFestivalTracks] = useState([]);
+    const [isFestivalLoading, setIsFestivalLoading] = useState(true);
     const [preferencesLoading, setPreferencesLoading] = useState(true);
 
     const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -26,7 +28,26 @@ const Body = () => {
         setIsPlaylistModalOpen(true);
     };
 
+    const [festivalConfig, setFestivalConfig] = useState(null);
+
     React.useEffect(() => {
+        const fetchFestival = async () => {
+            try {
+                const confRes = await axios.get(`${API_BASE_URL}/api/user/festival`);
+                if (confRes.data && confRes.data.active && confRes.data.playlistId) {
+                    setFestivalConfig(confRes.data);
+                    const res = await axios.get(`${API_BASE_URL}/api/playlist/${confRes.data.playlistId}`);
+                    const tracksData = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
+                    const onlySongs = tracksData.filter(t => t.type === 'song' || !t.type);
+                    setFestivalTracks(onlySongs.slice(0, 30));
+                } else {
+                    setFestivalTracks([]);
+                }
+            } catch (err) {}
+            finally { setIsFestivalLoading(false); }
+        };
+        fetchFestival();
+
         const fetchPreferences = async () => {
             if (!user?.preferences || user.preferences.length === 0) {
                 setPreferencesLoading(false);
@@ -104,6 +125,38 @@ const Body = () => {
     return (
         <div className='fade-in'>
             <SkeletonStyles />
+
+            {/* ── FESTIVAL SPECIAL (Dynamic Admin UI) ── */}
+            {festivalConfig && festivalConfig.active && (
+            <section key="festival-section" className='section-container'>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h2 className='section-title' style={{ margin: 0 }}>{festivalConfig.festivalName}</h2>
+                </div>
+                {isFestivalLoading ? (
+                    <CardSkeletonRow count={6} />
+                ) : festivalTracks.length > 0 ? (
+                    <div className='grid-container'>
+                        {festivalTracks.map((track, index) => (
+                            <div key={track.id + '-' + index} className={`card ${currentTrack?.id === track.id ? 'playing-card' : ''}`} onClick={() => playTrack(track, festivalTracks)}>
+                                <div style={{ position: 'relative' }}>
+                                    <img src={track.image} alt={track.name} className='card-image' />
+                                    {currentTrack?.id === track.id && (
+                                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                            <span style={{ fontSize: '28px' }}>🎵</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="card-menu-overlay" onClick={(e) => e.stopPropagation()}>
+                                    <SongMenu track={track} onAddToPlaylist={() => handleOpenModal(track)} />
+                                </div>
+                                <h4 style={{ marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: currentTrack?.id === track.id ? '#1DB954' : 'inherit' }}>{track.name}</h4>
+                                <p style={{ fontSize: '13px', color: '#b3b3b3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{track.artist}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+            </section>
+            )}
 
             {/* ── Popular Artists (Moved to Top) ── */}
             <section key="artists-section" className='section-container'>

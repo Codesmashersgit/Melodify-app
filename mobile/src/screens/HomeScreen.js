@@ -113,9 +113,29 @@ const HomeScreen = ({ navigation }) => {
 
     // ─── Dynamic Preferences State ──────────────────────────────
     const [preferenceTracks, setPreferenceTracks] = useState({});
+    const [festivalTracks, setFestivalTracks] = useState([]);
+    const [isFestivalLoading, setIsFestivalLoading] = useState(true);
     const [preferencesLoading, setPreferencesLoading] = useState(true);
 
+    const [festivalConfig, setFestivalConfig] = useState(null);
+
     useEffect(() => {
+        const fetchFestival = async () => {
+            try {
+                const confRes = await axios.get(`${API_BASE_URL}/api/user/festival`);
+                if (confRes.data && confRes.data.active && confRes.data.playlistId) {
+                    setFestivalConfig(confRes.data);
+                    const res = await axios.get(`${API_BASE_URL}/api/playlist/${confRes.data.playlistId}`);
+                    const tracksData = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
+                    const onlySongs = tracksData.filter(t => t.type === 'song' || !t.type);
+                    setFestivalTracks(onlySongs.slice(0, 30));
+                } else {
+                    setFestivalTracks([]);
+                }
+            } catch(e) {}
+            finally { setIsFestivalLoading(false); }
+        };
+        fetchFestival();
         const fetchPreferences = async () => {
             if (!user?.preferences || user.preferences.length === 0) {
                 setPreferencesLoading(false);
@@ -393,6 +413,37 @@ const HomeScreen = ({ navigation }) => {
                     </View>
                     <Text style={styles.quoteText}>Music is what feelings sound like... 🎧</Text>
                 </View>
+
+                {/* ── FESTIVAL SPECIAL (Dynamic Admin UI) ── */}
+                {festivalConfig && festivalConfig.active && (
+                <View style={styles.sectionContainer}>
+                    <View style={styles.sectionRow}>
+                        <View>
+                            <Text style={styles.sectionTitle}>🎀 {festivalConfig.festivalName}</Text>
+                            {festivalConfig.subtitle && <Text style={styles.sectionSubtitle}>{festivalConfig.subtitle}</Text>}
+                        </View>
+                        <TouchableOpacity onPress={() => festivalTracks?.length > 0 && playTrack(festivalTracks[0], festivalTracks)} style={styles.seeAllBtn}>
+                            <Text style={styles.seeAll}>Play all ▶</Text>
+                        </TouchableOpacity>
+                    </View>
+                {isFestivalLoading ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}><CardSkeletonItem /><CardSkeletonItem /><CardSkeletonItem /></ScrollView>
+                ) : festivalTracks.length > 0 ? (
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={festivalTracks}
+                        keyExtractor={item => item.id}
+                        renderItem={renderTrackCard}
+                        contentContainerStyle={styles.horizontalList}
+                        snapToInterval={145 + 16}
+                        decelerationRate="fast"
+                    />
+                ) : null}
+                </View>
+                )}
+
+            {/* ── DYNAMIC PREFERENCES ── */}
 
                 {/* ── Trending Right Now ── */}
                 <View style={styles.sectionContainer}>

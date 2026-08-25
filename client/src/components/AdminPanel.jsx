@@ -13,6 +13,8 @@ const AdminPanel = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [feedback, setFeedback] = useState([]);
+  const [festivalConfig, setFestivalConfig] = useState({ active: false, festivalName: '', subtitle: '', playlistId: '' });
+  const [savingFestival, setSavingFestival] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,19 +42,39 @@ const AdminPanel = () => {
     setError('');
     try {
       const headers = { 'Authorization': `Bearer ${adminToken}` };
-      const [statsRes, usersRes, feedbackRes] = await Promise.all([
+      const [statsRes, usersRes, feedbackRes, festivalRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/user/admin/stats`, { headers }),
         axios.get(`${API_BASE_URL}/api/user/admin/users`, { headers }),
-        axios.get(`${API_BASE_URL}/api/user/admin/feedback`, { headers })
+        axios.get(`${API_BASE_URL}/api/user/admin/feedback`, { headers }),
+        axios.get(`${API_BASE_URL}/api/user/festival`)
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data);
       setFeedback(feedbackRes.data);
+      if (festivalRes?.data?.active !== undefined) setFestivalConfig(festivalRes.data);
     } catch (err) {
       console.error(err.response?.data || err);
       setError('Failed to fetch admin data. Ensure server is running and updated.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveFestival = async (presetConfig = null) => {
+    try {
+      setSavingFestival(true);
+      // Ensure we don't accidentally pass a React SyntheticEvent by checking if presetConfig has 'active' property
+      const isPreset = presetConfig && typeof presetConfig === 'object' && presetConfig.active !== undefined;
+      const configToSave = isPreset ? presetConfig : festivalConfig;
+      if (isPreset) setFestivalConfig(presetConfig);
+
+      const headers = { 'Authorization': `Bearer ${adminToken}` };
+      await axios.post(`${API_BASE_URL}/api/user/admin/festival`, configToSave, { headers });
+      alert(isPreset ? 'Preset applied & saved!' : 'Festival UI updated successfully!');
+    } catch (err) {
+      alert('Error updating festival UI');
+    } finally {
+      setSavingFestival(false);
     }
   };
 
@@ -229,6 +251,78 @@ const AdminPanel = () => {
                       <div className="stat-info">
                         <h3>Total Interactions</h3>
                         <div className="stat-value">{parseInt(stats.total_liked_songs || 0) + parseInt(stats.total_playlists || 0)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Festival UI Control */}
+                  <div className="admin-panel-section" style={{ marginBottom: '30px' }}>
+                    <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h2>🎉 Dynamic Festival UI Control</h2>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                          onClick={() => handleSaveFestival({ active: true, festivalName: 'Raksha Bandhan Special', subtitle: 'Celebrate the eternal bond', playlistId: '44107' })}
+                          style={{ padding: '8px 16px', background: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                          + Quick Rakhi
+                        </button>
+                        <button 
+                          onClick={() => handleSaveFestival({ active: false, festivalName: '', subtitle: '', playlistId: '' })}
+                          style={{ padding: '8px 16px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                          ❌ Turn Off
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', color: '#ccc' }}>Enable Festival Theme</span>
+                        <select 
+                          value={festivalConfig.active ? 'true' : 'false'}
+                          onChange={e => setFestivalConfig(p => ({ ...p, active: e.target.value === 'true' }))}
+                          style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '6px' }}
+                        >
+                          <option value="false">Disabled</option>
+                          <option value="true">Enabled</option>
+                        </select>
+                      </label>
+                      
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', color: '#ccc' }}>Festival Name</span>
+                        <input 
+                          value={festivalConfig.festivalName}
+                          onChange={e => setFestivalConfig(p => ({ ...p, festivalName: e.target.value }))}
+                          style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '6px' }}
+                          placeholder="e.g., Raksha Bandhan Special"
+                        />
+                      </label>
+
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', color: '#ccc' }}>Subtitle</span>
+                        <input 
+                          value={festivalConfig.subtitle}
+                          onChange={e => setFestivalConfig(p => ({ ...p, subtitle: e.target.value }))}
+                          style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '6px' }}
+                          placeholder="e.g., Celebrate the eternal bond"
+                        />
+                      </label>
+
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', color: '#ccc' }}>JioSaavn Playlist ID</span>
+                        <input 
+                          value={festivalConfig.playlistId}
+                          onChange={e => setFestivalConfig(p => ({ ...p, playlistId: e.target.value }))}
+                          style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '6px' }}
+                          placeholder="e.g., 44107"
+                        />
+                      </label>
+                      
+                      <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+                        <button 
+                          onClick={handleSaveFestival}
+                          disabled={savingFestival}
+                          style={{ padding: '12px 24px', background: '#ff6b35', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {savingFestival ? 'Saving...' : 'Save Configuration'}
+                        </button>
                       </div>
                     </div>
                   </div>

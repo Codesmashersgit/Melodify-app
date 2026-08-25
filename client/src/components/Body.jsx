@@ -285,55 +285,46 @@ const Body = () => {
                 backdropFilter: 'blur(20px)',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             }}>
-                <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', gap: '32px', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {/* Left Info */}
-                    <div style={{ flex: '1 1 340px' }}>
-                        <div style={{ marginBottom: '12px' }}>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: 'white', margin: 0, letterSpacing: '-0.5px' }}>
-                                Melodify Music Platform
-                            </h2>
-                        </div>
-                        <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 20px 0' }}>
-                            Melodify is a next-gen music streaming ecosystem built for both <strong>Web Browser</strong> and <strong>Android Mobile Application</strong>. Stream high quality music, sync videos live, search by AI mood, and save tracks for offline play!
-                        </p>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'flex-start' }}>
-                            <a
-                                href="/Melodify.apk"
-                                download
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    background: '#1DB954',
-                                    color: 'black',
-                                    padding: '12px 22px',
-                                    borderRadius: '30px',
-                                    fontWeight: '800',
-                                    fontSize: '0.9rem',
-                                    textDecoration: 'none',
-                                    boxShadow: '0 8px 24px rgba(29, 185, 84, 0.3)',
-                                    transition: 'transform 0.2s, background 0.2s',
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                            >
-                                <FaAndroid size={18} /> Download Android App (.apk)
-                            </a>
-                            
-                            <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '6px', 
-                                color: 'rgba(255,255,255,0.6)', 
+                <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', gap: '16px' }}>
+                        <a
+                            href="/Melodify.apk"
+                            download
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                background: 'transparent',
+                                color: 'rgba(255,255,255,0.6)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                padding: '12px 24px',
+                                borderRadius: '30px',
+                                fontWeight: '400',
                                 fontSize: '0.9rem',
-                                fontWeight: '600',
-                                marginTop: '4px'
-                            }}>
-                                Made with <span style={{ color: '#e25555', fontSize: '1.1rem' }}>♥</span> by Sudhanshu
-                            </div>
+                                textDecoration: 'none',
+                                transition: 'all 0.3s',
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = 'white';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                            }}
+                        >
+                            <FaAndroid size={16} /> Download Android App (.apk)
+                        </a>
+                        
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
+                            color: 'rgba(255,255,255,0.4)', 
+                            fontSize: '0.8rem',
+                            fontWeight: '400',
+                        }}>
+                            Made with <span style={{ color: '#e25555', fontSize: '1rem' }}>♥</span> by Sudhanshu
                         </div>
-                    </div>
                 </div>
             </section>
             

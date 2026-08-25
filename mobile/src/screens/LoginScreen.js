@@ -14,7 +14,7 @@ const LoginScreen = ({ navigation }) => {
     const { login, socialAuth } = useAuth();
     const insets = useSafeAreaInsets();
     const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '';
-    const redirectUri = makeRedirectUri({ useProxy: true });
+    const redirectUri = makeRedirectUri();
 
     const discovery = {
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',

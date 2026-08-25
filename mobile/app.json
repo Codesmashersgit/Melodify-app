@@ -78,6 +78,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/f3be5949-d3ef-4116-9b4c-0dca079d8c19"
-    }
+    },
+    "scheme": "melodify"
   }
 }

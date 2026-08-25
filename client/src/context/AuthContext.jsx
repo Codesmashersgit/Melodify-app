@@ -148,8 +148,6 @@ export const AuthProvider = ({ children }) => {
             console.error('Logout failed', error);
         } finally {
             setUser(null);
-            // Hard redirect — no home flash, clears all state
-            window.location.replace('/login');
         }
     };
 

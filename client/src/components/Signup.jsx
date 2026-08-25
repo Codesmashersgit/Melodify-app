@@ -47,7 +47,7 @@ const Signup = () => {
           platform: 'web'
         });
         if (res.data.success || res.data.token) {
-          window.location.href = '/';
+          navigate('/');
         }
       } catch (err) {
         console.error("Google Direct OAuth Error:", err);
@@ -114,7 +114,7 @@ const Signup = () => {
         if (res.data.success) {
           setIsSignupSuccess(true);
           // Reload to log them in automatically and jump straight to preferences
-          setTimeout(() => window.location.href = '/preferences', 1500);
+          setTimeout(() => navigate('/preferences'), 1500);
         }
       } catch (err) {
         setError(err.response?.data?.error || "Signup failed. Invalid OTP code.");
@@ -133,7 +133,7 @@ const Signup = () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/api/user/apple-auth`, { name: 'Apple User', email: 'user.apple@melodify.com', platform: 'web' });
       if (res.data.success) {
-        window.location.href = '/';
+        navigate('/');
       }
     } catch (err) {
       setError("Apple Signup failed");
@@ -177,7 +177,7 @@ const Signup = () => {
       const res = await axios.post(`${API_BASE_URL}/api/user/phone/verify-otp`, { phone, otp, platform: 'web' });
       if (res.data.success) {
         setShowPhoneModal(false);
-        window.location.href = '/';
+        navigate('/');
       }
     } catch (err) {
       setPhoneError(err.response?.data?.error || "Invalid OTP Code");

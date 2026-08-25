@@ -42,7 +42,7 @@ const Login = () => {
           platform: 'web'
         });
         if (res.data.success || res.data.token) {
-          window.location.href = '/';
+          navigate('/');
         }
       } catch (err) {
         setIsAuthenticating(false);
@@ -63,7 +63,7 @@ const Login = () => {
     setIsAuthenticating(true);
     const res = await login(email, password);
     if (res.success) {
-      window.location.href = '/';
+      navigate('/');
     } else {
       setIsAuthenticating(false);
       setError(res.message);

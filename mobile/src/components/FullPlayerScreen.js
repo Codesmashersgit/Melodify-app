@@ -27,7 +27,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [isLiking, setIsLiking] = useState(false);
     const [progressBarWidth, setProgressBarWidth] = useState(0);
-    const [isSliding, setIsSliding] = useState(false);
+    const isSlidingRef = useRef(false);
     const [sliderValue, setSliderValue] = useState(0);
     const [seekHint, setSeekHint] = useState(null); // { direction: 'left'|'right', seconds: 10 }
     const seekHintTimer = useRef(null);
@@ -146,10 +146,10 @@ const FullPlayerScreen = ({ visible, onClose }) => {
 
     // Sync slider with currentTime unless user is scrubbing
     useEffect(() => {
-        if (!isSliding) {
+        if (!isSlidingRef.current) {
             setSliderValue(currentTime);
         }
-    }, [currentTime, isSliding]);
+    }, [currentTime]);
 
     const handleSeek = async (value) => {
         if (!duration || Number.isNaN(value)) return;
@@ -334,13 +334,13 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             value={sliderValue}
                             step={0}
                             onSlidingStart={() => {
-                                setIsSliding(true);
+                                isSlidingRef.current = true;
                             }}
                             onValueChange={(val) => {
                                 setSliderValue(val);
                             }}
                             onSlidingComplete={async (value) => {
-                                setIsSliding(false);
+                                isSlidingRef.current = false;
                                 await handleSeek(value);
                             }}
                             minimumTrackTintColor="#1DB954"

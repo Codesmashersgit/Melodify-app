@@ -24,7 +24,7 @@ const Login = () => {
   const [phoneError, setPhoneError] = useState('');
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, setUser } = useAuth();
   const [error, setError] = useState('');
 
   const googleLogin = useGoogleLogin({
@@ -42,6 +42,7 @@ const Login = () => {
           platform: 'web'
         });
         if (res.data.success || res.data.token) {
+          setUser(res.data.user);
           navigate('/');
         }
       } catch (err) {

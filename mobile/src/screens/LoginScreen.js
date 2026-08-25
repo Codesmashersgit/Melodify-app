@@ -52,7 +52,7 @@ const LoginScreen = ({ navigation }) => {
         const result = await login(email, password);
         setIsLoading(false);
         if (result.success) {
-            navigation.navigate('Main');
+            // navigation automatically handled
         } else {
             Alert.alert('Login Failed', result.error);
         }
@@ -84,7 +84,7 @@ const LoginScreen = ({ navigation }) => {
             });
 
             if (authResult.success) {
-                navigation.replace('Main');
+                // navigation automatically handled
             } else {
                 Alert.alert('Google Login Error', authResult.error || 'Google login failed');
             }
@@ -98,7 +98,7 @@ const LoginScreen = ({ navigation }) => {
             const res = await axios.post(`${API_BASE_URL}/api/user/apple-auth`, { name: 'Apple User', email: 'user.apple@melodify.com', platform: 'apk' });
             if (res.data.token) {
                 await AsyncStorage.setItem('melodify_token', res.data.token);
-                navigation.replace('Main');
+                // navigation automatically handled
             }
         } catch (err) {
             Alert.alert("Apple Login Error", err.response?.data?.error || "Apple login failed");
@@ -134,7 +134,7 @@ const LoginScreen = ({ navigation }) => {
             if (res.data.token) {
                 await AsyncStorage.setItem('melodify_token', res.data.token);
                 setShowPhoneModal(false);
-                navigation.replace('Main');
+                // navigation automatically handled
             }
         } catch (err) {
             Alert.alert("Verification Failed", err.response?.data?.error || "Invalid OTP code");

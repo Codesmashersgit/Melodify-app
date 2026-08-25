@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useRef, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { getTrackBlobUrl } from '../services/WebDownloadService';
+import { useAuth } from './AuthContext';
 import API_BASE_URL from '../config';
 
 const PlaybackContext = createContext();
@@ -25,6 +26,15 @@ export const PlaybackProvider = ({ children }) => {
     const [queue, setQueue] = useState([]);
 
     const audioRef = useRef(new Audio());
+    const { user } = useAuth();
+
+    useEffect(() => {
+        if (!user && audioRef.current) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+            setCurrentTrack(null);
+        }
+    }, [user]);
     const isSourceLoadingRef = useRef(false);
 
     // ─── Fetch home data on mount ────────────────────────────────

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Audio } from 'expo-av';
 import API_BASE_URL from '../config';
 import { getDownloadedTracks } from '../services/DownloadService';
+import { useAuth } from './AuthContext';
 
 import CryptoJS from 'crypto-js';
 

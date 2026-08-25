@@ -47,6 +47,7 @@ const Signup = () => {
           platform: 'web'
         });
         if (res.data.success || res.data.token) {
+          setUser(res.data.user);
           navigate('/');
         }
       } catch (err) {
@@ -81,7 +82,7 @@ const Signup = () => {
   const passwordsMatch = confirmPassword && password === confirmPassword;
 
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, setUser } = useAuth();
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {

@@ -114,21 +114,11 @@ export const PlaybackProvider = ({ children }) => {
         fetchInitialData();
     }, [fetchInitialData]);
 
-    // Configure audio for background playback
+    // Configure audio for background playback (Disabled entirely to prevent Android 14 crash on old APKs)
     useEffect(() => {
         const configureAudio = async () => {
             try {
-                await Audio.setAudioModeAsync({
-                    staysActiveInBackground: false, // Must be false to prevent crash on Android 14+ without foreground service
-                    interruptionModeAndroid: 1,
-                    shouldDuckAndroid: true,
-                    playThroughEarpieceAndroid: false,
-                    playsInSilentModeIOS: true,
-                    interruptionModeIOS: 1,
-                });
-                // Note: handleNext and handlePrev need to be passed or accessed via ref, 
-                // but since they are defined later in the component, we'll set up listeners there.
-
+                // Disabled Audio.setAudioModeAsync to prevent crash on Android 14+
             } catch (error) {
                 console.error('Error configuring audio mode:', error);
             }

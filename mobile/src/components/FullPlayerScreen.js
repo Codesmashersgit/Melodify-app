@@ -287,7 +287,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                     {/* ── Album Art (tap left/right to seek ±10s, center to play/pause) ── */}
                     <TouchableOpacity style={styles.albumArtWrapper} onPress={handleAlbumArtPress} activeOpacity={1}>
                         <Animated.View style={[styles.albumArtShadow, { transform: [{ scale: scaleAnim }] }]}>
-                            <Image source={{ uri: currentTrack.image }} style={styles.albumArt} />
+                            <Image source={{ uri: currentTrack.image || 'https://via.placeholder.com/400' }} style={styles.albumArt} />
                             {/* Seek Hint Overlay */}
                             {seekHint && (
                                 <View style={[styles.seekHintOverlay, seekHint.direction === 'left' ? styles.seekHintLeft : styles.seekHintRight]}>

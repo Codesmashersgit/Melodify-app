@@ -75,7 +75,7 @@ const PlayerBar = () => {
                 <View style={styles.content}>
                     {/* Album Art */}
                     <View style={styles.imageWrapper}>
-                        <Image source={{ uri: currentTrack.image }} style={styles.image} />
+                        <Image source={{ uri: currentTrack.image || 'https://via.placeholder.com/150' }} style={styles.image} />
                         {isPlaying && <View style={styles.playingDot} />}
                     </View>
 

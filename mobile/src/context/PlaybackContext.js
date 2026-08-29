@@ -81,7 +81,7 @@ export const PlaybackProvider = ({ children }) => {
     useEffect(() => { queueRef.current = queue; }, [queue]);
 
     // Fetch with retry (for initial data fetching from Render)
-    const fetchWithRetry = async (url, { firstTimeout = 15000, retryTimeout = 45000 } = {}) => {
+    const fetchWithRetry = async (url, { firstTimeout = 5000, retryTimeout = 8000 } = {}) => {
         try {
             return await axios.get(url, { timeout: firstTimeout });
         } catch (error) {
@@ -119,7 +119,7 @@ export const PlaybackProvider = ({ children }) => {
         const configureAudio = async () => {
             try {
                 await Audio.setAudioModeAsync({
-                    staysActiveInBackground: true,
+                    staysActiveInBackground: false, // Must be false to prevent crash on Android 14+ without foreground service
                     interruptionModeAndroid: 1,
                     shouldDuckAndroid: true,
                     playThroughEarpieceAndroid: false,

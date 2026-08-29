@@ -120,53 +120,59 @@ const HomeScreen = ({ navigation }) => {
 
     const [festivalConfig, setFestivalConfig] = useState(null);
 
-    useEffect(() => {
-        const fetchFestival = async () => {
-            try {
-                const confRes = await axios.get(`${API_BASE_URL}/api/user/festival`);
-                if (confRes.data && confRes.data.active && confRes.data.playlistId) {
-                    setFestivalConfig(confRes.data);
-                    const res = await axios.get(`${API_BASE_URL}/api/playlist/${confRes.data.playlistId}`);
-                    const tracksData = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
-                    const onlySongs = tracksData.filter(t => t.type === 'song' || !t.type);
-                    setFestivalTracks(onlySongs.slice(0, 30));
-                } else {
-                    setFestivalTracks([]);
-                }
-            } catch(e) {}
-            finally { setIsFestivalLoading(false); }
-        };
+    const fetchFestival = async () => {
+        try {
+            const confRes = await axios.get(`${API_BASE_URL}/api/user/festival`);
+            if (confRes.data && confRes.data.active && confRes.data.playlistId) {
+                setFestivalConfig(confRes.data);
+                const res = await axios.get(`${API_BASE_URL}/api/playlist/${confRes.data.playlistId}`);
+                const tracksData = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
+                const onlySongs = tracksData.filter(t => t.type === 'song' || !t.type);
+                setFestivalTracks(onlySongs.slice(0, 30));
+            } else {
+                setFestivalTracks([]);
+            }
+        } catch(e) {}
+        finally { setIsFestivalLoading(false); }
+    };
+
+    const fetchPreferences = async () => {
+        if (!user?.preferences || user.preferences.length === 0) {
+            setPreferencesLoading(false);
+            return;
+        }
+        setPreferencesLoading(true);
+        const newPrefs = {};
+        const hiddenPrefs = new Set(['hindi', 'english']);
+        try {
+            await Promise.all(user.preferences.map(async (pref) => {
+                const normalizedPref = pref?.toLowerCase?.();
+                if (hiddenPrefs.has(normalizedPref)) return;
+                const response = await fetch(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
+                const data = await response.json();
+                const tracks = Array.isArray(data) ? data : (data.tracks || []);
+                if (tracks.length > 0) newPrefs[pref] = tracks.filter(t => t.id);
+            }));
+            setPreferenceTracks(newPrefs);
+        } catch (err) {
+            console.log("Error fetching preference tracks:", err);
+        } finally {
+            setPreferencesLoading(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchFestival();
+            fetchPreferences();
+        }, [user?.preferences])
+    );
+
+    const handlePullToRefresh = async () => {
+        refetchHomeData();
         fetchFestival();
-        const fetchPreferences = async () => {
-            if (!user?.preferences || user.preferences.length === 0) {
-                setPreferencesLoading(false);
-                return;
-            }
-            setPreferencesLoading(true);
-            const newPrefs = {};
-            const hiddenPrefs = new Set(['hindi', 'english']);
-            try {
-                await Promise.all(user.preferences.map(async (pref) => {
-                    const normalizedPref = pref?.toLowerCase?.();
-                    if (hiddenPrefs.has(normalizedPref)) {
-                        return;
-                    }
-                    const response = await fetch(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
-                    const data = await response.json();
-                    const tracks = Array.isArray(data) ? data : (data.tracks || []);
-                    if (tracks.length > 0) {
-                        newPrefs[pref] = tracks.filter(t => t.id);
-                    }
-                }));
-                setPreferenceTracks(newPrefs);
-            } catch (err) {
-                console.log("Error fetching preference tracks:", err);
-            } finally {
-                setPreferencesLoading(false);
-            }
-        };
         fetchPreferences();
-    }, [user?.preferences]);
+    };
 
     // Animated equalizer bars
     const barAnim1 = useRef(new Animated.Value(0.4)).current;
@@ -337,7 +343,7 @@ const HomeScreen = ({ navigation }) => {
                 refreshControl={
                     <RefreshControl
                         refreshing={isLoading}
-                        onRefresh={refetchHomeData}
+                        onRefresh={handlePullToRefresh}
                         tintColor="#1DB954"
                         colors={['#1DB954']}
                     />

@@ -31,7 +31,7 @@ const MOODS = [
 
 // ─── HomeScreen ───────────────────────────────────────────────
 const HomeScreen = ({ navigation }) => {
-    const { artists, albums, tracks, playTrack, isLoading, refetchHomeData, currentTrack, isPlaying } = usePlayback();
+    const { artists, albums, tracks, playTrack, isLoading, refetchHomeData, currentTrack, isPlaying, isExpanded } = usePlayback();
     const { user } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
     const [selectedMood, setSelectedMood] = useState('energetic');
@@ -46,43 +46,40 @@ const HomeScreen = ({ navigation }) => {
     };
 
     // ─── Feedback & Exit State ────────────────────────────────
+    const [hasRated, setHasRated] = useState(false);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [rating, setRating] = useState(0);
     const [feedback, setFeedback] = useState('');
 
-    const [hasRated, setHasRated] = useState(false);
-
-    useEffect(() => {
-        // Check if user has already rated the app
-        const checkRatingStatus = async () => {
-            try {
-                const rated = await AsyncStorage.getItem('melodify_has_rated');
-                if (rated === 'true') {
-                    setHasRated(true);
-                }
-            } catch (e) {
-                console.log('Error reading rating status', e);
-            }
-        };
-        checkRatingStatus();
-    }, []);
-
     useFocusEffect(
         useCallback(() => {
+            const checkRating = async () => {
+                try {
+                    const rated = await AsyncStorage.getItem('melodify_has_rated');
+                    if (rated === 'true') {
+                        setHasRated(true);
+                    }
+                } catch (e) {
+                    console.log('Error reading rating status:', e);
+                }
+            };
+            checkRating();
+
             const backAction = () => {
+                if (isExpanded) {
+                    return false; // Let FullPlayer Modal handle the back press
+                }
                 if (hasRated) {
-                    // If they already rated, just exit directly
                     BackHandler.exitApp();
                     return true;
                 }
-                // Otherwise show exit modal
                 setExitModalVisible(true);
-                return true; // Prevent default behavior (exit app)
+                return true;
             };
 
             const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
             return () => backHandler.remove();
-        }, [hasRated])
+        }, [hasRated, isExpanded])
     );
 
     const handleExitApp = () => {

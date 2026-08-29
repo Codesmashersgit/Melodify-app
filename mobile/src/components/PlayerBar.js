@@ -53,8 +53,7 @@ const shimmerStyles = StyleSheet.create({
 });
 
 const PlayerBar = () => {
-    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks, isTrackLoading } = usePlayback();
-    const [isFullPlayerVisible, setIsFullPlayerVisible] = React.useState(false);
+    const { currentTrack, isPlaying, togglePlay, handleNext, currentTime, duration, tracks, isTrackLoading, isExpanded, toggleExpand } = usePlayback();
     const insets = useSafeAreaInsets();
 
     if (!currentTrack) return null;
@@ -66,7 +65,7 @@ const PlayerBar = () => {
             <TouchableOpacity
                 style={[styles.container, { bottom: 60 + (insets.bottom > 0 ? insets.bottom : 10) + 4 }]}
                 activeOpacity={0.95}
-                onPress={() => setIsFullPlayerVisible(true)}
+                onPress={toggleExpand}
             >
                 {/* Progress Bar at the Top */}
                 <View style={styles.progressBarBackground}>
@@ -118,13 +117,13 @@ const PlayerBar = () => {
                     </View>
                 </View>
 
-                {/* ✅ Shimmer loading bar at the bottom - visible while song is loading */}
+                {/* o. Shimmer loading bar at the bottom - visible while song is loading */}
                 {isTrackLoading && <LoadingShimmer />}
             </TouchableOpacity>
 
             <FullPlayerScreen
-                visible={isFullPlayerVisible}
-                onClose={() => setIsFullPlayerVisible(false)}
+                visible={isExpanded}
+                onClose={toggleExpand}
             />
         </>
     );

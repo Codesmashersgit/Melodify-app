@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./client/src/assets/melodify.png" alt="Melodify Logo" width="200" style={{ borderRadius: "50%" }} />
+  <img src="./client/src/assets/melodify.png" alt="Melodify Logo" width="200" style="border-radius: 50%;" />
   
   # 🎵 Melodify
   
@@ -170,6 +170,8 @@ VITE_GOOGLE_CLIENT_ID=your_oauth_client_id
 ---
 
 <div align="center">
+  <br/>
+  <img src="./client/src/assets/melodify.png" alt="Melodify" width="80" />
   <br/>
   <b>Built with ❤️ by Sudhanshu Raj</b>
   <br/>

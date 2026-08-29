@@ -16,6 +16,7 @@ import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../compon
 import SongOptionsSheet from '../components/SongOptionsSheet';
 import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 import API_BASE_URL from '../config';
+import axios from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
@@ -427,7 +428,7 @@ const HomeScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
                 {isFestivalLoading ? (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}><CardSkeletonItem /><CardSkeletonItem /><CardSkeletonItem /></ScrollView>
+                    <TrackSkeletonRow />
                 ) : festivalTracks.length > 0 ? (
                     <FlatList
                         horizontal

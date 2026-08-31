@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-    View, Text, TextInput, FlatList, Image, TouchableOpacity,
-    StyleSheet, ActivityIndicator, StatusBar, SectionList
-} from 'react-native';
+import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, SectionList, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../context/PlaybackContext';
-import axios from 'axios';
 import API_BASE_URL from '../config';
-import Constants from 'expo-constants';
-import {
-    ExpoSpeechRecognitionModule,
-    useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+import axios from 'axios';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+
 import SongOptionsSheet from '../components/SongOptionsSheet';
 import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 
@@ -38,25 +32,20 @@ const SearchScreen = ({ navigation, route }) => {
     };
 
     const [isListening, setIsListening] = useState(false);
+
+    
+    
+    
+    
+
     const [aiLoading, setAiLoading] = useState(false);
     const [aiMoodKeywords, setAiMoodKeywords] = useState('');
 
     // expo-speech-recognition event handlers
-    useSpeechRecognitionEvent('start', () => setIsListening(true));
-    useSpeechRecognitionEvent('end', () => setIsListening(false));
-    useSpeechRecognitionEvent('result', (event) => {
-        if (event.results && event.results.length > 0) {
-            const text = event.results[0]?.transcript;
-            if (text) {
-                setSearchQuery(text);
-                doSearch(text.trim());
-            }
-        }
-    });
-    useSpeechRecognitionEvent('error', (event) => {
-        setIsListening(false);
-        console.log('Voice error:', event.error);
-    });
+    
+    
+    
+    
 
 
     const aiModeRef = useRef(false);
@@ -90,23 +79,13 @@ const SearchScreen = ({ navigation, route }) => {
         return () => clearTimeout(debounceRef.current);
     }, [searchQuery]);
 
-    const startListening = async () => {
-        try {
-            setAiMoodKeywords('');
-            const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-            if (status !== 'granted') {
-                alert('Microphone permission is required for voice search.');
-                return;
-            }
-            ExpoSpeechRecognitionModule.start({
-                lang: 'en-IN',
-                interimResults: false,
-                maxAlternatives: 1,
-            });
-        } catch (e) {
-            console.error('Voice start error:', e);
-        }
-    };
+    const startListening = () => {
+    Alert.alert(
+        "Voice Search",
+        "Free Plan Limit! Abhi ke liye tum keyboard wala mic icon use kar sakte ho awaz se search karne ke liye.",
+        [{ text: "OK", style: "default" }]
+    );
+};
 
     const handleAiSearch = async (text) => {
         if (!text || !text.trim()) return;
@@ -253,9 +232,7 @@ const SearchScreen = ({ navigation, route }) => {
                 />
                 
                 {/* AI Search Text Trigger */}
-                <TouchableOpacity onPress={() => handleAiSearch(searchQuery)} style={styles.aiButton}>
-                    <Text style={styles.aiButtonText}>✨</Text>
-                </TouchableOpacity>
+                
 
                 {/* Voice Search Trigger */}
                 <TouchableOpacity onPress={startListening} style={[styles.micButton, isListening && styles.micListening]}>

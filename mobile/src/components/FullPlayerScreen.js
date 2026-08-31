@@ -167,7 +167,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                 onRequestClose={handleMinimize}
             >
                 <View style={styles.fullVideoContainer}>
-                    <StatusBar hidden={true} />
+                    <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
 
                     {videoLoading ? (
                         <View style={styles.videoLoader}>
@@ -184,13 +184,14 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             </TouchableOpacity>
                         </View>
                     ) : videoId ? (
-                        <View style={{ width: width, height: width * (9 / 16) }}>
+                        <View style={{ width: width, height: height, backgroundColor: '#000', justifyContent: 'center' }}>
                             <YoutubeIframe
                                 key={`${videoId}_${Math.floor(videoStartTime || 0)}`}
-                                height={width * (9 / 16)}
+                                height={height}
                                 width={width}
                                 videoId={videoId}
                                 play={videoPlaying}
+                                forceAndroidAutoplay={true}
                                 initialPlayerParams={{
                                     autoplay: 1,
                                     start: Math.floor(videoStartTime || 0),
@@ -245,7 +246,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent
             onRequestClose={handleMinimize}>
-            <StatusBar hidden={false} barStyle="light-content" backgroundColor="#0b0b12" translucent />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
 
             {/* Gradient Background */}
             <View style={styles.container}>
@@ -349,7 +350,7 @@ const FullPlayerScreen = ({ visible, onClose }) => {
                             tapToSeek={true}
                         />
                         <View style={styles.timeContainer}>
-                            <Text style={styles.timeText}>{formatTime(isSliding ? sliderValue : currentTime)}</Text>
+                            <Text style={styles.timeText}>{formatTime(isSlidingRef.current ? sliderValue : currentTime)}</Text>
                             <Text style={styles.timeText}>{formatTime(duration)}</Text>
                         </View>
                     </View>

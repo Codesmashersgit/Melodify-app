@@ -20,7 +20,7 @@ const SeeAllScreen = ({ route, navigation }) => {
             activeOpacity={0.75}
             onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
         >
-            <Image source={{ uri: item.image }} style={styles.artistImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.artistImage} />
             <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
         </TouchableOpacity>
     );
@@ -32,7 +32,7 @@ const SeeAllScreen = ({ route, navigation }) => {
             onPress={() => navigation.navigate('Album', { albumId: item.id })}
         >
             <View style={styles.albumImageContainer}>
-                <Image source={{ uri: item.image }} style={styles.albumImage} />
+                <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.albumImage} />
                 <View style={styles.albumImageOverlay}>
                     <Text style={styles.albumCenterText} numberOfLines={2}>{item.name}</Text>
                 </View>
@@ -45,7 +45,7 @@ const SeeAllScreen = ({ route, navigation }) => {
     const renderTrack = ({ item, index }) => (
         <TouchableOpacity style={styles.trackRow} activeOpacity={0.7} onPress={() => playTrack(item, tracks)}>
             <Text style={styles.trackIndex}>{index + 1}</Text>
-            <Image source={{ uri: item.image }} style={styles.trackImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.trackImage} />
             <View style={styles.trackInfo}>
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
@@ -60,7 +60,7 @@ const SeeAllScreen = ({ route, navigation }) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={24} color="white" />

@@ -16,7 +16,7 @@ const SeeAllScreen = ({ route, navigation }) => {
             style={styles.card}
             onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
         >
-            <Image source={{ uri: item.image }} style={styles.artistImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.artistImage} />
             <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
         </TouchableOpacity>
     );
@@ -26,7 +26,7 @@ const SeeAllScreen = ({ route, navigation }) => {
             style={styles.card}
             onPress={() => navigation.navigate('Album', { albumId: item.id })}
         >
-            <Image source={{ uri: item.image }} style={styles.albumImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.albumImage} />
             <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.subText} numberOfLines={1}>{item.artist}</Text>
         </TouchableOpacity>
@@ -34,7 +34,7 @@ const SeeAllScreen = ({ route, navigation }) => {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>

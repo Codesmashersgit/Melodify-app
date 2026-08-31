@@ -114,11 +114,17 @@ export const PlaybackProvider = ({ children }) => {
         fetchInitialData();
     }, [fetchInitialData]);
 
-    // Configure audio for background playback (Disabled entirely to prevent Android 14 crash on old APKs)
+    // Configure audio for background playback
     useEffect(() => {
         const configureAudio = async () => {
             try {
-                // Disabled Audio.setAudioModeAsync to prevent crash on Android 14+
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: false,
+                    staysActiveInBackground: true,
+                    playsInSilentModeIOS: true,
+                    shouldDuckAndroid: true,
+                    playThroughEarpieceAndroid: false,
+                });
             } catch (error) {
                 console.error('Error configuring audio mode:', error);
             }
@@ -198,11 +204,11 @@ export const PlaybackProvider = ({ children }) => {
             setCurrentTrack(track);
             setIsPlaying(false);
 
-            // Prefetch video in background
-            const q = `${track.name} ${track.artist}`;
-            axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`)
-                .then(res => setVideoId(res.data.videoId))
-                .catch(() => {});
+            // Prefetch video in background (DISABLED to prevent Android WebView crashes in background)
+            // const q = `${track.name} ${track.artist}`;
+            // axios.get(`${API_BASE_URL}/api/video?q=${encodeURIComponent(q)}`)
+            //     .then(res => setVideoId(res.data.videoId))
+            //     .catch(() => {});
 
             // ─── Resolve actual audio URL directly from JioSaavn APIs ───
             // Extract the song ID from the preview_url or use track.id directly

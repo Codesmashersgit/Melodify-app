@@ -53,7 +53,7 @@ const AlbumScreen = ({ route, navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             
             <View style={[styles.headerBar, { top: insets.top + 8 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -64,7 +64,7 @@ const AlbumScreen = ({ route, navigation }) => {
             <FlatList
                 ListHeaderComponent={
                     <View style={styles.header}>
-                        <Image source={{ uri: album.image }} style={styles.albumImage} />
+                        <Image source={{ uri: album.image || 'https://via.placeholder.com/150' }} style={styles.albumImage} />
                         <Text style={styles.albumName}>{album.name}</Text>
                         <Text style={styles.albumArtist}>Album • {album.artist}</Text>
                         

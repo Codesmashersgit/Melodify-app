@@ -223,7 +223,7 @@ const HomeScreen = ({ navigation }) => {
             activeOpacity={0.75}
             onPress={() => playTrack(item, tracks)}
         >
-            <Image source={{ uri: item.image }} style={styles.trackCardImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.trackCardImage} />
             <View style={styles.trackCardOverlay} />
             {isCurrent && (
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
@@ -291,7 +291,7 @@ const HomeScreen = ({ navigation }) => {
             onPress={() => handleAlbumPress(item)}
         >
             <View style={{ position: 'relative' }}>
-                <Image source={{ uri: item.image }} style={styles.albumImage} />
+                <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.albumImage} />
                 {loadingAlbumId === item.id && (
                     <View style={styles.albumLoadingOverlay}>
                         <Ionicons name="musical-notes" size={22} color="#1DB954" />
@@ -313,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
             onPress={() => playTrack(item, tracks)}
         >
             <View style={{ position: 'relative' }}>
-                <Image source={{ uri: item.image }} style={styles.topHitImage} />
+                <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.topHitImage} />
                 {isCurrent && (
                     <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 18 }}>🎵</Text>
@@ -332,7 +332,7 @@ const HomeScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
 
             <ScrollView
                 contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16, paddingBottom: 170 }]}
@@ -528,7 +528,7 @@ const HomeScreen = ({ navigation }) => {
                                                 activeOpacity={0.8}
                                                 onPress={() => navigation.navigate('Artist', { artistId: item.id, artistName: item.name, artistImage: item.image })}
                                             >
-                                                <Image source={{ uri: item.image }} style={styles.artistImage} />
+                                                <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.artistImage} />
                                                 <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
                                             </TouchableOpacity>
                                         ))}

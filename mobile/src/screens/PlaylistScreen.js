@@ -69,7 +69,7 @@ const PlaylistScreen = ({ route, navigation }) => {
     const renderSongItem = ({ item, index }) => (
         <TouchableOpacity style={styles.trackItem} onPress={() => playTrack(item)}>
             <Text style={styles.trackIndex}>{index + 1}</Text>
-            <Image source={{ uri: item.image }} style={styles.trackImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.trackImage} />
             <View style={styles.trackInfo}>
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
@@ -88,7 +88,7 @@ const PlaylistScreen = ({ route, navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             
             <View style={[styles.headerBar, { top: insets.top + 8 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

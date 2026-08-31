@@ -61,7 +61,7 @@ const FeedbackScreen = ({ navigation }) => {
     if (submitted) {
         return (
             <View style={[styles.container, { paddingTop: insets.top }]}>
-                <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+                <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
                 <View style={styles.successContainer}>
                     <View style={styles.successCircle}>
                         <Text style={styles.successEmoji}>🎉</Text>
@@ -89,7 +89,7 @@ const FeedbackScreen = ({ navigation }) => {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <View style={[styles.container, { paddingTop: insets.top }]}>
-                <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+                <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
 
                 {/* Header */}
                 <View style={styles.header}>

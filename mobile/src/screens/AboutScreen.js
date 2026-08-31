@@ -33,7 +33,7 @@ const AboutScreen = ({ navigation }) => {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             
             {/* Header */}
             <View style={styles.header}>

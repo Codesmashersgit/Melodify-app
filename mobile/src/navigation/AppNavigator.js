@@ -28,6 +28,47 @@ import PlayerBar from '../components/PlayerBar';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+const commonScreens = (StackNav) => (
+  <>
+    <StackNav.Screen name="Album" component={AlbumScreen} />
+    <StackNav.Screen name="Artist" component={ArtistScreen} />
+    <StackNav.Screen name="Playlist" component={PlaylistScreen} />
+    <StackNav.Screen name="SeeAll" component={SeeAllScreen} />
+    <StackNav.Screen name="About" component={AboutScreen} />
+    <StackNav.Screen name="Feedback" component={FeedbackScreen} />
+  </>
+);
+
+const HomeStack = createNativeStackNavigator();
+function HomeTab() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+      {commonScreens(HomeStack)}
+    </HomeStack.Navigator>
+  );
+}
+
+const SearchStack = createNativeStackNavigator();
+function SearchTab() {
+  return (
+    <SearchStack.Navigator screenOptions={{ headerShown: false }}>
+      <SearchStack.Screen name="SearchScreen" component={SearchScreen} />
+      {commonScreens(SearchStack)}
+    </SearchStack.Navigator>
+  );
+}
+
+const LibraryStack = createNativeStackNavigator();
+function LibraryTab() {
+  return (
+    <LibraryStack.Navigator screenOptions={{ headerShown: false }}>
+      <LibraryStack.Screen name="LibraryScreen" component={LibraryScreen} />
+      {commonScreens(LibraryStack)}
+    </LibraryStack.Navigator>
+  );
+}
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
   
@@ -48,25 +89,26 @@ function MainTabs() {
           },
           tabBarActiveTintColor: '#1DB954',
           tabBarInactiveTintColor: 'gray',
+          
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
+            paddingBottom: insets.bottom > 0 ? 0 : 5,
+          },
           tabBarStyle: {
-            backgroundColor: '#0a0a0f',
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.05)',
-            height: 60 + insets.bottom,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-            paddingTop: 6,
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
+            backgroundColor: '#121212',
+            borderTopWidth: 0,
             elevation: 10,
+            height: 60 + (insets.bottom || 0),
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
+            paddingTop: 8,
           },
           headerShown: false,
         })}
       >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Search" component={SearchScreen} />
-        <Tab.Screen name="Library" component={LibraryScreen} />
+        <Tab.Screen name="Home" component={HomeTab} />
+        <Tab.Screen name="Search" component={SearchTab} />
+        <Tab.Screen name="Library" component={LibraryTab} />
       </Tab.Navigator>
     </View>
   );
@@ -94,48 +136,7 @@ export default function AppNavigator() {
             /* Main App Stack (Logged in and preferences set) */
             <Stack.Group>
               <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen
-              name="Album"
-              component={AlbumScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
-            <Stack.Screen
-              name="Artist"
-              component={ArtistScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
-            <Stack.Screen
-              name="Playlist"
-              component={PlaylistScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
-            <Stack.Screen
-              name="SeeAll"
-              component={SeeAllScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
-            <Stack.Screen
-              name="About"
-              component={AboutScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
-            <Stack.Screen
-              name="Feedback"
-              component={FeedbackScreen}
-              options={{
-                animationEnabled: true,
-              }}
-            />
+
             </Stack.Group>
           ) : (
             /* Preferences Onboarding Stack */

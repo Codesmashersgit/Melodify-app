@@ -102,10 +102,7 @@ const PreferencesScreen = ({ navigation }) => {
     >
 
 
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#030407"
-      />
+      <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
 
 
 
@@ -260,9 +257,7 @@ const PreferencesScreen = ({ navigation }) => {
                   <ImageBackground
 
 
-                    source={{
-                      uri:item.image
-                    }}
+                    source={{ uri: item.image || 'https://via.placeholder.com/150' }}
 
 
                     style={styles.image}

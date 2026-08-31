@@ -82,7 +82,7 @@ const LibraryScreen = ({ navigation }) => {
 
     const renderSongItem = ({ item }) => (
         <TouchableOpacity style={styles.trackCard} activeOpacity={0.7} onPress={() => playTrack(item)}>
-            <Image source={{ uri: item.image }} style={styles.trackImage} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.trackImage} />
             <View style={styles.trackInfo}>
                 <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
@@ -114,7 +114,7 @@ const LibraryScreen = ({ navigation }) => {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="light-content" backgroundColor="rgba(0,0,0,0.7)" translucent={true} />
             
             <View style={styles.header}>
                 <View style={styles.headerTop}>

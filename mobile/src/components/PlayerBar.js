@@ -63,7 +63,7 @@ const PlayerBar = () => {
     return (
         <>
             <TouchableOpacity
-                style={[styles.container, { bottom: 60 + (insets.bottom > 0 ? insets.bottom : 10) + 4 }]}
+                style={[styles.container, { bottom: 60 + (insets.bottom || 0) }]}
                 activeOpacity={0.95}
                 onPress={toggleExpand}
             >
@@ -132,19 +132,16 @@ const PlayerBar = () => {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 74,
-        width: width - 20,
-        marginHorizontal: 10,
+        width: '100%',
         left: 0,
         backgroundColor: '#1e1e2e',
-        borderRadius: 14,
         overflow: 'hidden',
         elevation: 14,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-        borderWidth: 1,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        borderTopWidth: 1,
         borderColor: 'rgba(255,255,255,0.07)',
     },
     content: {

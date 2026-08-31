@@ -14,14 +14,14 @@ const SignupScreen = ({ navigation }) => {
     const { signup, login, socialAuth } = useAuth();
     const insets = useSafeAreaInsets();
     const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '';
-    const redirectUri = makeRedirectUri();
+    const redirectUri = makeRedirectUri({ useProxy: true });
 
     const discovery = {
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenEndpoint: 'https://oauth2.googleapis.com/token',
     };
 
-    const [request, promptAsync] = Google.useAuthRequest({
+    const [request, response, promptAsync] = Google.useAuthRequest({
         clientId: GOOGLE_CLIENT_ID,
         redirectUri,
         scopes: ['openid', 'profile', 'email'],
@@ -176,13 +176,14 @@ const SignupScreen = ({ navigation }) => {
         <View style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={26} color="white" />
-                        </TouchableOpacity>
-                    </View>
+                    
 
                     <View style={styles.content}>
+                        
+                        <Image 
+                            source={require('../assets/melodify.png')} 
+                            style={{ width: 80, height: 80, borderRadius: 40, alignSelf: 'center', marginBottom: 20 }} 
+                        />
                         <Text style={styles.title}>Create account</Text>
                         <Text style={styles.subtitle}>Sign up to start listening</Text>
 
@@ -232,7 +233,7 @@ const SignupScreen = ({ navigation }) => {
                                         <Text style={styles.label}>Create a password</Text>
                                         <View style={styles.passwordContainer}>
                                             <TextInput
-                                                style={[styles.input, { flex: 1, borderBottomWidth: 0 }]}
+                                                style={{ flex: 1, color: 'white', fontSize: 16 }}
                                                 value={password}
                                                 onChangeText={setPassword}
                                                 placeholder="Enter your password"
@@ -370,7 +371,7 @@ const SignupScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: '#050505',
     },
     scrollContent: {
         flexGrow: 1,
@@ -391,10 +392,10 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 24,
         justifyContent: 'center',
-        paddingBottom: 40,
+        paddingBottom: 40, paddingTop: 40,
     },
     title: {
-        fontSize: 36,
+        fontSize: 32,
         fontWeight: '800',
         color: '#FFFFFF',
         marginBottom: 12,
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 16,
         color: '#AAAAAA',
-        marginBottom: 40,
+        marginBottom: 20,
         lineHeight: 22,
     },
     form: {
@@ -421,27 +422,27 @@ const styles = StyleSheet.create({
     },
     input: {
         backgroundColor: 'rgba(255,255,255,0.05)',
-        height: 56,
-        borderRadius: 12,
+        height: 60,
+        borderRadius: 16,
         paddingHorizontal: 16,
         color: '#FFFFFF',
         fontSize: 16,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
     },
     passwordContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.05)',
-        height: 56,
-        borderRadius: 12,
+        height: 60,
+        borderRadius: 16,
         paddingHorizontal: 16,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
     },
     signupButton: {
         backgroundColor: '#1DB954',
-        height: 56,
+        height: 60,
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
@@ -479,7 +480,7 @@ const styles = StyleSheet.create({
     },
     socialButton: {
         flexDirection: 'row',
-        height: 56,
+        height: 60,
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
@@ -517,7 +518,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 24,
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
     },
     closeModalBtn: {
@@ -561,10 +562,10 @@ const styles = StyleSheet.create({
         height: 52,
         paddingHorizontal: 14,
         backgroundColor: 'rgba(255,255,255,0.06)',
-        borderRadius: 12,
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
     },
     countryCodeText: {
@@ -575,23 +576,23 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 52,
         backgroundColor: 'rgba(255,255,255,0.06)',
-        borderRadius: 12,
+        borderRadius: 16,
         paddingHorizontal: 16,
         color: 'white',
         fontSize: 16,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
     },
     otpInput: {
         height: 60,
         backgroundColor: 'rgba(255,255,255,0.06)',
-        borderRadius: 12,
+        borderRadius: 16,
         color: 'white',
         fontSize: 26,
         fontWeight: 'bold',
         textAlign: 'center',
         letterSpacing: 16,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255,255,255,0.1)',
         marginBottom: 20,
     },
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: 48,
+        marginTop: 20,
         marginBottom: 20,
     },
     footerText: {

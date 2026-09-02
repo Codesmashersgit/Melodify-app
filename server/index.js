@@ -977,7 +977,7 @@ app.get('/api/artists', async (req, res) => {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     
-    res.json(shuffled.slice(0, 10));
+    res.json(shuffled);
     // Background fetch removed — it was causing songs to be incorrectly classified as artists
 });
 

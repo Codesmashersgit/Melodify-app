@@ -742,9 +742,20 @@ app.get('/api/search', async (req, res) => {
     const tracks = songsSettled.status === 'fulfilled' ? (songsSettled.value || []) : [];
     const artistsResults = artistsSettled.status === 'fulfilled' ? (artistsSettled.value || []) : [];
 
-    const combinedResults = [...tracks, ...artistsResults];
-    if (combinedResults.length > 0) {
-        apiCache.set(cacheKey, combinedResults);
+    
+      const combinedResults = [...tracks, ...artistsResults];
+      if (combinedResults.length > 0) {
+          // --- SHUFFLE LOGIC ---
+          // Deterministically shuffle the combinedResults based on the current day so search-based categories (like preferences) change every day!
+          const daySeed = new Date().getFullYear() + new Date().getMonth() + new Date().getDate();
+          for (let i = combinedResults.length - 1; i > 0; i--) {
+              const j = (daySeed * (i + 1)) % (i + 1);
+              [combinedResults[i], combinedResults[j]] = [combinedResults[j], combinedResults[i]];
+          }
+          // --- END SHUFFLE LOGIC ---
+          
+          apiCache.set(cacheKey, combinedResults);
+
         res.json(combinedResults);
         // ✅ Prefetch stream URLs for top search songs in background
         const songResults = tracks.filter(t => t.type === 'song' || !t.type);
@@ -767,14 +778,18 @@ app.post('/api/prefetch', async (req, res) => {
 
 // Get trending/popular songs for home page (Top Hits)
 app.get('/api/top-tracks', async (req, res) => {
-    const cacheKey = 'top_tracks';
+    // Generate a new cache key every hour based on date and hour, or just clear cache dynamically
+    const queryList = ["top hindi songs 2025","latest bollywood","hindi romantic hit","punjabi hit songs","lofi mashup","trending reels songs","best of arijit singh","shreya ghoshal hits","party anthems","devotional songs hindi","relaxing acoustic hindi","indie pop hindi"];
+    const daySeed = new Date().getHours() + new Date().getDate(); // Changes every hour
+    const selectedQuery = queryList[daySeed % queryList.length];
+    const cacheKey = 'top_tracks_' + selectedQuery;
     if (apiCache.has(cacheKey)) return res.json(apiCache.get(cacheKey));
 
     try {
         // Try Vercel wrapper first (faster from cloud)
         let tracks = [];
         try {
-            const data = await fetchJson('https://jiosaavn-api-beta.vercel.app/search/songs?query=top+hindi+songs+2025&limit=20', 7000);
+            const data = await fetchJson('https://jiosaavn-api-beta.vercel.app/search/songs?query=${encodeURIComponent(selectedQuery)}&limit=20', 7000);
             const results = data?.data?.results || data?.results || [];
             if (results.length > 0) {
                 tracks = results.map(song => {
@@ -802,7 +817,7 @@ app.get('/api/top-tracks', async (req, res) => {
 
         // Fallback: official JioSaavn
         if (tracks.length === 0) {
-            const data = await jiosaavnRequest({ __call: 'search.getResults', q: 'top hindi songs 2025', n: '20' });
+            const data = await jiosaavnRequest({ __call: 'search.getResults', q: selectedQuery, n: '20' });
             tracks = (data.results || []).map(formatSong);
         }
 
@@ -864,7 +879,17 @@ app.get('/api/recommendations', async (req, res) => {
             ];
         }
 
-        apiCache.set(cacheKey, albums);
+        
+          // --- SHUFFLE LOGIC ---
+          const daySeed = new Date().getFullYear() + new Date().getMonth() + new Date().getDate();
+          for (let i = albums.length - 1; i > 0; i--) {
+              const j = (daySeed * (i + 1)) % (i + 1);
+              [albums[i], albums[j]] = [albums[j], albums[i]];
+          }
+          // --- END SHUFFLE LOGIC ---
+          
+          apiCache.set(cacheKey, albums);
+
         res.json(albums.slice(0, 10));
     } catch (err) {
         console.error('Recommendations error:', err.message);
@@ -920,7 +945,7 @@ app.get('/api/album/:id', async (req, res) => {
 });
 
 // In-memory artist cache to avoid spamming the API on every request/restart
-let globalArtistsCache = [
+const baseArtists = [
     { id: '459320', name: 'Arijit Singh', image: 'https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg' },
     { id: '455130', name: 'Shreya Ghoshal', image: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg' },
     { id: '464932', name: 'Neha Kakkar', image: 'https://c.saavncdn.com/artists/Neha_Kakkar_007_20241212115832_500x500.jpg' },
@@ -931,27 +956,28 @@ let globalArtistsCache = [
     { id: '485956', name: 'Yo Yo Honey Singh', image: 'https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_002_20221216102650_500x500.jpg' },
     { id: '455144', name: 'Kishore Kumar', image: 'https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg' },
     { id: '455109', name: 'Lata Mangeshkar', image: 'https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg' },
-    { id: '505312', name: 'Mohammed Rafi', image: 'https://c.saavncdn.com/artists/Mohammed_Rafi_500x500.jpg' },
-    { id: '456269', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084455_500x500.jpg' },
-    { id: '455663', name: 'Anirudh Ravichander', image: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_003_20260121134149_500x500.jpg' },
-    { id: '456323', name: 'Pritam', image: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg' },
-    { id: '455125', name: 'Sonu Nigam', image: 'https://c.saavncdn.com/artists/Sonu_Nigam_500x500.jpg' },
-    { id: '881158', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg' },
-    { id: '468245', name: 'Diljit Dosanjh', image: 'https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg' },
-    { id: '712878', name: 'Guru Randhawa', image: 'https://c.saavncdn.com/artists/Guru_Randhawa_004_20250701125845_500x500.jpg' },
-    { id: '788130', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg' },
-    { id: '888127', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_006_20250807060352_500x500.jpg' },
-    { id: '455135', name: 'Shaan', image: 'https://c.saavncdn.com/artists/Shaan_004_20250422120221_500x500.jpg' },
-    { id: '455782', name: 'KK', image: 'https://c.saavncdn.com/artists/KK_500x500.jpg' },
-    { id: '702452', name: 'Vishal Mishra', image: 'https://c.saavncdn.com/artists/Vishal_Mishra_005_20251120085316_500x500.jpg' },
-    { id: '741999', name: 'S. P. Balasubrahmanyam', image: 'https://c.saavncdn.com/artists/S_P_Balasubrahmanyam_500x500.jpg' },
+    { id: '456112', name: 'Atif Aslam', image: 'https://c.saavncdn.com/artists/Atif_Aslam_500x500.jpg' },
+    { id: '568603', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_005_20241118063319_500x500.jpg' },
+    { id: '458925', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20241118063347_500x500.jpg' },
+    { id: '468453', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_003_20241118063715_500x500.jpg' },
+    { id: '578407', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084534_500x500.jpg' }
 ];
+let globalArtistsCache = [...baseArtists];
 
 let isFetchingArtists = false; // Kept for legacy compatibility if used elsewhere
 
 // Get popular artists
 app.get('/api/artists', async (req, res) => {
-    res.json(globalArtistsCache);
+    // Shuffle the artists based on current hour/day so they change frequently
+    const daySeed = new Date().getHours() + new Date().getDate();
+    
+    let shuffled = [...baseArtists];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = (daySeed * (i + 1)) % (i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    res.json(shuffled.slice(0, 10));
     // Background fetch removed — it was causing songs to be incorrectly classified as artists
 });
 

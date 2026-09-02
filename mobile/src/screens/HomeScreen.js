@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationsModal from '../components/NotificationsModal';
 import { ArtistSkeletonRow, AlbumSkeletonRow, TrackSkeletonRow } from '../components/Skeleton';
+import GaneshSkeleton from '../components/GaneshSkeleton';
+
 import SongOptionsSheet from '../components/SongOptionsSheet';
 import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
 import API_BASE_URL from '../config';
@@ -329,6 +331,15 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
         </TouchableOpacity>
     )};
+
+    
+    if (!minLoaderTimeElapsed) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#121212' }}>
+                <GaneshSkeleton />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>

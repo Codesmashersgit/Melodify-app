@@ -265,6 +265,12 @@ const AdminPanel = () => {
                           style={{ padding: '8px 16px', background: '#ff6b35', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
                           + Quick Rakhi
                         </button>
+                          <button 
+                            onClick={() => handleSaveFestival({ active: true, festivalName: 'Ganpati Bappa Morya (Special)', subtitle: 'Celebrate Ganesh Chaturthi', playlistId: '87223420' })}
+                            style={{ padding: '8px 16px', background: '#ffcc00', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                            + Quick Ganesh
+                          </button>
+
                         <button 
                           onClick={() => handleSaveFestival({ active: false, festivalName: '', subtitle: '', playlistId: '' })}
                           style={{ padding: '8px 16px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>

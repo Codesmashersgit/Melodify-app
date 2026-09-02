@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import GaneshSkeleton from './GaneshSkeleton';
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom';
 import { usePlayback } from '../context/PlaybackContext';
 import axios from 'axios';
@@ -15,6 +16,8 @@ const Body = () => {
     const navigate = useNavigate();
     const [albumSongsCache, setAlbumSongsCache] = useState({});
     const [loadingAlbumId, setLoadingAlbumId] = useState(null);
+    const [minLoaderTimeElapsed, setMinLoaderTimeElapsed] = useState(false);
+    
     const [preferenceTracks, setPreferenceTracks] = useState({});
     const [festivalTracks, setFestivalTracks] = useState([]);
     const [isFestivalLoading, setIsFestivalLoading] = useState(true);
@@ -121,6 +124,38 @@ const Body = () => {
             setLoadingAlbumId(null);
         }
     };
+
+    
+    
+    const ganeshTrack = {
+        id: "GGMI3kq4",
+        name: "Deva Shree Ganesha (Ganpati 2026)",
+        artist: "Ajay-Atul, Ajay Gogavale",
+        image: "https://c.saavncdn.com/317/Agneepath-Hindi-2011-20190603132941-500x500.jpg",
+        preview_url: `${API_BASE_URL}/api/stream?id=GGMI3kq4&name=Deva%20Shree%20Ganesha%20(Ganpati%202026)&artist=Ajay-Atul%2C%20Ajay%20Gogavale`
+    };
+
+    const handleGaneshFinish = () => {
+        sessionStorage.setItem('ganeshLoaderShown', 'true');
+        setMinLoaderTimeElapsed(true);
+        if (window.confirm("Bappa is here! Continue with Deva Shree Ganesha song?")) {
+            playTrack(ganeshTrack, [ganeshTrack]);
+        }
+    };
+
+    
+    const hasSeenGanesh = sessionStorage.getItem('ganeshLoaderShown') === 'true';
+    const isInitialDataLoading = isLoading || isFestivalLoading || preferencesLoading;
+    const shouldShowGanesh = (!hasSeenGanesh && isInitialDataLoading) || (!hasSeenGanesh && !minLoaderTimeElapsed);
+
+    if (shouldShowGanesh) {
+        return (
+            <div className='fade-in' style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <GaneshSkeleton onFinish={handleGaneshFinish} />
+            </div>
+        );
+    }
+
 
     return (
         <div className='fade-in'>

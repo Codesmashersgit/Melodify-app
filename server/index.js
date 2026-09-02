@@ -957,10 +957,10 @@ const baseArtists = [
     { id: '455144', name: 'Kishore Kumar', image: 'https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg' },
     { id: '455109', name: 'Lata Mangeshkar', image: 'https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg' },
     { id: '456112', name: 'Atif Aslam', image: 'https://c.saavncdn.com/artists/Atif_Aslam_500x500.jpg' },
-    { id: '568603', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_005_20241118063319_500x500.jpg' },
-    { id: '458925', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20241118063347_500x500.jpg' },
-    { id: '468453', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_003_20241118063715_500x500.jpg' },
-    { id: '578407', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084534_500x500.jpg' }
+    { id: '888127', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_006_20250807060352_500x500.jpg' },
+    { id: '881158', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg' },
+    { id: '788130', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg' },
+    { id: '456269', name: 'A.R. Rahman', image: 'https://c.saavncdn.com/artists/AR_Rahman_002_20210120084455_500x500.jpg' }
 ];
 let globalArtistsCache = [...baseArtists];
 

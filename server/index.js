@@ -956,7 +956,7 @@ const baseArtists = [
     { id: '485956', name: 'Yo Yo Honey Singh', image: 'https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_002_20221216102650_500x500.jpg' },
     { id: '455144', name: 'Kishore Kumar', image: 'https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg' },
     { id: '455109', name: 'Lata Mangeshkar', image: 'https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg' },
-    { id: '456112', name: 'Atif Aslam', image: 'https://c.saavncdn.com/artists/Atif_Aslam_500x500.jpg' },
+    { id: '464656', name: 'Armaan Malik', image: 'https://c.saavncdn.com/artists/Armaan_Malik_006_20260813132832_500x500.jpg' },
     { id: '888127', name: 'Darshan Raval', image: 'https://c.saavncdn.com/artists/Darshan_Raval_006_20250807060352_500x500.jpg' },
     { id: '881158', name: 'Jubin Nautiyal', image: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg' },
     { id: '788130', name: 'B Praak', image: 'https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg' },

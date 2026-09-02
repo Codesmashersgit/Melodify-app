@@ -64,7 +64,7 @@ const GaneshSkeleton = () => {
             <Animated.View style={[styles.glowContainer, { transform: [{ rotate }] }]}>
                 {/* Radiating background rays */}
                 {[0, 45, 90, 135].map(deg => (
-                    <View key={deg} style={[styles.ray, { transform: [{ rotate: \`\${deg}deg\` }] }]} />
+                    <View key={deg} style={[styles.ray, { transform: [{ rotate: `${deg}deg` }] }]} />
                 ))}
             </Animated.View>
 

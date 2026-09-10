@@ -79,13 +79,39 @@ const SearchScreen = ({ navigation, route }) => {
         return () => clearTimeout(debounceRef.current);
     }, [searchQuery]);
 
-    const startListening = () => {
-    Alert.alert(
-        "Voice Search",
-        "Free Plan Limit! Abhi ke liye tum keyboard wala mic icon use kar sakte ho awaz se search karne ke liye.",
-        [{ text: "OK", style: "default" }]
-    );
-};
+    
+    useSpeechRecognitionEvent('start', () => setIsListening(true));
+    useSpeechRecognitionEvent('end', () => setIsListening(false));
+    useSpeechRecognitionEvent('result', (event) => {
+        const text = event.results[0]?.transcript;
+        if (text) setSearchQuery(text);
+    });
+    useSpeechRecognitionEvent('error', (event) => {
+        setIsListening(false);
+    });
+
+    const startListening = async () => {
+        try {
+            const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (!perm.granted) {
+                Alert.alert("Permission required", "Please allow microphone access to use Voice Search");
+                return;
+            }
+            if (isListening) {
+                ExpoSpeechRecognitionModule.stop();
+            } else {
+                ExpoSpeechRecognitionModule.start({
+                    lang: 'en-IN',
+                    interimResults: true,
+                    maxAlternatives: 1
+                });
+            }
+        } catch (err) {
+            console.error('Speech recognition error:', err);
+            setIsListening(false);
+        }
+    };
+
 
     const handleAiSearch = async (text) => {
         if (!text || !text.trim()) return;

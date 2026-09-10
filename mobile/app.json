@@ -30,7 +30,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "versionCode": 3
+      "versionCode": 3,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,7 +53,8 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-speech-recognition"
     ],
     "extra": {
       "eas": {

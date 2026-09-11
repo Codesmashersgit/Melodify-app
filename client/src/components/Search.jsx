@@ -117,7 +117,7 @@ const Search = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const initialQ = searchParams.get('q');
-    const { albums, artists, playTrack, currentTrack, isPlaying, togglePlay } = usePlayback();
+    const { albums, artists, tracks, playTrack, currentTrack, isPlaying, togglePlay } = usePlayback();
     const [searchQuery, setSearchQuery] = useState(initialQ || '');
     const [hasSearched, setHasSearched] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -717,25 +717,60 @@ const Search = () => {
                         </div>
 
                         {/* Trending Songs Section */}
-                        <div>
-                            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ marginTop: '30px', paddingBottom: '40px' }}>
+                            <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 ⚡ Popular & Trending Right Now
                             </h2>
-                            {albums && albums.length > 0 && albums[0]?.tracks ? (
-                                albums[0].tracks.slice(0, 6).map((track, i) => (
-                                    <SongRow
-                                        key={track.id || i}
-                                        track={track}
-                                        index={i}
-                                        queue={albums[0].tracks}
-                                        playTrack={playTrack}
-                                        currentTrack={currentTrack}
-                                        isPlaying={isPlaying}
-                                        togglePlay={togglePlay}
-                                        onAddToPlaylist={handleOpenPlaylistModal}
-                                    />
-                                ))
-                            ) : null}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                gap: '16px'
+                            }}>
+                                {tracks && tracks.length > 0 ? (
+                                    tracks.slice(6, 15).map((track, i) => {
+                                        const isTrackPlaying = currentTrack?.id === track.id;
+                                        return (
+                                            <div 
+                                                key={track.id || i}
+                                                onClick={() => playTrack(track, tracks)}
+                                                className="trending-card"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                                                    borderRadius: '12px',
+                                                    padding: '12px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '16px',
+                                                    cursor: 'pointer',
+                                                    border: '1px solid rgba(255,255,255,0.04)',
+                                                    transition: 'all 0.3s ease',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <div style={{ position: 'relative', width: '60px', height: '60px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+                                                    <img src={track.image} alt={track.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    {isTrackPlaying && (
+                                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            {isPlaying ? <FaPause color="#1DB954" size={16} /> : <FaPlay color="#1DB954" size={16} />}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+                                                    <h3 style={{ fontSize: '1rem', fontWeight: '700', color: isTrackPlaying ? '#1DB954' : 'white', margin: '0 0 4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {track.name}
+                                                    </h3>
+                                                    <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {track.artist}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div style={{ color: 'rgba(255,255,255,0.5)', gridColumn: '1 / -1' }}>Loading trending tracks...</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

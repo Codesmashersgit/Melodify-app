@@ -77,9 +77,17 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const token = localStorage.getItem('melodify_token');
+        if (token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
+
         const checkSession = async () => {
             try {
+                const storedToken = localStorage.getItem('melodify_token');
+                const config = storedToken ? { headers: { Authorization: `Bearer ${storedToken}` } } : {};
                 const res = await axios.get(`${API_BASE_URL}/api/user/me`, {
+                    ...config,
                     validateStatus: (status) => status === 200 || status === 401
                 });
                 if (res.status === 200 && res.data?.user) {
@@ -103,6 +111,11 @@ export const AuthProvider = ({ children }) => {
                 `${API_BASE_URL}/api/user/login`,
                 { email, password }
             );
+
+            if (res.data?.token) {
+                localStorage.setItem('melodify_token', res.data.token);
+                axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+            }
 
             setUser(res.data.user);
 
@@ -147,6 +160,8 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error('Logout failed', error);
         } finally {
+            localStorage.removeItem('melodify_token');
+            delete axios.defaults.headers.common['Authorization'];
             setUser(null);
         }
     };
@@ -155,25 +170,27 @@ export const AuthProvider = ({ children }) => {
     // ✅ NEW: Save user preferences
     const updatePreferences = async (preferences) => {
         try {
-
             setUser(prev => ({
                 ...prev,
                 preferences
             }));
 
+            const storedToken = localStorage.getItem('melodify_token');
+            const config = storedToken ? { headers: { Authorization: `Bearer ${storedToken}` } } : {};
+
             await axios.put(
                 `${API_BASE_URL}/api/user/preferences`,
                 {
                     preferences
-                }
+                },
+                config
             );
         } catch (error) {
             console.error(
                 "Preference update failed",
                 error
             );
-
-            throw error;
+            // Even if network fails or partial error, keep state updated for smooth navigation
         }
     };
 

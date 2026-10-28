@@ -27,21 +27,21 @@ const PREFERENCES = [
 ];
 
 const ARTISTS = [
-    { id: "arijit_singh", label: "Arijit Singh", image: "https://ui-avatars.com/api/?name=Arijit+Singh&background=random&color=fff&size=200&bold=true" },
-    { id: "shreya_ghoshal", label: "Shreya Ghoshal", image: "https://ui-avatars.com/api/?name=Shreya+Ghoshal&background=random&color=fff&size=200&bold=true" },
-    { id: "diljit_dosanjh", label: "Diljit Dosanjh", image: "https://ui-avatars.com/api/?name=Diljit+Dosanjh&background=random&color=fff&size=200&bold=true" },
-    { id: "ar_rahman", label: "A.R. Rahman", image: "https://ui-avatars.com/api/?name=A+R+Rahman&background=random&color=fff&size=200&bold=true" },
-    { id: "atif_aslam", label: "Atif Aslam", image: "https://ui-avatars.com/api/?name=Atif+Aslam&background=random&color=fff&size=200&bold=true" },
-    { id: "taylor_swift", label: "Taylor Swift", image: "https://ui-avatars.com/api/?name=Taylor+Swift&background=random&color=fff&size=200&bold=true" },
-    { id: "the_weeknd", label: "The Weeknd", image: "https://ui-avatars.com/api/?name=The+Weeknd&background=random&color=fff&size=200&bold=true" },
-    { id: "kishore_kumar", label: "Kishore Kumar", image: "https://ui-avatars.com/api/?name=Kishore+Kumar&background=random&color=fff&size=200&bold=true" },
-    { id: "lata_mangeshkar", label: "Lata Mangeshkar", image: "https://ui-avatars.com/api/?name=Lata+Mangeshkar&background=random&color=fff&size=200&bold=true" },
-    { id: "neha_kakkar", label: "Neha Kakkar", image: "https://ui-avatars.com/api/?name=Neha+Kakkar&background=random&color=fff&size=200&bold=true" },
-    { id: "badshah", label: "Badshah", image: "https://ui-avatars.com/api/?name=Badshah&background=random&color=fff&size=200&bold=true" },
-    { id: "sid_sriram", label: "Sid Sriram", image: "https://ui-avatars.com/api/?name=Sid+Sriram&background=random&color=fff&size=200&bold=true" },
-    { id: "sonu_nigam", label: "Sonu Nigam", image: "https://ui-avatars.com/api/?name=Sonu+Nigam&background=random&color=fff&size=200&bold=true" },
-    { id: "justin_bieber", label: "Justin Bieber", image: "https://ui-avatars.com/api/?name=Justin+Bieber&background=random&color=fff&size=200&bold=true" },
-    { id: "bts", label: "BTS", image: "https://ui-avatars.com/api/?name=BTS&background=random&color=fff&size=200&bold=true" },
+    { id: "arijit_singh", label: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230801131013_500x500.jpg" },
+    { id: "shreya_ghoshal", label: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_006_20200826143454_500x500.jpg" },
+    { id: "diljit_dosanjh", label: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg" },
+    { id: "ar_rahman", label: "A.R. Rahman", image: "https://c.saavncdn.com/artists/A_R_Rahman_002_20180913100735_500x500.jpg" },
+    { id: "honey_singh", label: "Yo Yo Honey Singh", image: "https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_002_20221111152247_500x500.jpg" },
+    { id: "taylor_swift", label: "Taylor Swift", image: "https://c.saavncdn.com/artists/Taylor_Swift_004_20231016094045_500x500.jpg" },
+    { id: "ap_dhillon", label: "AP Dhillon", image: "https://c.saavncdn.com/artists/AP_Dhillon_003_20231215091424_500x500.jpg" },
+    { id: "kishore_kumar", label: "Kishore Kumar", image: "https://c.saavncdn.com/artists/Kishore_Kumar_006_20200826143630_500x500.jpg" },
+    { id: "lata_mangeshkar", label: "Lata Mangeshkar", image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623145834_500x500.jpg" },
+    { id: "neha_kakkar", label: "Neha Kakkar", image: "https://c.saavncdn.com/artists/Neha_Kakkar_006_20200822042626_500x500.jpg" },
+    { id: "badshah", label: "Badshah", image: "https://c.saavncdn.com/artists/Badshah_005_20230608084021_500x500.jpg" },
+    { id: "jubin_nautiyal", label: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20200826143252_500x500.jpg" },
+    { id: "sonu_nigam", label: "Sonu Nigam", image: "https://c.saavncdn.com/artists/Sonu_Nigam_004_20200826143534_500x500.jpg" },
+    { id: "king", label: "King", image: "https://c.saavncdn.com/artists/King_004_20230828083245_500x500.jpg" },
+    { id: "karan_aujla", label: "Karan Aujla", image: "https://c.saavncdn.com/artists/Karan_Aujla_003_20221028163928_500x500.jpg" },
 ];
 
 const Preferences = () => {
@@ -68,9 +68,10 @@ const Preferences = () => {
         setSaving(true);
         try {
             await updatePreferences(selected);
-            navigate("/");
+            navigate("/", { replace: true });
         } catch (error) {
             console.error("Failed to save preferences", error);
+            navigate("/", { replace: true });
         } finally {
             setSaving(false);
         }

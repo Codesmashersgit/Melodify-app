@@ -57,15 +57,19 @@ const Body = () => {
             const newPrefs = {};
             const hiddenPrefs = new Set(['hindi', 'english']);
             try {
-                await Promise.all(user.preferences.map(async (pref) => {
-                    const normalizedPref = pref?.toLowerCase?.();
+                await Promise.all(user.preferences.map(async (rawPref) => {
+                    const normalizedPref = rawPref?.toLowerCase?.();
                     if (hiddenPrefs.has(normalizedPref)) {
                         return;
                     }
-                    const res = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(pref)}`);
+                    // Format pref for better search (e.g. "arijit_singh" -> "Arijit Singh")
+                    const searchQuery = rawPref.includes('_') 
+                        ? rawPref.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                        : rawPref;
+                    const res = await axios.get(`${API_BASE_URL}/api/search?query=${encodeURIComponent(searchQuery)}`);
                     const prefTracks = Array.isArray(res.data) ? res.data : (res.data.tracks || []);
                     if (prefTracks.length > 0) {
-                        newPrefs[pref] = prefTracks.filter(t => t.preview_url || t.id);
+                        newPrefs[searchQuery] = prefTracks.filter(t => t.preview_url || t.id);
                     }
                 }));
                 setPreferenceTracks(newPrefs);

@@ -42,6 +42,10 @@ const Login = () => {
           platform: 'web'
         });
         if (res.data.success || res.data.token) {
+          if (res.data.token) {
+            localStorage.setItem('melodify_token', res.data.token);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+          }
           setUser(res.data.user);
           navigate('/');
         }
